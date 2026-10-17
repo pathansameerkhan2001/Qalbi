@@ -6,6 +6,7 @@ import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { buildLocalCart, readLocalLines } from "@/lib/cart/local";
 import { getStoreProducts, isSupabaseCommerce } from "@/lib/store/catalog";
+import { isServerWriteConfigured } from "@/lib/supabase/server";
 import { deliveryChargeFor, getCheckoutSettings, getContactSettings, qrPaymentReady } from "@/lib/store/settings";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { whatsappLink } from "@/lib/utils";
@@ -33,7 +34,7 @@ export default function CheckoutPage() {
 }
 
 async function CheckoutContent() {
-  if (isShopifyConfigured() || !isSupabaseCommerce(false)) {
+  if (isShopifyConfigured() || !isSupabaseCommerce(false) || !isServerWriteConfigured()) {
     return (
       <Notice title="Online ordering is not open yet">
         To order, message us on{" "}

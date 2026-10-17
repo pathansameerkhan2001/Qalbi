@@ -1,11 +1,11 @@
 import "server-only";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createPublicClient } from "@/lib/supabase/server";
+import { clientKey, createServerWriteClient, isServerWriteConfigured } from "@/lib/supabase/server";
 
 /**
- * Stores a copy of a validated form submission via the record_enquiry()
- * database function (visitors can insert through it but never read enquiries).
- * Returns false when Supabase is not configured or the call fails.
+ * Stores a copy of a validated form submission via record_enquiry_checked()
+ * (server key only, rate-limited in the database; visitors can never read
+ * enquiries). Returns false when not configured, rate-limited or failed —
+ * the caller then relies on email/webhook delivery.
  */
 export async function recordEnquiry(
   kind: "custom-skincare" | "contact",
@@ -15,9 +15,10 @@ export async function recordEnquiry(
   subject: string,
   details: Record<string, string>,
 ): Promise<boolean> {
-  if (!isSupabaseConfigured()) return false;
+  if (!isServerWriteConfigured()) return false;
   try {
-    const { error } = await createPublicClient().rpc("record_enquiry", {
+    const { error } = await createServerWriteClient().rpc("record_enquiry_checked", {
+      p_client: await clientKey(),
       p_kind: kind,
       p_name: name,
       p_email: email,
@@ -26,8 +27,8 @@ export async function recordEnquiry(
       p_details: details,
     });
     if (error) {
-      // Never log submission contents.
-      console.error(`[enquiries] could not store ${kind} enquiry:`, error.code);
+      // Never log submission contents. Rate limiting is expected, not a server fault.
+      if (!error.message.startsWith("rate_limited")) console.error(`[enquiries] could not store ${kind} enquiry:`, error.code);
       return false;
     }
     return true;

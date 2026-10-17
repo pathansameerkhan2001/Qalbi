@@ -11,6 +11,9 @@ begin;
 
 do $$
 begin
+  if to_regclass('public.request_throttle') is not null then
+    raise exception '04 is still applied. Run 98_rollback_abuse_protection.sql first.';
+  end if;
   if exists (select 1 from public.orders) or exists (select 1 from public.enquiries) then
     raise exception 'Orders or enquiries exist. Export them before rolling back.';
   end if;

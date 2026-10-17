@@ -8,7 +8,7 @@ import { clearLocalCart, readLocalLines } from "@/lib/cart/local";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { isSupabaseCommerce, STORE_TAG } from "@/lib/store/catalog";
 import { isShopifyConfigured } from "@/lib/shopify/config";
-import { createPublicClient } from "@/lib/supabase/server";
+import { clientKey, createServerWriteClient, isServerWriteConfigured } from "@/lib/supabase/server";
 import { rememberOrder } from "@/lib/checkout/order-access";
 
 export interface PlaceOrderState {
@@ -22,6 +22,7 @@ const friendly: Record<string, string> = {
   product_unavailable: "An item in your bag is no longer available. Please review your bag.",
   insufficient_stock: "We don't have enough stock for an item in your bag. Please reduce the quantity.",
   invalid_request: "Please check your details and try again.",
+  rate_limited: "We've received several orders from you recently. Please wait a little or contact us on WhatsApp to complete your order.",
 };
 
 /**
@@ -31,7 +32,7 @@ const friendly: Record<string, string> = {
  * enabled payment methods. Nothing price-related is accepted from the browser.
  */
 export async function placeOrderAction(input: unknown): Promise<PlaceOrderState> {
-  if (isShopifyConfigured() || !isSupabaseCommerce(false)) {
+  if (isShopifyConfigured() || !isSupabaseCommerce(false) || !isServerWriteConfigured()) {
     return { ok: false, message: "Online ordering is not available right now. Please contact us on WhatsApp." };
   }
 
@@ -50,7 +51,10 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderState>
   const lines = await readLocalLines();
   if (lines.length === 0) return { ok: false, message: "Your bag is empty." };
 
-  const { data: rows, error } = await createPublicClient().rpc("place_order", {
+  // Only the website server can create orders: place_order_checked() is executable
+  // with the server key alone and enforces database rate limits.
+  const { data: rows, error } = await createServerWriteClient().rpc("place_order_checked", {
+    p_client: await clientKey(),
     payload: {
       idempotencyKey: data.idempotencyKey,
       paymentMethod: data.paymentMethod,

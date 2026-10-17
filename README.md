@@ -57,6 +57,7 @@ Run these in Supabase → SQL Editor, in order (each is reviewed SQL in `supabas
 | `01_store_additions.sql` | One transaction: adds `admin_users`, `orders`, `order_items`, `enquiries`, the checkout functions, RLS policies and `updated_at` triggers. Changes no existing column, constraint, row or bucket setting. |
 | `02_checkout_settings.sql` | Checkout defaults: Cash on Delivery on, UPI QR off, delivery ₹0. Never overwrites an existing row. |
 | `03_grant_admin.sql` | Makes the verified Supabase Auth user (by user id) an administrator. |
+| `04_abuse_protection.sql` | Orders/enquiries only via the website server, with database rate limits. Rollback: `98_rollback_abuse_protection.sql`. |
 | `99_rollback.sql` | Undoes 01 (refuses once orders or enquiries exist). |
 
 Then set `COMMERCE_SOURCE=supabase` to sell the products managed in `/admin` (ignored while Shopify is configured), and sign in at `/admin/login`.
@@ -65,7 +66,7 @@ Then set `COMMERCE_SOURCE=supabase` to sell the products managed in `/admin` (ig
 
 **Images:** `npm run assets:upload` copies `public/assets/**` into the bucket (needs `SUPABASE_SERVICE_ROLE_KEY` locally); then set `NEXT_PUBLIC_ASSET_SOURCE=supabase`. New images can also be uploaded in `/admin/media` (stored under `uploads/`).
 
-**How it is secured:** signing in is not enough. Every admin page and server action checks the Supabase session with the Auth server *and* the user's row in `admin_users` (`src/lib/admin/auth.ts`); a non-admin is signed straight back out. The database enforces the same rule with RLS through `public.is_admin()`, which uses the verified `auth.uid()` — never an email or id sent by the browser. Visitors can read only published products, active categories and the storefront's setting keys. Orders are priced only inside `place_order()`; the browser never sends prices. The order confirmation page is unlocked by a random token kept in an httpOnly cookie. No service-role key is used by the website.
+**How it is secured:** signing in is not enough. Every admin page and server action checks the Supabase session with the Auth server *and* the user's row in `admin_users` (`src/lib/admin/auth.ts`); a non-admin is signed straight back out. The database enforces the same rule with RLS through `public.is_admin()`, which uses the verified `auth.uid()` — never an email or id sent by the browser. Visitors can read only published products, active categories and the storefront's setting keys. Orders are priced only inside `place_order()`; the browser never sends prices. The order confirmation page is unlocked by a random token kept in an httpOnly cookie. Orders and enquiries can be created only by the website server: `place_order_checked()` / `record_enquiry_checked()` are executable solely with the server-only `SUPABASE_SERVICE_ROLE_KEY` and enforce rate limits in the database (`04_abuse_protection.sql`). That key is used for nothing else — admin pages and actions run as the signed-in administrator under RLS.
 
 **WhatsApp:** after an order, the confirmation page offers *Confirm Order on WhatsApp*, which opens WhatsApp with the order number, items, total and product image links pre-filled for the customer to send. Automatic business-sent WhatsApp messages would need the WhatsApp Business Platform (not configured).
 
