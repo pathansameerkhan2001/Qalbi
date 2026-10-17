@@ -127,8 +127,9 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.enquiries enable row level security;
 
--- Administrators read and update. Nobody inserts or deletes through the API:
--- orders come only from place_order(), enquiries only from record_enquiry().
+-- Administrators read; they update only an order's status / payment status and
+-- an enquiry's handled flag. Nobody inserts or deletes through the API: orders
+-- come only from place_order(), enquiries only from record_enquiry().
 -- Payment status changes only when an administrator sets it.
 create policy "orders: admin read" on public.orders
   for select to authenticated using ((select public.is_admin()));
@@ -136,16 +137,19 @@ create policy "orders: admin update" on public.orders
   for update to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
 create policy "order_items: admin read" on public.order_items
   for select to authenticated using ((select public.is_admin()));
-create policy "order_items: admin update" on public.order_items
-  for update to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
 create policy "enquiries: admin read" on public.enquiries
   for select to authenticated using ((select public.is_admin()));
 create policy "enquiries: admin update" on public.enquiries
   for update to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
 
-revoke all on public.admin_users, public.orders, public.order_items, public.enquiries from anon;
-grant select on public.admin_users to authenticated;
-grant select, update on public.orders, public.order_items, public.enquiries to authenticated;
+-- Least privilege. Supabase's default privileges give the API roles every right
+-- on new tables and sequences (including TRUNCATE, which RLS does not cover), so
+-- remove them all and grant back only what the admin panel uses.
+revoke all on public.admin_users, public.orders, public.order_items, public.enquiries from anon, authenticated;
+grant select on public.admin_users, public.orders, public.order_items, public.enquiries to authenticated;
+grant update (status, payment_status) on public.orders to authenticated;
+grant update (handled) on public.enquiries to authenticated;
+revoke all on sequence public.order_number_seq from anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. Triggers
@@ -170,7 +174,9 @@ create trigger categories_touch before update on public.categories
 create trigger store_settings_touch before update on public.store_settings
   for each row execute function public.touch_updated_at();
 
--- Return reserved stock when an order is cancelled (exactly once).
+-- Return reserved stock when an order is cancelled (exactly once). A cancelled
+-- order can never be reopened: its stock has already been returned, so moving
+-- it to any other status would sell the same units twice.
 create function public.release_inventory_on_cancel()
 returns trigger
 language plpgsql
@@ -178,6 +184,9 @@ security definer
 set search_path = ''
 as $$
 begin
+  if old.status = 'cancelled' and new.status <> 'cancelled' then
+    raise exception 'order_cancelled: a cancelled order cannot be reopened' using errcode = 'P0001';
+  end if;
   if new.status = 'cancelled' and old.status <> 'cancelled' and not old.inventory_released then
     update public.products p
        set stock_quantity = p.stock_quantity + i.quantity
@@ -190,6 +199,10 @@ end;
 $$;
 create trigger orders_release_inventory before update of status on public.orders
   for each row execute function public.release_inventory_on_cancel();
+
+-- Trigger functions run only as triggers; no API role may call them directly.
+revoke all on function public.touch_updated_at() from public, anon, authenticated;
+revoke all on function public.release_inventory_on_cancel() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 4. Existing catalogue tables: public read of published/active rows only,
@@ -460,7 +473,7 @@ commit;
 -- Read-only verification after commit
 -- ---------------------------------------------------------------------------
 -- select schemaname, tablename, policyname, cmd from pg_policies
---  where schemaname in ('public', 'storage') order by 1, 2, 3;          -- expect 19 rows
+--  where schemaname in ('public', 'storage') order by 1, 2, 3;          -- expect 18 rows
 -- select proname from pg_proc where pronamespace = 'public'::regnamespace
 --  and proname in ('is_admin','place_order','get_order_for_customer','record_enquiry',
 --                  'touch_updated_at','release_inventory_on_cancel');    -- expect 6 rows

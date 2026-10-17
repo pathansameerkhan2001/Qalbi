@@ -241,6 +241,8 @@ export async function updateOrderAction(_: ActionState, formData: FormData): Pro
   const { id, ...fields } = parsed.data;
   const db = await createSessionClient();
   const { error } = await db.from("orders").update(fields).eq("id", id);
+  // The database refuses to reopen a cancelled order (its stock was already returned).
+  if (error?.message.startsWith("order_cancelled")) return { ok: false, message: "A cancelled order can't be reopened. Place a new order instead." };
   if (error) return dbError("order", error);
   updateTag(STORE_TAG); // cancellation can return stock
   revalidatePath(`/admin/orders/${id}`);
