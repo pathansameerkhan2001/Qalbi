@@ -1,26 +1,373 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ------------------------------------------------------------------
+   QALBI design tokens
+   ------------------------------------------------------------------ */
+@theme {
+  --color-cream: #f8f5ec;
+  --color-ivory: #fffdf8;
+  --color-sage: #87977a;
+  --color-botanical: #526b49;
+  --color-forest: #294532;
+  --color-forest-deep: #1f3627;
+  --color-ink: #292d27;
+  --color-muted: #66695f;
+  --color-gold: #a8823f;
+  --color-gold-soft: #c9a96a;
+  --color-gold-pale: #efe4cc;
+  --color-line: #e5dece;
+  --color-sand: #f1ecdf;
+  --color-danger: #9b3b2f;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-serif: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-jost), "Jost", system-ui, sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --text-display: clamp(2.5rem, 1.6rem + 3.4vw, 4.25rem);
+  --text-display--line-height: 1.04;
+  --text-h2: clamp(1.75rem, 1.35rem + 1.5vw, 2.6rem);
+  --text-h2--line-height: 1.12;
+  --text-h3: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem);
+  --text-h3--line-height: 1.25;
+
+  --shadow-soft: 0 1px 2px rgb(41 45 39 / 0.04), 0 8px 24px -12px rgb(41 45 39 / 0.14);
+  --shadow-lift: 0 2px 4px rgb(41 45 39 / 0.05), 0 18px 40px -18px rgb(41 45 39 / 0.25);
+
+  --animate-fade-in: fade-in 0.25s ease-out both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 7rem;
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background: var(--color-gold-pale);
+    color: var(--color-forest);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+  }
+}
+
+@layer components {
+  /* Buttons ----------------------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.625rem 1.5rem;
+    border-radius: 3px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--color-forest);
+    color: var(--color-ivory);
+    border: 1px solid var(--color-forest);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-forest-deep);
+  }
+  .btn-outline {
+    background: transparent;
+    color: var(--color-forest);
+    border: 1px solid var(--color-forest);
+  }
+  .btn-outline:hover:not(:disabled) {
+    background: var(--color-forest);
+    color: var(--color-ivory);
+  }
+  .btn-light {
+    background: var(--color-ivory);
+    color: var(--color-forest);
+    border: 1px solid var(--color-ivory);
+  }
+  .btn-light:hover {
+    background: var(--color-gold-pale);
+  }
+  .btn-sm {
+    min-height: 2.25rem;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8125rem;
+  }
+
+  /* Typography helpers ------------------------------------------------ */
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+  }
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.25s ease;
+  }
+  .link-underline:hover {
+    background-size: 100% 1px;
+  }
+
+  /* Form fields ------------------------------------------------------- */
+  .field {
+    width: 100%;
+    min-height: 2.75rem;
+    background: var(--color-ivory);
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+    transition: border-color 0.2s ease;
+  }
+  .field::placeholder {
+    color: #9a9b92;
+  }
+  .field:hover {
+    border-color: var(--color-sage);
+  }
+  .field:focus-visible {
+    outline: none;
+    border-color: var(--color-botanical);
+    box-shadow: 0 0 0 3px rgb(82 107 73 / 0.15);
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
+  .label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+
+  /* Horizontal scroller ---------------------------------------------- */
+  .scroll-row {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .scroll-row::-webkit-scrollbar {
+    display: none;
+  }
+  .scroll-row > * {
+    scroll-snap-align: start;
+  }
+
+  /* Metallic logo --------------------------------------------------------
+     The logo silhouette (--logo-mask) is painted with a polished gold
+     gradient, a soft emboss and a slow light sweep. */
+  .logo-mark {
+    display: block;
+    overflow: hidden;
+    -webkit-mask: var(--logo-mask) center / contain no-repeat;
+    mask: var(--logo-mask) center / contain no-repeat;
+    background: linear-gradient(118deg, #8a5d1c 0%, #c18d3e 16%, #f2d999 30%, #c6973f 44%, #8c611f 58%, #d4aa5c 74%, #f0d48d 86%, #a87730 100%);
+  }
+  .logo-mark--light {
+    background: linear-gradient(118deg, #c9a45e 0%, #ecd49b 22%, #fff3d1 36%, #d9b56d 52%, #b78b42 66%, #f1dca6 84%, #cfa65a 100%);
+  }
+  .logo-mark::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 38%, rgb(255 251 235 / 0.95) 50%, transparent 62%);
+    background-size: 260% 100%;
+    background-position: 160% 0;
+    animation: logo-sheen 7s ease-in-out 1.2s infinite;
+  }
+  .logo-link:hover .logo-mark::after {
+    animation-duration: 2.2s;
+  }
+  .logo-glint {
+    color: #fff8e1;
+    filter: drop-shadow(0 0 4px rgb(255 236 179 / 0.95));
+    animation: glint 4.8s ease-in-out infinite;
+  }
+
+  /* Gold text accent ------------------------------------------------------ */
+  .text-gold-sheen {
+    background: linear-gradient(110deg, #8a5d1c, #c99a46 30%, #f0d48d 50%, #c99a46 70%, #8a5d1c);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: text-sheen 8s linear infinite;
+  }
+
+  /* Ornamental divider ----------------------------------------------------- */
+  .ornament {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--color-gold-soft);
+  }
+  .ornament::before,
+  .ornament::after {
+    content: "";
+    height: 1px;
+    width: 3.5rem;
+    background: linear-gradient(90deg, transparent, currentColor);
+  }
+  .ornament::after {
+    transform: scaleX(-1);
+  }
+
+  /* Hero slideshow ------------------------------------------------------- */
+  .kenburns {
+    animation: kenburns 9s ease-out both;
+  }
+
+  /* Floating botanicals --------------------------------------------------- */
+  .float-icon {
+    animation: float-bob var(--dur, 12s) ease-in-out var(--delay, 0s) infinite alternate;
+  }
+  .float-twinkle {
+    animation: twinkle var(--dur, 5s) ease-in-out var(--delay, 0s) infinite;
+  }
+  @supports (animation-timeline: scroll()) {
+    .float-parallax {
+      animation: parallax linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+}
+
+@keyframes logo-sheen {
+  0%,
+  55% {
+    background-position: 160% 0;
+  }
+  100% {
+    background-position: -60% 0;
+  }
+}
+@keyframes glint {
+  0%,
+  100% {
+    opacity: 0;
+    scale: 0.3;
+    rotate: 0deg;
+  }
+  45%,
+  55% {
+    opacity: 1;
+    scale: 1;
+    rotate: 45deg;
+  }
+}
+@keyframes text-sheen {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes kenburns {
+  from {
+    transform: scale(1.0);
+  }
+  to {
+    transform: scale(1.07);
+  }
+}
+@keyframes float-bob {
+  from {
+    transform: translate3d(0, 0, 0) rotate(var(--rot, 0deg));
+  }
+  to {
+    transform: translate3d(var(--dx, 10px), var(--dy, -22px), 0) rotate(calc(var(--rot, 0deg) + var(--spin, 14deg)));
+  }
+}
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.6) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+@keyframes parallax {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 var(--parallax, -120px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .logo-glint {
+    display: none;
+  }
 }
