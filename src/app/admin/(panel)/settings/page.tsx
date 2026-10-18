@@ -6,13 +6,15 @@ import { saveSettingAction } from "@/lib/admin/actions";
 import { settingSchemas, type SettingKey, type SettingValue } from "@/lib/store/settings";
 import { trustBadges } from "@/data/trust-badges";
 import { AdminHeading, Card, SetupNotice } from "@/components/admin/ui";
+import { codBlockers, getCheckoutReadiness, type CheckoutReadiness } from "@/lib/admin/checkout-readiness";
+import { CheckCircle2, CircleAlert } from "lucide-react";
 import { RowForm } from "@/components/admin/row-form";
 
 export const metadata: Metadata = { title: "Settings" };
 
 function read<K extends SettingKey>(all: Record<string, unknown>, key: K): SettingValue<K> {
-  const parsed = settingSchemas[key].safeParse(all[key] ?? (key === "announcements" || key === "instagram_reels" ? [] : {}));
-  return (parsed.success ? parsed.data : settingSchemas[key].parse(key === "announcements" || key === "instagram_reels" ? [] : {})) as SettingValue<K>;
+  const parsed = settingSchemas[key].safeParse(all[key] ?? (key === "announcements" ? [] : {}));
+  return (parsed.success ? parsed.data : settingSchemas[key].parse(key === "announcements" ? [] : {})) as SettingValue<K>;
 }
 
 function Section({ id, title, description, settingKey, children }: { id: string; title: string; description?: React.ReactNode; settingKey: SettingKey; children: React.ReactNode }) {
@@ -33,8 +35,9 @@ const check = "flex items-center gap-2 text-sm";
 export default async function AdminSettingsPage() {
   await requireAdmin();
   let all: Record<string, unknown>;
+  let readiness: CheckoutReadiness;
   try {
-    all = await getAllSettings();
+    [all, readiness] = await Promise.all([getAllSettings(), getCheckoutReadiness()]);
   } catch (error) {
     return (
       <>
@@ -46,8 +49,6 @@ export default async function AdminSettingsPage() {
   const checkout = read(all, "checkout");
   const contact = read(all, "contact");
   const announcements = read(all, "announcements");
-  const hero = read(all, "hero");
-  const reels = read(all, "instagram_reels");
   const badges = read(all, "trust_badges");
   const featured = read(all, "featured");
   const claims = read(all, "brand_claims");
@@ -56,6 +57,7 @@ export default async function AdminSettingsPage() {
     <>
       <AdminHeading title="Settings" description="Changes appear on the website within a minute." />
       <div className="space-y-6">
+        <Readiness readiness={readiness} codOn={checkout.codEnabled} qrOn={checkout.phoneEnabled} />
         <Section id="checkout" title="Checkout & delivery" settingKey="checkout" description="Payment options offered at checkout. Orders are always priced on the server.">
           <label className={check}>
             <input type="checkbox" name="codEnabled" defaultChecked={checkout.codEnabled} className="accent-[var(--color-forest)]" /> Cash on Delivery
@@ -100,30 +102,11 @@ export default async function AdminSettingsPage() {
           <textarea name="lines" rows={4} defaultValue={announcements.map((a) => (a.href ? `${a.text} | ${a.href}` : a.text)).join("\n")} className="field resize-y sm:col-span-2" aria-label="Announcement messages" />
         </Section>
 
-        <Section id="hero" title="Homepage hero" settingKey="hero" description={<>Optional replacement for the first hero slide. Use paths from the <Link href="/admin/media" className="text-forest underline">media library</Link>; leave empty to keep the current photography.</>}>
-          <div>
-            <label htmlFor="s-hero-d" className="label">Desktop image path (wide, about 16:9)</label>
-            <input id="s-hero-d" name="desktopPath" defaultValue={hero.desktopPath ?? ""} className="field" />
-          </div>
-          <div>
-            <label htmlFor="s-hero-m" className="label">Mobile image path (portrait 4:5)</label>
-            <input id="s-hero-m" name="mobilePath" defaultValue={hero.mobilePath ?? ""} className="field" />
-          </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="s-hero-alt" className="label">Image description (alt text)</label>
-            <input id="s-hero-alt" name="alt" defaultValue={hero.alt} className="field" />
-          </div>
-        </Section>
-
         <Section id="featured" title="Featured products" settingKey="featured" description="Category handle used for “The QALBI Favourites” on the homepage.">
           <div>
             <label htmlFor="s-featured" className="label">Category handle</label>
             <input id="s-featured" name="collectionHandle" defaultValue={featured.collectionHandle} className="field" />
           </div>
-        </Section>
-
-        <Section id="reels" title="Instagram Reels" settingKey="instagram_reels" description={<>One Reel per line: <code>Title | https://www.instagram.com/reel/… | uploads/reels/thumb.webp</code>. Only add real Reel links from @qalbinaturals.</>}>
-          <textarea name="lines" rows={5} defaultValue={reels.map((r) => `${r.title} | ${r.reelUrl} | ${r.thumbnailPath}`).join("\n")} className="field resize-y sm:col-span-2" aria-label="Instagram Reels" />
         </Section>
 
         <Section id="trust-badges" title="Verified trust badges" settingKey="trust_badges" description="Tick a claim badge only when you hold supporting documentation for it.">
@@ -147,5 +130,44 @@ export default async function AdminSettingsPage() {
         </Section>
       </div>
     </>
+  );
+}
+
+function Readiness({ readiness, codOn, qrOn }: { readiness: CheckoutReadiness; codOn: boolean; qrOn: boolean }) {
+  const ready = codBlockers(readiness).length === 0;
+  const items = [
+    { ok: readiness.supabaseCatalogue, label: "Website uses the Supabase product catalogue", fix: "Set COMMERCE_SOURCE=supabase in Vercel and redeploy." },
+    { ok: readiness.serverKey, label: "Server key for placing orders is configured", fix: "Add SUPABASE_SERVICE_ROLE_KEY (server-only) in Vercel and redeploy." },
+    {
+      ok: (readiness.pricedProducts ?? 0) > 0,
+      label: readiness.pricedProducts === null ? "Published products could not be counted" : `${readiness.pricedProducts} published product${readiness.pricedProducts === 1 ? "" : "s"} with a price`,
+      fix: "Publish at least one real product with its real price.",
+    },
+  ];
+  return (
+    <Card id="checkout-readiness" className="p-5">
+      <h2 className="font-serif text-xl">Checkout readiness</h2>
+      <p className="mt-1 text-sm text-muted">
+        Cash on Delivery is <strong className="font-medium text-ink">{codOn ? "on" : "off"}</strong> and UPI QR payment is <strong className="font-medium text-ink">{qrOn ? "on" : "off"}</strong>.{" "}
+        {ready ? "Everything required to take orders is in place." : "Payments can only be switched on once every item below is ticked."}
+      </p>
+      <ul className="mt-4 space-y-2 text-sm">
+        {items.map((item) => (
+          <li key={item.label} className="flex items-start gap-2">
+            {item.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-botanical" aria-hidden /> : <CircleAlert className="mt-0.5 size-4 shrink-0 text-[#7a5418]" aria-hidden />}
+            <span>
+              <span className="sr-only">{item.ok ? "Done: " : "To do: "}</span>
+              {item.label}
+              {!item.ok && <span className="block text-xs text-muted">{item.fix}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-xs text-muted">
+        Right after switching Cash on Delivery on, place one small test order yourself, confirm it appears in Orders with the correct prices, then cancel it (cancelling returns the stock) — and switch
+        Cash on Delivery off again if anything looks wrong. UPI QR payment also needs your real QR image uploaded to Media; the server checks the file before the option can be switched on. Payments are never
+        marked as received automatically.
+      </p>
+    </Card>
   );
 }

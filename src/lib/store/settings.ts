@@ -2,6 +2,8 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { z } from "zod";
 import { brandConfig } from "@/data/brand";
+import { isSafeSiteLink } from "@/lib/content/rules";
+import { homepageSectionIds } from "@/lib/content/homepage";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicClient } from "@/lib/supabase/server";
 import { STORE_TAG } from "./catalog";
@@ -27,18 +29,21 @@ export const contactSettingsSchema = z.object({
   email: z.email().default(brandConfig.email),
 });
 
-export const announcementsSchema = z.array(z.object({ id: z.string(), text: z.string().min(1).max(80), href: z.string().max(200).optional() })).max(5);
+const siteLink = z.string().max(300).refine(isSafeSiteLink, "links must be a website path such as /products or a full https:// link");
 
-export const heroSettingsSchema = z.object({
-  /** Optional replacement for the first hero slide (media paths). */
-  desktopPath: z.string().max(300).nullable().default(null),
-  mobilePath: z.string().max(300).nullable().default(null),
-  alt: z.string().max(200).default("QALBI Naturals skincare"),
+export const announcementsSchema = z.array(z.object({ id: z.string(), text: z.string().min(1).max(80), href: siteLink.optional() })).max(5);
+
+/** Slim offer bar shown directly after the hero. Off until an administrator enables it with real messages. */
+export const offerBarSchema = z.object({
+  enabled: z.boolean().default(false),
+  /** Gentle scrolling for several messages; never runs for reduced-motion visitors. */
+  animate: z.boolean().default(false),
+  messages: z.array(z.object({ id: z.string().max(40), text: z.string().trim().min(1, "each message needs text").max(120, "keep each message under 120 characters"), href: siteLink.optional() })).max(6, "use at most 6 messages").default([]),
 });
 
-export const reelsSchema = z
-  .array(z.object({ id: z.string(), title: z.string().min(1).max(60), reelUrl: z.url(), thumbnailPath: z.string().min(1).max(300) }))
-  .max(12);
+export const homepageSectionsSchema = z.object({
+  sections: z.array(z.object({ id: z.enum(homepageSectionIds), visible: z.boolean() })).max(homepageSectionIds.length).default([]),
+});
 
 export const trustBadgeSettingsSchema = z.record(z.string(), z.boolean());
 
@@ -50,11 +55,11 @@ export const settingSchemas = {
   checkout: checkoutSettingsSchema,
   contact: contactSettingsSchema,
   announcements: announcementsSchema,
-  hero: heroSettingsSchema,
-  instagram_reels: reelsSchema,
   trust_badges: trustBadgeSettingsSchema,
   featured: featuredSettingsSchema,
   brand_claims: brandClaimsSchema,
+  offer_bar: offerBarSchema,
+  homepage_sections: homepageSectionsSchema,
 } as const;
 
 export type SettingKey = keyof typeof settingSchemas;

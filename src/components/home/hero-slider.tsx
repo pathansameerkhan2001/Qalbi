@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
+import { HeroOverlay, type HeroContent } from "./hero-overlay";
 
 export interface HeroSlide {
   desktopSrcSet: string;
@@ -10,6 +11,8 @@ export interface HeroSlide {
   width: number;
   height: number;
   alt: string;
+  /** Optional heading / subtitle / button (admin-managed slides only). */
+  content: HeroContent | null;
 }
 
 const INTERVAL = 6500;
@@ -80,6 +83,12 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
                 className={cn("absolute inset-0 h-full w-full object-cover object-[50%_55%]", i === active && autoplay && "kenburns")}
               />
             </picture>
+            {/* Hidden slides are inert so their buttons are never focusable. */}
+            {slide.content && (
+              <div inert={i !== active}>
+                <HeroOverlay content={slide.content} headingLevel="h2" />
+              </div>
+            )}
           </div>
         ))}
       </div>

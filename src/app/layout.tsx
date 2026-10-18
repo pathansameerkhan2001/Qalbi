@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Jost } from "next/font/google";
 import { brandConfig } from "@/data/brand";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const serif = Cormorant_Garamond({
@@ -18,10 +19,12 @@ const sans = Jost({
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+/** Vercel preview deployments must never be indexed (they duplicate the live site). */
+const isPreviewDeployment = Boolean(process.env.VERCEL_ENV) && process.env.VERCEL_ENV !== "production";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  ...(isPreviewDeployment ? { robots: { index: false, follow: false } } : {}),
   title: {
     default: `${brandConfig.name} — ${brandConfig.tagline}`,
     template: `%s | ${brandConfig.name}`,
@@ -35,6 +38,7 @@ export const metadata: Metadata = {
     description: brandConfig.description,
     locale: "en_IN",
   },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

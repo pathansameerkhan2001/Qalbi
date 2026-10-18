@@ -19,8 +19,15 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/collections/[handle]">): Promise<Metadata> {
   const { handle } = await params;
   const data = await getCollectionWithProducts(handle);
-  if (!data) return { title: "Collection not found" };
-  return { title: data.collection.title, description: data.collection.description || `Shop ${data.collection.title} by QALBI Naturals.` };
+  if (!data) return { title: "Collection not found", robots: { index: false } };
+  const description = data.collection.description || `Shop ${data.collection.title} by QALBI Naturals.`;
+  // Sorted views (?sort=…) share the collection's canonical URL.
+  return {
+    title: data.collection.title,
+    description,
+    alternates: { canonical: `/collections/${data.collection.handle}` },
+    openGraph: { title: data.collection.title, description, url: `/collections/${data.collection.handle}` },
+  };
 }
 
 async function CollectionContent({ params, searchParams }: PageProps<"/collections/[handle]">) {

@@ -7,6 +7,7 @@ import { Container } from "@/components/ui/container";
 import { WhyQalbi } from "@/components/about/why-qalbi";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/about" },
   title: "About Us",
   description: "Why QALBI: a blend of Ancient Ayurvedic Wisdom and Modern Cosmetic Science, inspired by the healing power of herbs and botanicals.",
 };

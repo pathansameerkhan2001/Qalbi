@@ -279,6 +279,18 @@
     animation: kenburns 9s ease-out both;
   }
 
+  /* Offer bar (scrolling variant) -------------------------------------------- */
+  .offer-marquee-viewport {
+    mask-image: linear-gradient(90deg, transparent, #000 3rem, #000 calc(100% - 3rem), transparent);
+  }
+  .offer-marquee {
+    animation: offer-marquee var(--offer-duration, 32s) linear infinite;
+  }
+  .offer-marquee-viewport:hover .offer-marquee,
+  .offer-marquee-viewport:focus-within .offer-marquee {
+    animation-play-state: paused;
+  }
+
   /* Floating botanicals --------------------------------------------------- */
   .float-icon {
     animation: float-bob var(--dur, 12s) ease-in-out var(--delay, 0s) infinite alternate;
@@ -320,6 +332,14 @@
 @keyframes text-sheen {
   to {
     background-position: -200% 0;
+  }
+}
+@keyframes offer-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
   }
 }
 @keyframes kenburns {
@@ -368,6 +388,20 @@
     scroll-behavior: auto !important;
   }
   .logo-glint {
+    display: none;
+  }
+  /* Offer bar: no scrolling — show each message once, wrapped and centred. */
+  .offer-marquee-viewport {
+    mask-image: none;
+  }
+  .offer-marquee {
+    animation: none !important;
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.25rem;
+  }
+  .offer-marquee-item[data-copy="1"] {
     display: none;
   }
 }

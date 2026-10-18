@@ -8,6 +8,7 @@ import { InstagramIcon, WhatsAppIcon } from "@/components/ui/brand-icons";
 import { ContactForm } from "@/components/forms/contact-form";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/contact" },
   title: "Contact Us",
   description: "Get in touch with QALBI Naturals by email, WhatsApp or Instagram.",
 };

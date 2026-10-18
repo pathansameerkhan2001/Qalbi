@@ -11,6 +11,7 @@ import { IngredientCard } from "@/components/home/ingredient-cards";
 import { ProductGrid } from "@/components/products/product-grid";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/ingredients" },
   title: "Ingredients",
   description: "Know what goes on your skin — explore the botanicals behind QALBI Naturals.",
 };

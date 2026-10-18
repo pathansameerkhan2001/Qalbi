@@ -4,7 +4,7 @@ import type { InstagramReel } from "@/types/content";
 import { manualReels } from "@/data/content";
 import { isSafeExternalUrl } from "./utils";
 import { mediaUrl } from "./assets";
-import { getSetting } from "./store/settings";
+import { getPublishedReels } from "./store/cms";
 import { supabaseConfig } from "./supabase/config";
 
 /**
@@ -14,8 +14,9 @@ import { supabaseConfig } from "./supabase/config";
  *  1. Instagram API with Instagram Login (INSTAGRAM_ACCESS_TOKEN for the
  *     official @qalbinaturals professional account, `instagram_business_basic`
  *     permission). The token is only ever used on the server.
- *  2. The manually curated list in src/data/content.ts.
- *  3. Empty list — the UI then shows a fallback linking to the profile.
+ *  2. Reels published in /admin/reels (public.instagram_reels).
+ *  3. The manually curated list in src/data/content.ts.
+ *  4. Empty list — the UI then shows a fallback linking to the profile.
  *
  * No scraping or unauthenticated access is performed.
  */
@@ -81,8 +82,8 @@ export async function getInstagramReels(): Promise<{ reels: InstagramReel[]; sou
     const reels = (await fetchApiReels()).filter(isValidReel);
     if (reels.length) return { reels, source: "api" };
   }
-  const configured = ((await getSetting("instagram_reels")) ?? [])
-    .map((r) => ({ id: r.id, title: r.title, reelUrl: r.reelUrl, thumbnailUrl: mediaUrl(r.thumbnailPath), alt: `Instagram Reel: ${r.title}` }))
+  const configured = (await getPublishedReels())
+    .map((r) => ({ id: r.id, title: r.caption, reelUrl: r.reelUrl, thumbnailUrl: mediaUrl(r.thumbnailPath), alt: `Instagram Reel: ${r.caption}` }))
     .filter(isValidReel);
   if (configured.length) return { reels: configured, source: "manual" };
   const manual = manualReels.filter(isValidReel);

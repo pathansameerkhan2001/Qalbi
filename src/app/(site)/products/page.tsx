@@ -11,6 +11,7 @@ import { ProductGrid } from "@/components/products/product-grid";
 import { SortSelect } from "@/components/products/sort-select";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/products" },
   title: "Shop All Skincare",
   description: "Explore the QALBI Naturals skincare collection — serums, creams, cleansers and more.",
 };

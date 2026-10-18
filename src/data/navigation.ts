@@ -34,37 +34,14 @@ export const announcements: AnnouncementMessage[] = [
   { id: "custom", text: "Personalised skincare on request", href: "/customised-skincare" },
 ];
 
-export const footerNavigation: { title: string; links: NavLink[] }[] = [
-  {
-    title: "Shop",
-    links: [
-      { label: "All Products", href: "/products" },
-      { label: "Serums", href: "/collections/serums" },
-      { label: "Face Creams", href: "/collections/face-creams-moisturisers" },
-      { label: "Combos & Kits", href: "/collections/skincare-combos-kits" },
-      { label: "Customised Skincare", href: "/customised-skincare" },
-    ],
-  },
-  {
-    title: "About",
-    links: [
-      { label: "About Us", href: "/about" },
-      { label: "Ingredients", href: "/ingredients" },
-      { label: "Blog", href: "/journal" },
-      { label: "Customer Feedback", href: "/reviews" },
-      { label: "Contact", href: "/contact" },
-    ],
-  },
-  {
-    title: "Support",
-    links: [
-      { label: "FAQs", href: "/faqs" },
-      { label: "Shipping", href: "/policies/shipping-policy" },
-      { label: "Returns & Refunds", href: "/policies/refund-policy" },
-      { label: "Privacy Policy", href: "/policies/privacy-policy" },
-      { label: "Terms & Conditions", href: "/policies/terms-of-service" },
-    ],
-  },
+/** Footer "Explore" links (pages that always exist). Shop links come from the live collections; policy links only when a policy has content. */
+export const footerExploreLinks: NavLink[] = [
+  { label: "About Us", href: "/about" },
+  { label: "Ingredients", href: "/ingredients" },
+  { label: "The QALBI Journal", href: "/journal" },
+  { label: "Customer Feedback", href: "/reviews" },
+  { label: "FAQs", href: "/faqs" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export const socialLinks = {

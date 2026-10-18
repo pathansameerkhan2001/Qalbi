@@ -2,6 +2,7 @@ import "server-only";
 import { createSessionClient } from "@/lib/supabase/server";
 import { supabaseConfig } from "@/lib/supabase/config";
 import { queryCategories, queryProducts, StoreQueryError, type CategoryRow, type ProductRow } from "@/lib/store/catalog";
+import { queryBlogPosts, queryHeroSlides, queryReels, type BlogPostRow, type HeroSlideRow, type ReelRow } from "@/lib/store/cms";
 import { requireAdmin } from "./auth";
 
 /**
@@ -115,6 +116,26 @@ export async function getAdminProduct(id: string): Promise<ProductRow | null> {
 export async function listAdminCategories(): Promise<CategoryRow[]> {
   const db = await adminClient();
   return loadCatalog(() => queryCategories(db));
+}
+
+export async function listHeroSlides(): Promise<HeroSlideRow[]> {
+  const db = await adminClient();
+  return loadCatalog(() => queryHeroSlides(db));
+}
+
+export async function listReels(): Promise<ReelRow[]> {
+  const db = await adminClient();
+  return loadCatalog(() => queryReels(db));
+}
+
+export async function listBlogPosts(): Promise<BlogPostRow[]> {
+  const db = await adminClient();
+  return loadCatalog(() => queryBlogPosts(db));
+}
+
+export async function getBlogPost(id: string): Promise<BlogPostRow | null> {
+  const db = await adminClient();
+  return (await loadCatalog(() => queryBlogPosts(db, { id })))[0] ?? null;
 }
 
 export async function listEnquiries() {

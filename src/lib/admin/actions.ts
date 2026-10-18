@@ -7,11 +7,17 @@ import { createSessionClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured, supabaseConfig } from "@/lib/supabase/config";
 import { STORE_TAG } from "@/lib/store/catalog";
 import { settingSchemas, type SettingKey } from "@/lib/store/settings";
+import { homepageSectionIds } from "@/lib/content/homepage";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { headers } from "next/headers";
 import { requireAdmin } from "./auth";
 import { orderStatuses, paymentStatuses } from "./data";
+import { checkbox, dbError, invalid, refreshStore, type ActionState } from "./action-helpers";
+import { storeImage } from "./media";
+import { codBlockers, getCheckoutReadiness, verifyQrImage } from "./checkout-readiness";
+
+export type { ActionState };
 
 /**
  * Admin mutations. Every action starts with requireAdmin() (server-side check of
@@ -19,66 +25,10 @@ import { orderStatuses, paymentStatuses } from "./data";
  * row level security also rejects anything a non-admin attempts.
  */
 
-export interface ActionState {
-  ok: boolean;
-  message: string;
-  fieldErrors?: Record<string, string>;
-}
-
 const handleField = z.string().trim().toLowerCase().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and hyphens");
 const pathField = z.string().trim().max(300).regex(/^(https:\/\/|[a-z0-9])[^\s<>"']*$/i, "Enter a media path such as products/serum.webp");
 const optionalPath = z.union([pathField, z.literal("")]).transform((v) => v || null);
-const checkbox = z.preprocess((v) => v === "on" || v === "true", z.boolean());
 const money = z.coerce.number().min(0, "Must be 0 or more").max(1_000_000);
-
-function invalid(error: z.ZodError): ActionState {
-  const fieldErrors: Record<string, string> = {};
-  for (const issue of error.issues) fieldErrors[String(issue.path[0] ?? "form")] ??= issue.message;
-  return { ok: false, message: "Please check the highlighted fields.", fieldErrors };
-}
-
-const columnLabels: Record<string, string> = {
-  name: "Name",
-  slug: "URL handle",
-  price: "Price",
-  compare_at_price: "Compare-at price",
-  stock_quantity: "Units in stock",
-  sku: "SKU",
-  category_id: "Category",
-  image_url: "Image path",
-  sort_order: "Sort order",
-};
-
-/** Constraint violations caused by what the admin entered: shown to them, not logged as server errors. */
-const inputErrorCodes = new Set(["23505", "23502", "23514", "23503"]);
-
-/** Maps database errors (including the production tables' own constraints) to clear messages; logs only unexpected codes. */
-function dbError(scope: string, error: { code?: string; message: string }): ActionState {
-  if (!error.code || !inputErrorCodes.has(error.code)) console.error(`[admin] ${scope}:`, error.code ?? error.message);
-  const column = /column "([a-z_]+)"/.exec(error.message)?.[1];
-  const label = column ? (columnLabels[column] ?? column.replace(/_/g, " ")) : null;
-  switch (error.code) {
-    case "23505":
-      return { ok: false, message: `That ${scope === "product" ? "URL handle or SKU" : "handle"} is already in use.` };
-    case "23502":
-      return { ok: false, message: label ? `${label} is required.` : "A required field is missing." };
-    case "23514":
-      return { ok: false, message: "A value is outside the range the database allows. Please check the numbers." };
-    case "23503":
-      return { ok: false, message: `This ${scope} is still linked to other records.` };
-    case "42501":
-      return { ok: false, message: "You don't have permission to do that." };
-    case "PGRST205":
-    case "42P01":
-      return { ok: false, message: "The database setup for this section has not been applied yet." };
-  }
-  return { ok: false, message: `Could not save ${scope}. Please try again.` };
-}
-
-function refreshStore(...paths: string[]) {
-  updateTag(STORE_TAG);
-  for (const p of paths) revalidatePath(p);
-}
 
 // ---------------------------------------------------------------------------
 // Authentication
@@ -160,6 +110,8 @@ const productSchema = z.object({
   is_featured: checkbox,
   is_best_seller: checkbox,
   images: z.array(z.object({ path: pathField, alt: z.string().trim().max(200) })).max(20),
+  seo_title: z.string().trim().max(120, "Keep the SEO title under 120 characters").transform((v) => v || null),
+  seo_description: z.string().trim().max(320, "Keep the meta description under 320 characters").transform((v) => v || null),
 });
 
 export async function saveProductAction(_: ActionState, formData: FormData): Promise<ActionState> {
@@ -187,9 +139,13 @@ export async function saveProductAction(_: ActionState, formData: FormData): Pro
     is_featured: formData.get("is_featured"),
     is_best_seller: formData.get("is_best_seller"),
     images,
+    seo_title: field("seo_title"),
+    seo_description: field("seo_description"),
   });
   if (!parsed.success) return invalid(parsed.error);
-  const { id, images: imageList, ...fields } = parsed.data;
+  const { id, images: imageList, seo_title, seo_description, ...base } = parsed.data;
+  // SEO columns are only written when used, so saving works before the SEO migration is applied.
+  const fields = seo_title || seo_description || formData.get("seo_present") ? { ...base, seo_title, seo_description } : base;
   if (fields.compare_at_price !== null && fields.compare_at_price <= fields.price) {
     return { ok: false, message: "Please check the highlighted fields.", fieldErrors: { compare_at_price: "Compare-at price must be higher than the price" } };
   }
@@ -331,25 +287,34 @@ function settingFromForm(key: SettingKey, f: FormData): unknown {
           const [text, href] = line.split("|").map((p) => p.trim());
           return { id: `a${i}`, text, ...(href ? { href } : {}) };
         });
-    case "hero":
-      return { desktopPath: s("desktopPath") || null, mobilePath: s("mobilePath") || null, alt: s("alt") || "QALBI Naturals skincare" };
-    case "instagram_reels":
-      return s("lines")
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line, i) => {
-          const [title, reelUrl, thumbnailPath] = line.split("|").map((p) => p.trim());
-          return { id: `reel-${i}`, title, reelUrl, thumbnailPath };
-        });
     case "trust_badges":
       return Object.fromEntries(f.getAll("verified").map((id) => [String(id), true]));
     case "featured":
       return { collectionHandle: s("collectionHandle") || "bestsellers" };
     case "brand_claims":
       return { verified: on("verified"), note: s("note") };
+    case "offer_bar":
+      return { enabled: on("enabled"), animate: on("animate"), messages: jsonField(s("messages")) };
+    case "homepage_sections":
+      return {
+        sections: homepageSectionIds
+          .map((id, i) => ({ id, visible: on(`visible_${id}`), order: Number(s(`order_${id}`)) || i + 1 }))
+          .sort((a, b) => a.order - b.order)
+          .map(({ id, visible }) => ({ id, visible })),
+      };
   }
 }
+
+/** Structured list posted as JSON by a client form; invalid JSON fails schema validation. */
+function jsonField(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+const settingPages: Partial<Record<SettingKey, string>> = { offer_bar: "/admin/offer-bar", homepage_sections: "/admin/homepage" };
 
 export async function saveSettingAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
@@ -358,15 +323,20 @@ export async function saveSettingAction(_: ActionState, formData: FormData): Pro
   const parsed = settingSchemas[key].safeParse(settingFromForm(key, formData));
   if (!parsed.success) return { ok: false, message: `Please check this section: ${parsed.error.issues[0]?.message ?? "invalid value"}.` };
   if (key === "checkout") {
-    const checkout = parsed.data as { phoneEnabled: boolean; qrImagePath: string | null };
+    const checkout = parsed.data as { codEnabled: boolean; phoneEnabled: boolean; qrImagePath: string | null };
     if (checkout.phoneEnabled && !checkout.qrImagePath) {
       return { ok: false, message: "Upload the real payment QR image in Media and enter its path before turning on UPI QR payment." };
     }
     if (checkout.qrImagePath && !pathField.safeParse(checkout.qrImagePath).success) return { ok: false, message: "Enter a valid media path for the QR image." };
-  }
-  if (key === "instagram_reels") {
-    const bad = (parsed.data as { reelUrl: string }[]).find((r) => !/^https:\/\/(www\.)?instagram\.com\/(reel|p)\//.test(r.reelUrl));
-    if (bad) return { ok: false, message: "Reel links must be real Instagram post or Reel URLs (https://www.instagram.com/reel/…)." };
+    // Opening checkout requires everything an order needs; switching methods off is always allowed.
+    if (checkout.codEnabled || checkout.phoneEnabled) {
+      const blockers = codBlockers(await getCheckoutReadiness());
+      if (blockers.length) return { ok: false, message: `Checkout can't be switched on yet: ${blockers.join("; ")}.` };
+    }
+    if (checkout.phoneEnabled) {
+      const qr = await verifyQrImage(checkout.qrImagePath);
+      if (!qr.ok) return { ok: false, message: qr.message };
+    }
   }
   const db = await createSessionClient();
   const existing = await db.from("store_settings").select("id").eq("setting_key", key).limit(1).maybeSingle();
@@ -375,7 +345,7 @@ export async function saveSettingAction(_: ActionState, formData: FormData): Pro
     ? await db.from("store_settings").update({ setting_value: parsed.data }).eq("id", existing.data.id)
     : await db.from("store_settings").insert({ setting_key: key, setting_value: parsed.data });
   if (error) return dbError("settings", error);
-  refreshStore("/admin/settings", "/", "/checkout");
+  refreshStore(settingPages[key] ?? "/admin/settings", "/", "/checkout");
   return { ok: true, message: "Settings saved." };
 }
 
@@ -383,64 +353,38 @@ export async function saveSettingAction(_: ActionState, formData: FormData): Pro
 // Media library
 // ---------------------------------------------------------------------------
 
-const MAX_BYTES = 5 * 1024 * 1024;
-
-/** Detects the real image type from the file's first bytes (the browser-supplied type is not trusted). */
-function sniffImage(bytes: Uint8Array): { mime: string; ext: string } | null {
-  const ascii = (from: number, to: number) => String.fromCharCode(...bytes.slice(from, to));
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return { mime: "image/jpeg", ext: "jpg" };
-  if (bytes[0] === 0x89 && ascii(1, 4) === "PNG") return { mime: "image/png", ext: "png" };
-  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return { mime: "image/webp", ext: "webp" };
-  if (ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12))) return { mime: "image/avif", ext: "avif" };
-  return null;
-}
-
 const folderField = z.string().trim().toLowerCase().regex(/^[a-z0-9-]+(\/[a-z0-9-]+)*$/, "Folder: lowercase letters, numbers, hyphens");
 
 export async function uploadMediaAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Choose an image to upload." };
-  if (file.size > MAX_BYTES) return { ok: false, message: "Images must be 5 MB or smaller." };
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const type = sniffImage(bytes);
-  if (!type) return { ok: false, message: "Only JPEG, PNG, WebP or AVIF images can be uploaded." };
-
   const replacePath = String(formData.get("replacePath") ?? "").trim();
-  let path: string;
+  let result;
   if (replacePath) {
     const valid = pathField.safeParse(replacePath);
     if (!valid.success || replacePath.startsWith("https://")) return { ok: false, message: "Invalid path to replace." };
-    if (!replacePath.toLowerCase().endsWith(`.${type.ext}`) && !(type.ext === "jpg" && /\.jpe?g$/i.test(replacePath))) {
-      return { ok: false, message: `The replacement must be the same file type (.${replacePath.split(".").pop()}).` };
-    }
-    path = replacePath;
+    result = await storeImage(formData.get("file"), { replacePath });
   } else {
     const folder = folderField.safeParse(String(formData.get("folder") ?? "general") || "general");
     if (!folder.success) return { ok: false, message: folder.error.issues[0].message };
-    const base =
-      file.name
-        .replace(/\.[^.]+$/, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 60) || "image";
-    path = `uploads/${folder.data}/${base}-${crypto.randomUUID().slice(0, 8)}.${type.ext}`;
+    result = await storeImage(formData.get("file"), { folder: folder.data });
   }
-
-  const db = await createSessionClient();
-  const { error } = await db.storage.from(supabaseConfig.mediaBucket).upload(path, bytes, {
-    contentType: type.mime,
-    upsert: Boolean(replacePath),
-    cacheControl: replacePath ? "300" : "31536000",
-  });
-  if (error) {
-    console.error("[admin] upload:", error.message);
-    return { ok: false, message: "Upload failed. Check that you are an administrator and the storage bucket exists." };
-  }
+  if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/admin/media");
-  return { ok: true, message: `Uploaded: ${path}` };
+  return { ok: true, message: `Uploaded: ${result.path}`, path: result.path };
+}
+
+/** Upload folders the content forms may use (uploads/<folder>/…). */
+const contentFolders = ["hero", "reels", "blog", "products", "categories", "payments"] as const;
+
+/** Uploads one image for a content form and returns its media path (the form then saves the path). */
+export async function uploadImageAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const folder = z.enum(contentFolders).safeParse(formData.get("folder"));
+  if (!folder.success) return { ok: false, message: "Unknown upload folder." };
+  const result = await storeImage(formData.get("file"), { folder: folder.data });
+  if (!result.ok) return { ok: false, message: result.message };
+  revalidatePath("/admin/media");
+  return { ok: true, message: "Image uploaded.", path: result.path };
 }
 
 export async function deleteMediaAction(formData: FormData) {

@@ -26,6 +26,10 @@ export function isSupabaseCommerce(shopifyConfigured: boolean): boolean {
 // ---------------------------------------------------------------------------
 
 const PRODUCT_COLUMNS = "id, category_id, name, slug, description, price, compare_at_price, stock_quantity, sku, is_featured, is_best_seller, is_published, created_at";
+/** SEO columns added by migrations/20261019000000_content_management.sql. */
+const PRODUCT_SEO_COLUMNS = `${PRODUCT_COLUMNS}, seo_title, seo_description`;
+/** Postgres / PostgREST codes for "column does not exist" (SEO migration not applied yet). */
+const MISSING_COLUMN = new Set(["42703", "PGRST204"]);
 const IMAGE_COLUMNS = "id, product_id, image_url, alt_text, sort_order, is_primary";
 const CATEGORY_COLUMNS = "id, name, slug, description, image_url, sort_order, is_active";
 
@@ -43,6 +47,8 @@ interface DbProduct {
   is_best_seller: boolean | null;
   is_published: boolean | null;
   created_at: string;
+  seo_title?: string | null;
+  seo_description?: string | null;
 }
 
 interface DbImage {
@@ -92,6 +98,8 @@ export interface ProductRow {
   bestSeller: boolean;
   published: boolean;
   createdAt: string;
+  seoTitle: string | null;
+  seoDescription: string | null;
   images: ProductImageRow[];
 }
 
@@ -143,6 +151,8 @@ function joinProducts(products: DbProduct[], images: DbImage[], categories: Cate
       bestSeller: p.is_best_seller === true,
       published: p.is_published === true,
       createdAt: p.created_at,
+      seoTitle: p.seo_title ?? null,
+      seoDescription: p.seo_description ?? null,
       images: (imagesByProduct.get(p.id) ?? []).sort(imageOrder),
     };
   });
@@ -165,11 +175,16 @@ export class StoreQueryError extends Error {
  * administrators: everything).
  */
 export async function queryProducts(db: SupabaseClient, filter?: { id: string }): Promise<ProductRow[]> {
-  let productQuery = db.from("products").select(PRODUCT_COLUMNS).order("is_featured", { ascending: false }).order("name");
-  if (filter) productQuery = productQuery.eq("id", filter.id);
-  const [products, categories] = await Promise.all([productQuery, queryCategories(db)]);
+  const productQuery = (columns: string) => {
+    const query = db.from("products").select(columns).order("is_featured", { ascending: false }).order("name");
+    return filter ? query.eq("id", filter.id) : query;
+  };
+  const [withSeo, categories] = await Promise.all([productQuery(PRODUCT_SEO_COLUMNS), queryCategories(db)]);
+  let products = withSeo;
+  // Before the SEO migration is applied the extra columns don't exist: read without them.
+  if (products.error?.code && MISSING_COLUMN.has(products.error.code)) products = await productQuery(PRODUCT_COLUMNS);
   if (products.error) throw new StoreQueryError("products", products.error);
-  const rows = (products.data ?? []) as DbProduct[];
+  const rows = (products.data ?? []) as unknown as DbProduct[];
   if (rows.length === 0) return [];
   const images = await db
     .from("product_images")
@@ -235,6 +250,8 @@ export function rowToProduct(row: ProductRow): Product {
     directions: null,
     warnings: null,
     collectionHandles,
+    seo: { title: row.seoTitle, description: row.seoDescription },
+    sku: row.sku,
   };
 }
 

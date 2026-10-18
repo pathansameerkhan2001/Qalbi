@@ -47,13 +47,3 @@ export async function getHomeCategories(): Promise<Category[]> {
 export async function getIngredients(): Promise<Ingredient[]> {
   return defaultIngredients;
 }
-
-/** Optional hero replacement (first slide) from settings. */
-export async function getHeroOverride() {
-  const hero = await getSetting("hero");
-  if (!hero?.desktopPath || !hero.mobilePath) return null;
-  return {
-    desktop: { src: mediaUrl(hero.desktopPath), alt: hero.alt, width: 1600, height: 860, placeholder: false },
-    mobile: { src: mediaUrl(hero.mobilePath), alt: hero.alt, width: 1080, height: 1350, placeholder: false },
-  };
-}

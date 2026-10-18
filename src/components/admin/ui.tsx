@@ -46,7 +46,7 @@ export function SetupNotice({ error }: { error: unknown }) {
       <p className="font-medium text-danger">The admin data could not be loaded.</p>
       <p className="mt-1 text-muted">{error instanceof Error ? error.message : "Please try again."}</p>
       <p className="mt-3 text-muted">
-        If this persists, check that <code className="rounded bg-sand px-1">supabase/production/01_store_additions.sql</code> has been applied in the Supabase SQL editor.
+        If this persists, check that the migrations in <code className="rounded bg-sand px-1">supabase/migrations/</code> have been applied in the Supabase SQL Editor.
       </p>
     </Card>
   );

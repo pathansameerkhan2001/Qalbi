@@ -4,6 +4,7 @@ import { CustomSkincareSection } from "@/components/home/custom-skincare-section
 import { Container } from "@/components/ui/container";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/customised-skincare" },
   title: "Customised Skincare",
   description: "Tell us about your skin goals and QALBI Naturals will help you create a personalised skincare routine.",
 };

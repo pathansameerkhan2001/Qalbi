@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { JournalCard, JournalEmptyState } from "@/components/home/journal-preview";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/journal" },
   title: "The QALBI Journal",
   description: "Skincare routines, ingredient education and tips from QALBI Naturals.",
 };

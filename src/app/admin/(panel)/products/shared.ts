@@ -22,6 +22,8 @@ export const emptyProduct: ProductFormValues = {
   is_published: false,
   is_featured: false,
   is_best_seller: false,
+  seo_title: "",
+  seo_description: "",
   images: [],
 };
 
@@ -39,6 +41,8 @@ export function toFormValues(p: ProductRow): ProductFormValues {
     is_published: p.published,
     is_featured: p.featured,
     is_best_seller: p.bestSeller,
+    seo_title: p.seoTitle ?? "",
+    seo_description: p.seoDescription ?? "",
     images: p.images.map((i) => ({ path: i.path, alt: i.alt })),
   };
 }

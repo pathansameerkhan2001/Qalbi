@@ -6,7 +6,7 @@ import { whatsappLink } from "@/lib/utils";
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 
-export const metadata: Metadata = { title: "FAQs", description: "Answers to common questions about QALBI Naturals." };
+export const metadata: Metadata = { alternates: { canonical: "/faqs" }, title: "FAQs", description: "Answers to common questions about QALBI Naturals." };
 
 /** Only questions answerable from confirmed business information are listed. */
 const faqs: { q: string; a: React.ReactNode }[] = [

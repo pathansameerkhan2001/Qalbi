@@ -22,7 +22,10 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/policies/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  return { title: isPolicy(slug) ? titles[slug] : "Policy" };
+  if (!isPolicy(slug)) return { title: "Policy", robots: { index: false } };
+  // Placeholder pages (no policy text yet) are kept out of search results.
+  const policy = await getPolicy(slug);
+  return { title: titles[slug], alternates: { canonical: `/policies/${slug}` }, ...(policy ? {} : { robots: { index: false, follow: true } }) };
 }
 
 async function PolicyContent({ params }: { params: PageProps<"/policies/[slug]">["params"] }) {

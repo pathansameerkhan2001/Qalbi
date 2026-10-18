@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ImagePlus, Trash2 } from "lucide-react";
-import { saveProductAction } from "@/lib/admin/actions";
+import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, Trash2, Upload } from "lucide-react";
+import { saveProductAction, uploadImageAction } from "@/lib/admin/actions";
 import { ActionMessage, FieldError, initialActionState, SubmitButton } from "@/components/admin/form-bits";
 
 export interface ProductFormValues {
@@ -19,6 +19,8 @@ export interface ProductFormValues {
   is_published: boolean;
   is_featured: boolean;
   is_best_seller: boolean;
+  seo_title: string;
+  seo_description: string;
   images: { path: string; alt: string }[];
 }
 
@@ -58,6 +60,23 @@ export function ProductForm({
       return next;
     });
   const err = (name: string) => <FieldError state={state} name={name} />;
+  const [uploading, startUpload] = useTransition();
+  const [uploadError, setUploadError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const uploadImage = (file: File) => {
+    if (!["image/jpeg", "image/png", "image/webp", "image/avif"].includes(file.type)) return setUploadError("Choose a JPEG, PNG, WebP or AVIF image.");
+    if (file.size > 5 * 1024 * 1024) return setUploadError("Images must be 5 MB or smaller.");
+    setUploadError("");
+    const data = new FormData();
+    data.set("file", file);
+    data.set("folder", "products");
+    startUpload(async () => {
+      const result = await uploadImageAction({ ok: false, message: "" }, data);
+      if (result.ok && result.path) setImages((list) => [...list, { path: result.path!, alt: "" }]);
+      else setUploadError(result.message || "Upload failed.");
+      if (fileRef.current) fileRef.current.value = "";
+    });
+  };
 
   return (
     <form action={action} className="grid gap-6 lg:grid-cols-[1fr_300px]">
@@ -135,12 +154,49 @@ export function ProductForm({
               </li>
             ))}
           </ul>
-          <button type="button" onClick={() => setImages((l) => [...l, { path: "", alt: "" }])} className="btn btn-outline btn-sm">
-            <ImagePlus className="size-4" aria-hidden /> Add image
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className={`btn btn-primary btn-sm cursor-pointer ${uploading ? "pointer-events-none opacity-60" : ""}`}>
+              {uploading ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Upload className="size-4" aria-hidden />} {uploading ? "Uploading…" : "Upload image"}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                className="sr-only"
+                disabled={uploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadImage(file);
+                }}
+              />
+            </label>
+            <button type="button" onClick={() => setImages((l) => [...l, { path: "", alt: "" }])} className="btn btn-outline btn-sm">
+              <ImagePlus className="size-4" aria-hidden /> Add by media path
+            </button>
+          </div>
+          {uploadError && (
+            <p role="alert" className="text-xs text-danger">
+              {uploadError}
+            </p>
+          )}
+          {images.some((img) => img.path && !img.alt.trim()) && <p className="text-xs text-[#7a5418]">Describe every photo (alt text) — it helps customers using screen readers and search engines.</p>}
           {err("images")}
         </section>
 
+        <section className="space-y-4 rounded-[3px] border border-line bg-ivory p-5">
+          <h2 className="font-serif text-xl">Search engines</h2>
+          <p className="text-sm text-muted">Optional. Without these, Google is shown the product name and the start of the description.</p>
+          <input type="hidden" name="seo_present" value={initial.seo_title || initial.seo_description ? "1" : ""} />
+          <div>
+            <label htmlFor="p-seo-title" className="label">SEO title <span className="font-normal text-muted">(about 60 characters)</span></label>
+            <input id="p-seo-title" name="seo_title" defaultValue={initial.seo_title} maxLength={120} placeholder="e.g. Radiance Glow Cream — Natural Face Cream | QALBI Naturals" className="field" />
+            {err("seo_title")}
+          </div>
+          <div>
+            <label htmlFor="p-seo-description" className="label">Meta description <span className="font-normal text-muted">(about 155 characters)</span></label>
+            <textarea id="p-seo-description" name="seo_description" defaultValue={initial.seo_description} rows={2} maxLength={320} className="field resize-y" />
+            {err("seo_description")}
+          </div>
+        </section>
       </fieldset>
 
       <div className="space-y-6">

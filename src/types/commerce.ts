@@ -57,6 +57,9 @@ export interface Product {
   directions: string | null;
   warnings: string | null;
   collectionHandles: string[];
+  /** Optional search-engine overrides (Supabase catalogue); fall back to title / description. */
+  seo?: { title: string | null; description: string | null };
+  sku?: string | null;
 }
 
 export interface Collection {

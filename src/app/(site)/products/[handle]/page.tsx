@@ -7,6 +7,8 @@ import type { Product } from "@/types/commerce";
 import { getProduct, getProductRecommendations, getProducts } from "@/lib/shopify";
 import { sanitizeHtml, whatsappLink } from "@/lib/utils";
 import { brandConfig } from "@/data/brand";
+import { truncate } from "@/lib/content/rules";
+import { absoluteUrl } from "@/lib/site";
 import { Container } from "@/components/ui/container";
 import { ProductDetailSkeleton, ProductGridSkeleton } from "@/components/ui/skeletons";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -24,12 +26,15 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/products/[handle]">): Promise<Metadata> {
   const { handle } = await params;
   const product = await getProduct(handle);
-  if (!product) return { title: "Product not found" };
+  if (!product) return { title: "Product not found", robots: { index: false } };
   const image = product.featuredImage && !product.featuredImage.placeholder ? [{ url: product.featuredImage.url, alt: product.featuredImage.alt }] : undefined;
+  const title = product.seo?.title || product.title;
+  const description = truncate(product.seo?.description || product.description || `${product.title} by ${brandConfig.name}.`, 160);
   return {
-    title: product.title,
-    description: product.description.slice(0, 160),
-    openGraph: { title: product.title, description: product.description.slice(0, 160), images: image },
+    title,
+    description,
+    alternates: { canonical: `/products/${product.handle}` },
+    openGraph: { title, description, url: `/products/${product.handle}`, images: image },
   };
 }
 
@@ -38,13 +43,18 @@ function productJsonLd(product: Product) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.title,
-    description: product.description,
-    image: product.images.filter((i) => !i.placeholder).map((i) => i.url),
+    description: product.seo?.description || product.description,
+    image: product.images.filter((i) => !i.placeholder).map((i) => absoluteUrl(i.url)),
+    url: absoluteUrl(`/products/${product.handle}`),
+    ...(product.sku ? { sku: product.sku } : {}),
+    ...(product.productType ? { category: product.productType } : {}),
     brand: { "@type": "Brand", name: brandConfig.name },
     offers: product.variants.map((v) => ({
       "@type": "Offer",
+      url: absoluteUrl(`/products/${product.handle}`),
       price: v.price.amount,
       priceCurrency: v.price.currencyCode,
+      itemCondition: "https://schema.org/NewCondition",
       availability: v.availableForSale ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     })),
     ...(product.rating

@@ -1,3 +1,4 @@
+import type { BlogBlock } from "@/lib/content/rules";
 import type { LucideIcon } from "lucide-react";
 
 export interface NavLink {
@@ -74,7 +75,12 @@ export interface JournalArticle {
   image: ImageAsset | { src: string; alt: string; width: number; height: number; placeholder?: false };
   /** Plain-text paragraphs. HTML is never injected from this source. */
   body: string[];
+  /** Structured text blocks (admin-written posts); rendered as text, never as HTML. Takes precedence over `body`. */
+  blocks?: BlogBlock[];
   author: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  updatedAt?: string;
 }
 
 export interface Review {

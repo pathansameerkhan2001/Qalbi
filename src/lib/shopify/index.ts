@@ -5,7 +5,8 @@ import type { JournalArticle } from "@/types/content";
 import { devCollections, devProducts } from "@/data/dev-products";
 import { collectionTitles } from "@/data/categories";
 import { journalArticles } from "@/data/content";
-import { getStoreCollections, getStoreProducts, isSupabaseCommerce } from "@/lib/store/catalog";
+import { getStoreCollections, getStoreProducts, isSupabaseCommerce, STORE_TAG } from "@/lib/store/catalog";
+import { getPublishedPosts, postToArticle } from "@/lib/store/cms";
 import { getSetting } from "@/lib/store/settings";
 import { shopifyFetch } from "./client";
 import { allowDevelopmentFixtures, isShopifyConfigured, shopifyConfig } from "./config";
@@ -232,12 +233,19 @@ export async function getPolicy(handle: PolicyHandle): Promise<ShopPolicy | null
   return policy ? { title: policy.title, body: policy.body, handle: policy.handle } : null;
 }
 
+/**
+ * Journal articles: the Shopify blog when one is configured, otherwise posts
+ * published in /admin/blog (Supabase), otherwise the built-in list.
+ */
 export async function getJournalArticles(): Promise<JournalArticle[]> {
   "use cache";
-  cacheLife("hours");
-  cacheTag(CATALOG_TAG);
+  cacheLife("minutes");
+  cacheTag(CATALOG_TAG, STORE_TAG);
 
-  if (!isShopifyConfigured() || !shopifyConfig.blogHandle) return journalArticles;
+  if (!isShopifyConfigured() || !shopifyConfig.blogHandle) {
+    const posts = await getPublishedPosts();
+    return posts.length ? posts.map(postToArticle) : journalArticles;
+  }
   const data = await shopifyFetch<{ blog: { articles: { nodes: ShopifyArticle[] } } | null }>(BLOG_ARTICLES_QUERY, {
     handle: shopifyConfig.blogHandle,
   });
