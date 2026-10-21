@@ -11,7 +11,7 @@ import { ProductGrid } from "@/components/products/product-grid";
 import { SortSelect } from "@/components/products/sort-select";
 
 export async function generateStaticParams() {
-  const collections = await getCollections();
+  const collections = await getCollections().catch(() => []);
   const handles = new Set([...collections.map((c) => c.handle), ...Object.keys(collectionTitles)]);
   return [...handles].map((handle) => ({ handle }));
 }

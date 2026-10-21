@@ -10,8 +10,8 @@ import { absoluteUrl } from "@/lib/site";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const realCatalogue = getCommerceSource() === "shopify" || getCommerceSource() === "supabase";
   const [products, collections, articles, policies] = await Promise.all([
-    realCatalogue ? getProducts("featured", 250) : [],
-    realCatalogue ? getCollections() : [],
+    realCatalogue ? getProducts("featured", 250).catch(() => []) : [],
+    realCatalogue ? getCollections().catch(() => []) : [],
     getJournalArticles(),
     Promise.all(policyHandles.map(async (h) => ((await getPolicy(h)) ? h : null))),
   ]);

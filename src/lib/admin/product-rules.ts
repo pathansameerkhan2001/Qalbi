@@ -61,6 +61,15 @@ export const productSchema = z
 
 export type ProductInput = z.infer<typeof productSchema>;
 
+/** Reasons a stored product may not be published yet (empty = ready). Checked on the server. */
+export function publishBlockers(p: { name: string; price: number; imageCount: number }): string[] {
+  const blockers: string[] = [];
+  if (!p.name.trim()) blockers.push("add a name");
+  if (!(p.price > 0)) blockers.push("set the real price");
+  if (p.imageCount < 1) blockers.push("add at least one photo");
+  return blockers;
+}
+
 /** How a product appears to customers, from the fields the database stores. */
 export function productVisibility(p: { published: boolean; inventory: number | null }): "draft" | "on-sale" | "out-of-stock" {
   if (!p.published) return "draft";

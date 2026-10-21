@@ -8,6 +8,8 @@ import { mediaUrl } from "@/lib/assets";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { getCommerceSource } from "@/lib/shopify";
 import { productVisibility } from "@/lib/admin/product-rules";
+import { setProductPublishedAction } from "@/lib/admin/actions";
+import { RowForm } from "@/components/admin/row-form";
 import { cn } from "@/lib/utils";
 import { AdminHeading, Card, inr, SetupNotice } from "@/components/admin/ui";
 
@@ -16,8 +18,9 @@ export const metadata: Metadata = { title: "Products" };
 const visibilityLabel = { draft: "Draft", "on-sale": "On sale", "out-of-stock": "Out of stock" } as const;
 const visibilityTone = { draft: "bg-line text-muted", "on-sale": "bg-botanical/15 text-forest", "out-of-stock": "bg-gold-pale text-[#7a5418]" } as const;
 
-export default async function AdminProductsPage() {
+export default async function AdminProductsPage({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
   await requireAdmin();
+  const { deleted } = await searchParams;
   let products: Awaited<ReturnType<typeof listAdminProducts>>;
   try {
     products = await listAdminProducts();
@@ -50,6 +53,11 @@ export default async function AdminProductsPage() {
           enabled (see the Dashboard checklist).
         </Card>
       )}
+      {deleted && (
+        <p role="status" className="mb-3 text-sm text-botanical">
+          Product deleted.
+        </p>
+      )}
       {products.length > 0 && (
         <p className="mb-3 text-sm text-muted" role="status">
           {products.length} product{products.length === 1 ? "" : "s"} · {counts["on-sale"]} on sale · {counts["out-of-stock"]} out of stock · {counts.draft} draft
@@ -59,13 +67,18 @@ export default async function AdminProductsPage() {
         {products.length === 0 ? (
           <p className="px-5 py-12 text-center text-sm text-muted">No products yet. Add your first product.</p>
         ) : (
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Product</th>
                 <th className="px-4 py-3 font-medium">Price</th>
                 <th className="px-4 py-3 font-medium">Stock</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                {!shopify && (
+                  <th className="px-4 py-3 font-medium">
+                    <span className="sr-only">Publish or unpublish</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -94,6 +107,19 @@ export default async function AdminProductsPage() {
                         </Link>
                       )}
                     </td>
+                    {!shopify && (
+                      <td className="px-4 py-3 text-right">
+                        <RowForm
+                          action={setProductPublishedAction}
+                          submitLabel={p.published ? "Unpublish" : "Publish"}
+                          confirm={p.published ? `Hide “${p.title}” from customers? It stays saved as a draft.` : undefined}
+                          className="flex justify-end"
+                        >
+                          <input type="hidden" name="id" value={p.id} />
+                          <input type="hidden" name="publish" value={p.published ? "false" : "true"} />
+                        </RowForm>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

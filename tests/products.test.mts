@@ -6,7 +6,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { productSchema, productVisibility } from "../src/lib/admin/product-rules.ts";
+import { productSchema, productVisibility, publishBlockers } from "../src/lib/admin/product-rules.ts";
 import { rowToProduct, type ProductRow } from "../src/lib/store/product-mapping.ts";
 
 const form = (over: Record<string, unknown> = {}) => ({
@@ -117,4 +117,12 @@ test("storefront: category and best-seller flags become collections", () => {
   const p = rowToProduct(row({ category: { handle: "serums", title: "Serums" }, bestSeller: true }));
   assert.deepEqual(p.collectionHandles, ["serums", "bestsellers"]);
   assert.equal(p.productType, "Serums");
+});
+
+test("publish toggle: stored drafts at ₹0 or without photos cannot be published", () => {
+  // The five imported drafts: price 0, photos present.
+  assert.deepEqual(publishBlockers({ name: "Radiance Glow Cream", price: 0, imageCount: 4 }), ["set the real price"]);
+  assert.deepEqual(publishBlockers({ name: "Serum", price: 897, imageCount: 0 }), ["add at least one photo"]);
+  assert.deepEqual(publishBlockers({ name: " ", price: Number.NaN, imageCount: 0 }), ["add a name", "set the real price", "add at least one photo"]);
+  assert.deepEqual(publishBlockers({ name: "Radiance Glow Cream", price: 399, imageCount: 4 }), []);
 });

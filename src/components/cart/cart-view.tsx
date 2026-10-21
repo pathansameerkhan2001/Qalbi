@@ -6,8 +6,10 @@ import { Info, LoaderCircle, Lock, Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { track } from "@/lib/analytics";
 import { formatPrice } from "@/lib/utils";
+import { publicImageUrl, type WhatsAppOrderConfig } from "@/lib/checkout/whatsapp";
+import { WhatsAppOrderButton } from "@/components/products/whatsapp-order-button";
 
-export function CartView() {
+export function CartView({ checkoutOpen, whatsapp }: { checkoutOpen: boolean; whatsapp?: WhatsAppOrderConfig }) {
   const { cart, loaded, pending, error, mode, updateLine, removeLine } = useCart();
 
   if (!loaded) {
@@ -83,8 +85,8 @@ export function CartView() {
             <dd className="text-right text-muted">Calculated at checkout</dd>
           </div>
         </dl>
-        <div className="mt-6 border-t border-line pt-5">
-          {mode === "store" ? (
+        <div className="mt-6 space-y-4 border-t border-line pt-5">
+          {mode === "store" && checkoutOpen ? (
             <Link href="/checkout" className="btn btn-primary w-full">
               <Lock className="size-4" aria-hidden /> Proceed to Checkout
             </Link>
@@ -97,17 +99,27 @@ export function CartView() {
               <Lock className="size-4" aria-hidden /> Proceed to Checkout
             </a>
           ) : (
-            <>
-              <button type="button" disabled className="btn btn-primary w-full">
-                <Lock className="size-4" aria-hidden /> Checkout unavailable
-              </button>
-              <p className="mt-3 flex gap-2 text-xs text-muted">
-                <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                This is a store preview. Checkout becomes available once the QALBI Shopify store is connected.
-              </p>
-            </>
+            <p className="flex gap-2 text-xs text-muted">
+              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              {mode === "development"
+                ? "This is a store preview: prices are not yet confirmed and online checkout is not open. You can still send us your order on WhatsApp."
+                : "Online checkout is not open yet. Send us your order on WhatsApp and we'll confirm the total and payment."}
+            </p>
           )}
-          <Link href="/products" className="mt-4 block text-center text-sm text-forest underline-offset-4 hover:underline">Continue shopping</Link>
+          {whatsapp && (
+            <WhatsAppOrderButton
+              digits={whatsapp.digits}
+              estimatedTotal={whatsapp.priceConfirmed ? formatPrice(cart.cost.subtotalAmount) : null}
+              items={cart.lines.map((line) => ({
+                title: line.merchandise.product.title,
+                quantity: line.quantity,
+                unitPrice: whatsapp.priceConfirmed ? formatPrice(line.merchandise.price) : null,
+                url: whatsapp.siteOrigin ? `${whatsapp.siteOrigin}/products/${line.merchandise.product.handle}` : null,
+                imageUrl: publicImageUrl(line.merchandise.product.featuredImage?.url, whatsapp.siteOrigin),
+              }))}
+            />
+          )}
+          <Link href="/products" className="block text-center text-sm text-forest underline-offset-4 hover:underline">Continue shopping</Link>
         </div>
       </aside>
     </div>

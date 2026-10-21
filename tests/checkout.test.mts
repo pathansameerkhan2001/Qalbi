@@ -74,3 +74,50 @@ test("WhatsApp link targets the business number with an encoded message", () => 
   assert.equal(decodeURIComponent(new URL(url).searchParams.get("text") ?? ""), "Order: QN-1 & total ₹399\nThanks");
   assert.equal(new URL(url).searchParams.get("text"), "Order: QN-1 & total ₹399\nThanks");
 });
+
+// ---------------------------------------------------------------------------
+// WhatsApp order request (product page and bag)
+// ---------------------------------------------------------------------------
+import { orderRequestWhatsAppMessage } from "../src/lib/checkout/whatsapp.ts";
+
+const radiance = {
+  title: "Radiance Glow Cream",
+  quantity: 2,
+  unitPrice: "₹399",
+  url: "https://qalbinaturals.com/products/radiance-glow-cream",
+  imageUrl: "https://qalbinaturals.com/assets/products/radiance-studio.webp",
+  details: "Repair | Nourish | Brightens.",
+};
+
+test("order request: product, quantity, verified price, page link and photo link", () => {
+  const m = orderRequestWhatsAppMessage([radiance], "₹798");
+  assert.match(m, /1\. Radiance Glow Cream × 2/);
+  assert.match(m, /Price: ₹399 each/);
+  assert.match(m, /Details: Repair \| Nourish \| Brightens\./);
+  assert.match(m, /Product page: https:\/\/qalbinaturals\.com\/products\/radiance-glow-cream/);
+  assert.match(m, /Photo \(link\): https:\/\/qalbinaturals\.com\/assets\/products\/radiance-studio\.webp/);
+  assert.match(m, /Estimated total: ₹798 \(delivery charge to be confirmed\)/);
+  assert.doesNotMatch(m, /attached/i, "never claims an attachment");
+});
+
+test("order request: unconfirmed prices are never stated and no total is given", () => {
+  const m = orderRequestWhatsAppMessage([{ ...radiance, unitPrice: null }], "₹798");
+  assert.match(m, /Price: please confirm/);
+  assert.doesNotMatch(m, /₹/);
+  assert.doesNotMatch(m, /Estimated total/);
+});
+
+test("order request: only public https links are included", () => {
+  const m = orderRequestWhatsAppMessage([{ ...radiance, url: "http://localhost:3000/products/x", imageUrl: "/assets/products/x.webp" }], null);
+  assert.doesNotMatch(m, /localhost|Product page|Photo/);
+  assert.doesNotMatch(orderRequestWhatsAppMessage([{ ...radiance, imageUrl: "https://evil.example/a b.webp" }], null), /evil/);
+});
+
+test("order request: contains no customer data — the customer types it in WhatsApp", () => {
+  const m = orderRequestWhatsAppMessage([radiance], null);
+  assert.match(m, /My name:\nDelivery address and PIN code:\n/);
+  const url = whatsappUrl("919032543737", m);
+  assert.ok(url.startsWith("https://wa.me/919032543737?text="));
+  assert.equal(decodeURIComponent(url.split("?text=")[1]), m, "round-trips through URL encoding");
+  assert.doesNotMatch(url.split("?text=")[1], /[ \n&#]/, "fully encoded");
+});

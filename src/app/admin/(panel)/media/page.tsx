@@ -4,9 +4,9 @@ import { ChevronRight, Folder } from "lucide-react";
 import { listMedia, type MediaItem } from "@/lib/admin/data";
 import { requireAdmin } from "@/lib/admin/auth";
 import { deleteMediaAction } from "@/lib/admin/actions";
+import { RowForm } from "@/components/admin/row-form";
 import { storagePublicUrl, supabaseConfig } from "@/lib/supabase/config";
 import { AdminHeading, Card, dateTime, SetupNotice } from "@/components/admin/ui";
-import { ConfirmButton } from "@/components/admin/form-bits";
 import { CopyPath, ReplaceForm, UploadForm } from "./media-client";
 
 export const metadata: Metadata = { title: "Media" };
@@ -89,10 +89,9 @@ export default async function AdminMediaPage({ searchParams }: { searchParams: P
                   <summary className="cursor-pointer text-muted">Replace or delete</summary>
                   <div className="mt-2 space-y-3">
                     <ReplaceForm path={f.path} />
-                    <form action={deleteMediaAction}>
+                    <RowForm action={deleteMediaAction} submitLabel="Delete file" variant="danger" confirm={`Delete ${f.path}? This cannot be undone.`} className="flex">
                       <input type="hidden" name="path" value={f.path} />
-                      <ConfirmButton message={`Delete ${f.path}? Pages using this path will show a missing image.`}>Delete file</ConfirmButton>
-                    </form>
+                    </RowForm>
                   </div>
                 </details>
               </div>

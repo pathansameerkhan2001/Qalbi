@@ -14,11 +14,12 @@ import { ProductDetailSkeleton, ProductGridSkeleton } from "@/components/ui/skel
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ProductGallery } from "@/components/products/product-gallery";
 import { PurchasePanel } from "@/components/products/purchase-panel";
+import { getWhatsAppOrderConfig } from "@/lib/whatsapp-order";
 import { ProductGrid } from "@/components/products/product-grid";
 import { Rating } from "@/components/products/rating";
 
 export async function generateStaticParams() {
-  const products = await getProducts("featured", 100);
+  const products = await getProducts("featured", 100).catch(() => []);
   // Cache Components requires at least one param; unknown handles render notFound().
   return products.length ? products.map((p) => ({ handle: p.handle })) : [{ handle: "__placeholder__" }];
 }
@@ -83,7 +84,7 @@ function InfoSection({ title, children, open }: { title: string; children: React
 }
 
 async function Recommendations({ product }: { product: Product }) {
-  const related = await getProductRecommendations({ id: product.id, handle: product.handle, collectionHandles: product.collectionHandles });
+  const related = await getProductRecommendations({ id: product.id, handle: product.handle, collectionHandles: product.collectionHandles }).catch(() => []);
   if (related.length === 0) return null;
   return (
     <section aria-labelledby="related-heading" className="border-t border-line py-12">
@@ -130,7 +131,7 @@ async function ProductDetail({ params }: { params: PageProps<"/products/[handle]
           <h1 className="text-h2 text-ink sm:text-[2.6rem]">{product.title}</h1>
           {product.rating && <Rating rating={product.rating} className="mt-2" />}
           <div className="mt-5">
-            <PurchasePanel product={product} />
+            <PurchasePanel product={product} whatsapp={await getWhatsAppOrderConfig()} />
           </div>
 
           <div className="mt-8 border-t border-line">

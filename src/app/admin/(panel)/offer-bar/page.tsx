@@ -34,6 +34,11 @@ export default async function AdminOfferBarPage() {
         .
       </p>
       {!parsed.success && <p className="mb-4 text-sm text-danger">The saved offer bar could not be read and has been reset in this form. Saving replaces it.</p>}
+      {parsed.success && initial.enabled && initial.messages.length === 0 && (
+        <p role="status" className="mb-4 rounded-[3px] border border-gold/40 bg-gold-pale/40 p-3 text-sm">
+          The bar is switched on but has no messages, so <strong className="font-medium">nothing is shown on the website</strong>. Add a message, or untick “Show the offer bar”, then save.
+        </p>
+      )}
       <OfferBarForm initial={initial} />
     </>
   );

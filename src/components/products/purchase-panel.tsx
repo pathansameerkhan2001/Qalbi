@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import type { Product } from "@/types/commerce";
 import { track } from "@/lib/analytics";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
+import { publicImageUrl, type WhatsAppOrderConfig } from "@/lib/checkout/whatsapp";
+import { WhatsAppOrderButton } from "./whatsapp-order-button";
 import { AddToCartButton } from "./add-to-cart-button";
 import { Price } from "./price";
 
-export function PurchasePanel({ product }: { product: Product }) {
+export function PurchasePanel({ product, whatsapp }: { product: Product; whatsapp?: WhatsAppOrderConfig }) {
   const realOptions = product.options.filter((o) => !(o.values.length === 1 && o.values[0] === "Default Title"));
   const firstAvailable = product.variants.find((v) => v.availableForSale) ?? product.variants[0];
   const [selected, setSelected] = useState<Record<string, string>>(
@@ -92,6 +94,24 @@ export function PurchasePanel({ product }: { product: Product }) {
           className="[&>button]:h-12"
         />
       </div>
+
+      {whatsapp && variant && (
+        <WhatsAppOrderButton
+          digits={whatsapp.digits}
+          label={available ? "Order on WhatsApp" : "Ask about availability on WhatsApp"}
+          estimatedTotal={whatsapp.priceConfirmed ? formatPrice({ amount: variant.price.amount * quantity, currencyCode: variant.price.currencyCode }) : null}
+          items={[
+            {
+              title: product.title,
+              quantity,
+              unitPrice: whatsapp.priceConfirmed ? formatPrice(variant.price) : null,
+              url: whatsapp.siteOrigin ? `${whatsapp.siteOrigin}/products/${product.handle}` : null,
+              imageUrl: publicImageUrl((variant.image ?? product.featuredImage)?.url, whatsapp.siteOrigin),
+              details: product.description,
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }

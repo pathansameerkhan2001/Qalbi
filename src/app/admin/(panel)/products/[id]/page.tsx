@@ -8,7 +8,8 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { deleteProductAction } from "@/lib/admin/actions";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { AdminHeading } from "@/components/admin/ui";
-import { ConfirmButton } from "@/components/admin/form-bits";
+import { RowForm } from "@/components/admin/row-form";
+import { getCommerceSource } from "@/lib/shopify";
 import { ProductForm } from "../product-form";
 import { mediaBase, toFormValues } from "../shared";
 
@@ -29,14 +30,17 @@ export default async function EditProductPage({ params, searchParams }: { params
       </Link>
       <AdminHeading title={product.title}>
         <div className="flex items-center gap-4">
-          <Link href={`/products/${product.handle}`} target="_blank" className="inline-flex items-center gap-1 text-sm text-forest">
-            View on website <ExternalLink className="size-3.5" aria-hidden />
-          </Link>
+          {product.published && getCommerceSource() === "supabase" ? (
+            <Link href={`/products/${product.handle}`} target="_blank" className="inline-flex items-center gap-1 text-sm text-forest">
+              View on website <ExternalLink className="size-3.5" aria-hidden />
+            </Link>
+          ) : (
+            <span className="text-xs text-muted">{product.published ? "Published (website shows the preview catalogue)" : "Draft — not on the website"}</span>
+          )}
           {!readOnly && (
-            <form action={deleteProductAction}>
+            <RowForm action={deleteProductAction} submitLabel="Delete product" variant="danger" confirm={`Delete “${product.title}”? This cannot be undone. Past orders keep their copy of the product details.`} className="flex">
               <input type="hidden" name="id" value={product.id} />
-              <ConfirmButton message={`Delete “${product.title}”? Past orders keep their copy of the product details.`}>Delete product</ConfirmButton>
-            </form>
+            </RowForm>
           )}
         </div>
       </AdminHeading>

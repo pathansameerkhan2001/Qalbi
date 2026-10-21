@@ -25,20 +25,27 @@ export async function getTrustBadges(): Promise<TrustBadge[]> {
   return trustBadges.filter((b) => !b.isClaim || (overrides[b.id] ?? b.verified));
 }
 
+/**
+ * "Shop by Category". With the database catalogue only its active categories are
+ * shown (never the planned built-in list, whose links would not exist); a
+ * category without its own image uses QALBI's matching website photo. If the
+ * catalogue cannot be read the row is simply left out.
+ */
 export async function getHomeCategories(): Promise<Category[]> {
   if (!isSupabaseCommerce(false)) return homeCategories;
-  const rows = (await getStoreCategories()).filter((c) => c.active && c.imagePath);
-  if (rows.length === 0) return homeCategories;
+  let rows: Awaited<ReturnType<typeof getStoreCategories>>;
+  try {
+    rows = (await getStoreCategories()).filter((c) => c.active);
+  } catch {
+    return [];
+  }
+  const builtIn = new Map(homeCategories.map((c) => [c.collectionHandle, c]));
+  const categories: Category[] = rows.flatMap((c) => {
+    const image = c.imagePath ? { src: mediaUrl(c.imagePath), alt: c.title, width: 600, height: 600, placeholder: false } : builtIn.get(c.handle)?.image;
+    return image ? [{ label: c.title, collectionHandle: c.handle, href: `/collections/${c.handle}`, image }] : [];
+  });
   const custom = homeCategories.find((c) => c.collectionHandle === null);
-  return [
-    ...rows.map((c) => ({
-      label: c.title,
-      collectionHandle: c.handle,
-      href: `/collections/${c.handle}`,
-      image: { src: mediaUrl(c.imagePath!), alt: c.title, width: 600, height: 600, placeholder: false },
-    })),
-    ...(custom ? [custom] : []),
-  ];
+  return categories.length && custom ? [...categories, custom] : categories;
 }
 
 /**

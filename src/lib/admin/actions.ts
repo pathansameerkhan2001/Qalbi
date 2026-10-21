@@ -15,7 +15,7 @@ import { requireAdmin } from "./auth";
 import { orderStatuses, paymentStatuses } from "./data";
 import { checkbox, dbError, invalid, refreshStore, type ActionState } from "./action-helpers";
 import { storeImage } from "./media";
-import { productSchema } from "./product-rules";
+import { imagePath, productSchema, publishBlockers } from "./product-rules";
 import { codBlockers, getCheckoutReadiness, verifyQrImage } from "./checkout-readiness";
 
 export type { ActionState };
@@ -28,7 +28,6 @@ export type { ActionState };
 
 const handleField = z.string().trim().toLowerCase().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and hyphens");
 const pathField = z.string().trim().max(300).regex(/^(https:\/\/|[a-z0-9])[^\s<>"']*$/i, "Enter a media path such as products/serum.webp");
-const optionalPath = z.union([pathField, z.literal("")]).transform((v) => v || null);
 
 // ---------------------------------------------------------------------------
 // Authentication
@@ -134,13 +133,24 @@ export async function saveProductAction(_: ActionState, formData: FormData): Pro
   if (saved.error) return dbError("product", saved.error);
   const productId = saved.data.id as string;
 
+  // Replace the image list. PostgREST has no multi-statement transaction, so the
+  // previous rows are restored if inserting the new list fails.
+  const previous = await db.from("product_images").select("image_url, alt_text, sort_order, is_primary").eq("product_id", productId);
+  if (previous.error) return dbError("product images", previous.error);
   const removed = await db.from("product_images").delete().eq("product_id", productId);
   if (removed.error) return dbError("product images", removed.error);
   if (imageList.length) {
     const inserted = await db
       .from("product_images")
       .insert(imageList.map((img, i) => ({ product_id: productId, image_url: img.path, alt_text: img.alt || null, sort_order: i, is_primary: i === 0 })));
-    if (inserted.error) return dbError("product images", inserted.error);
+    if (inserted.error) {
+      if (previous.data?.length) {
+        const restored = await db.from("product_images").insert(previous.data.map((img) => ({ ...img, product_id: productId })));
+        if (restored.error) console.error("[admin] restoring product images failed:", restored.error.code);
+      }
+      refreshStore("/admin/products", "/", "/products");
+      return { ...dbError("product images", inserted.error), message: "The product details were saved, but the photo changes were not. Please check the photos and save again." };
+    }
   }
 
   refreshStore("/admin/products", "/", "/products");
@@ -148,17 +158,44 @@ export async function saveProductAction(_: ActionState, formData: FormData): Pro
   return { ok: true, message: "Product saved." };
 }
 
-export async function deleteProductAction(formData: FormData) {
+/** Publish / unpublish from the product list. Publishing re-checks the stored price and photos on the server. */
+export async function setProductPublishedAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
-  const id = z.uuid().safeParse(formData.get("id"));
-  if (!id.success) return;
+  if (isShopifyConfigured()) return { ok: false, message: "Products are managed in Shopify while the store is connected." };
+  const parsed = z.object({ id: z.uuid(), publish: z.enum(["true", "false"]) }).safeParse({ id: formData.get("id"), publish: formData.get("publish") });
+  if (!parsed.success) return { ok: false, message: "Unknown product." };
+  const publish = parsed.data.publish === "true";
   const db = await createSessionClient();
-  // Images first, so the delete never depends on how the image foreign key is defined.
-  const images = await db.from("product_images").delete().eq("product_id", id.data);
-  const { error } = images.error ? images : await db.from("products").delete().eq("id", id.data);
-  if (error) console.error("[admin] delete product:", error.code);
+  if (publish) {
+    const [product, images] = await Promise.all([
+      db.from("products").select("name, price").eq("id", parsed.data.id).maybeSingle(),
+      db.from("product_images").select("id", { count: "exact", head: true }).eq("product_id", parsed.data.id),
+    ]);
+    if (product.error) return dbError("product", product.error);
+    if (images.error) return dbError("product images", images.error);
+    if (!product.data) return { ok: false, message: "Product not found." };
+    const blockers = publishBlockers({ name: String(product.data.name ?? ""), price: Number(product.data.price), imageCount: images.count ?? 0 });
+    if (blockers.length) return { ok: false, message: `Before publishing, ${blockers.join(" and ")}.` };
+  }
+  const { data, error } = await db.from("products").update({ is_published: publish }).eq("id", parsed.data.id).select("id");
+  if (error) return dbError("product", error);
+  if (!data?.length) return { ok: false, message: "Product not found or not editable." };
   refreshStore("/admin/products", "/", "/products");
-  redirect("/admin/products");
+  return { ok: true, message: publish ? "Published." : "Unpublished — hidden from customers." };
+}
+
+export async function deleteProductAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  if (isShopifyConfigured()) return { ok: false, message: "Products are managed in Shopify while the store is connected." };
+  const id = z.uuid().safeParse(formData.get("id"));
+  if (!id.success) return { ok: false, message: "Unknown product." };
+  const db = await createSessionClient();
+  // Images are removed with the product (on delete cascade); orders keep their own copy of the details.
+  const { data, error } = await db.from("products").delete().eq("id", id.data).select("id");
+  if (error) return dbError("product", error);
+  if (!data?.length) return { ok: false, message: "Product not found or not deletable." };
+  refreshStore("/admin/products", "/", "/products");
+  redirect("/admin/products?deleted=1");
 }
 
 // ---------------------------------------------------------------------------
@@ -195,7 +232,7 @@ export async function saveCategoryAction(_: ActionState, formData: FormData): Pr
       slug: handleField,
       name: z.string().trim().min(1, "Enter a name").max(80),
       description: z.string().trim().max(400).transform((v) => v || null),
-      image_url: optionalPath,
+      image_url: z.union([imagePath, z.literal("")]).transform((v) => v || null),
       sort_order: z.coerce.number().int().min(-1000).max(100000),
       is_active: checkbox,
     })
@@ -299,6 +336,10 @@ export async function saveSettingAction(_: ActionState, formData: FormData): Pro
   if (!(key in settingSchemas)) return { ok: false, message: "Unknown setting." };
   const parsed = settingSchemas[key].safeParse(settingFromForm(key, formData));
   if (!parsed.success) return { ok: false, message: `Please check this section: ${parsed.error.issues[0]?.message ?? "invalid value"}.` };
+  // A switched-on bar with no messages shows nothing on the website — refuse rather than report false success.
+  if (key === "offer_bar" && (parsed.data as { enabled: boolean; messages: unknown[] }).enabled && (parsed.data as { messages: unknown[] }).messages.length === 0) {
+    return { ok: false, message: "Add at least one message before switching the offer bar on (or untick “Show the offer bar”)." };
+  }
   if (key === "checkout") {
     const checkout = parsed.data as { codEnabled: boolean; phoneEnabled: boolean; qrImagePath: string | null };
     if (checkout.phoneEnabled && !checkout.qrImagePath) {
@@ -364,12 +405,41 @@ export async function uploadImageAction(_: ActionState, formData: FormData): Pro
   return { ok: true, message: "Image uploaded.", path: result.path };
 }
 
-export async function deleteMediaAction(formData: FormData) {
+/** Where a media path is still used (so deleting it would break the website). Missing tables are ignored. */
+async function mediaReferences(db: Awaited<ReturnType<typeof createSessionClient>>, path: string): Promise<string[]> {
+  const checks: [string, string, string[]][] = [
+    ["product_images", "a product photo", ["image_url"]],
+    ["categories", "a category", ["image_url"]],
+    ["hero_slides", "a hero slide", ["desktop_image_path", "mobile_image_path"]],
+    ["instagram_reels", "an Instagram Reel", ["thumbnail_path"]],
+    ["blog_posts", "a blog post", ["cover_image_path"]],
+    ["ingredients", "an ingredient", ["image_path"]],
+  ];
+  const found: string[] = [];
+  await Promise.all(
+    checks.map(async ([table, label, columns]) => {
+      const { count, error } = await db.from(table).select("id", { count: "exact", head: true }).or(columns.map((c) => `${c}.eq.${path}`).join(","));
+      if (!error && count) found.push(`${label}${count > 1 ? ` (${count})` : ""}`);
+    }),
+  );
+  const { data } = await db.from("store_settings").select("setting_value").eq("setting_key", "checkout").maybeSingle();
+  if ((data?.setting_value as { qrImagePath?: string } | undefined)?.qrImagePath === path) found.push("the payment QR setting");
+  return found;
+}
+
+export async function deleteMediaAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
   const path = pathField.safeParse(formData.get("path"));
-  if (!path.success || path.data.startsWith("https://")) return;
+  if (!path.success || path.data.startsWith("https://") || path.data.includes("..") || /[,()]/.test(path.data)) return { ok: false, message: "Unknown file." };
   const db = await createSessionClient();
-  const { error } = await db.storage.from(supabaseConfig.mediaBucket).remove([path.data]);
-  if (error) console.error("[admin] delete media:", error.message);
+  const usedBy = await mediaReferences(db, path.data);
+  if (usedBy.length) return { ok: false, message: `Still used by ${usedBy.join(", ")}. Replace the image there first.` };
+  const { data, error } = await db.storage.from(supabaseConfig.mediaBucket).remove([path.data]);
+  if (error) {
+    console.error("[admin] delete media:", error.message);
+    return { ok: false, message: "Could not delete the file. Please try again." };
+  }
+  if (!data?.length) return { ok: false, message: "The file was not found or could not be deleted." };
   revalidatePath("/admin/media");
+  return { ok: true, message: "File deleted." };
 }

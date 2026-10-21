@@ -175,6 +175,26 @@ export async function queryCategories(db: SupabaseClient): Promise<CategoryRow[]
 // Storefront
 // ---------------------------------------------------------------------------
 
+/**
+ * Thrown when the database catalogue is selected (COMMERCE_SOURCE=supabase) but
+ * cannot be read. Pages show their error state with a retry instead of an empty
+ * catalogue; failures are never cached.
+ */
+export class CatalogUnavailableError extends Error {
+  constructor(readonly scope: string) {
+    super(`The product catalogue could not be loaded (${scope}).`);
+    this.name = "CatalogUnavailableError";
+  }
+}
+
+function unavailable(error: unknown): never {
+  if (error instanceof StoreQueryError) {
+    console.error(`[store] ${error.scope} query failed:`, error.dbError.code ?? error.dbError.message);
+    throw new CatalogUnavailableError(error.scope);
+  }
+  throw error;
+}
+
 export async function getStoreProducts(): Promise<Product[]> {
   "use cache";
   cacheLife("minutes");
@@ -182,8 +202,7 @@ export async function getStoreProducts(): Promise<Product[]> {
   try {
     return (await queryProducts(createPublicClient())).map(rowToProduct);
   } catch (error) {
-    if (error instanceof StoreQueryError) console.error(`[store] ${error.scope} query failed:`, error.dbError.code ?? error.dbError.message);
-    return [];
+    unavailable(error);
   }
 }
 
@@ -194,8 +213,7 @@ export async function getStoreCategories(): Promise<CategoryRow[]> {
   try {
     return await queryCategories(createPublicClient());
   } catch (error) {
-    if (error instanceof StoreQueryError) console.error(`[store] ${error.scope} query failed:`, error.dbError.code ?? error.dbError.message);
-    return [];
+    unavailable(error);
   }
 }
 

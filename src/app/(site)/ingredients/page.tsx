@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export default async function IngredientsPage() {
-  const [products, ingredients] = await Promise.all([getProducts("featured", 10), getIngredients()]);
+  const [products, ingredients] = await Promise.all([getProducts("featured", 10).catch(() => []), getIngredients()]);
   const linkedHandles = new Set(ingredients.flatMap((i) => i.productHandles));
   const related = linkedHandles.size ? products.filter((p) => linkedHandles.has(p.handle)) : products.slice(0, 5);
 

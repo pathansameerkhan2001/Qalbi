@@ -13,8 +13,13 @@ const customised: NavLink = { label: "Customised Skincare", href: "/customised-s
 export async function getCategoryLinks(): Promise<NavLink[]> {
   const source = getCommerceSource();
   if (source !== "supabase" && source !== "shopify") return productCategoryLinks;
-  const collections = (await getCollections()).filter((c) => c.handle !== BESTSELLERS_HANDLE);
-  return [...collections.map((c) => ({ label: c.title, href: `/collections/${c.handle}` })), customised];
+  try {
+    const collections = (await getCollections()).filter((c) => c.handle !== BESTSELLERS_HANDLE);
+    return [...collections.map((c) => ({ label: c.title, href: `/collections/${c.handle}` })), customised];
+  } catch {
+    // The menu must render even if the catalogue is down; product pages show the error.
+    return [customised];
+  }
 }
 
 export async function getMainNavigation(): Promise<NavItem[]> {

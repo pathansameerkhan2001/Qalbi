@@ -37,7 +37,9 @@ All website images are crops of QALBI's own photographs and logo (`assets-source
 
 ```bash
 npm run assets:build    # crops/optimises originals → public/assets/** (see scripts/process-images.py)
-npm run assets:upload   # uploads public/assets/** to the Supabase bucket and verifies each public URL
+npm run assets:audit    # READ-ONLY: local assets vs bucket vs database references, broken links
+npm run assets:upload   # uploads public/assets/** to the bucket (asks for an admin sign-in), verifies each public URL
+npm run assets:upload -- --dry-run   # what would be uploaded; changes nothing
 ```
 
 - Bucket: `qalbi-naturals-media` (public). Object paths mirror `public/assets`: `brand/*` (logo + logo mask), `hero/*` (3 slides × desktop/mobile), `products/*`, `categories/*`, `ingredients/*`, `about/*`, `lookbook/*`, `reels/*`, `miscellaneous/*`.
@@ -63,11 +65,13 @@ Then set `COMMERCE_SOURCE=supabase` to sell the products managed in `/admin` (ig
 
 **UPI QR payment:** upload the real QR image in `/admin/media`, paste its path in Settings → Checkout, then switch QR payment on. The database refuses QR orders until both are set. Customers see the QR after placing the order; the order stays **pending** until you check your bank app and mark it paid in `/admin/orders`. Nothing marks an order paid automatically.
 
-**Images:** `npm run assets:upload` copies `public/assets/**` into the bucket (needs `SUPABASE_SERVICE_ROLE_KEY` locally); then set `NEXT_PUBLIC_ASSET_SOURCE=supabase`. New images can also be uploaded in `/admin/media` (stored under `uploads/`).
+**Images:** `npm run assets:upload` copies `public/assets/**` into the bucket. It asks for an administrator email and password (uploads then run under the admin-only Storage policies) or uses `SUPABASE_SERVICE_ROLE_KEY` if set locally. Identical files are skipped; a bucket file that differs from the local copy is left alone unless `--overwrite`; `uploads/` is never touched. Set `NEXT_PUBLIC_ASSET_SOURCE=supabase` only when `npm run assets:audit` shows every asset in the bucket. New images can also be uploaded in `/admin/media` (stored under `uploads/`); the Media Library refuses to delete a file that a product, category, hero slide, reel, post or ingredient still uses.
 
 **How it is secured:** signing in is not enough. Every admin page and server action checks the Supabase session with the Auth server *and* the user's row in `admin_users` (`src/lib/admin/auth.ts`); a non-admin is signed straight back out. The database enforces the same rule with RLS through `public.is_admin()`, which uses the verified `auth.uid()` — never an email or id sent by the browser. Visitors can read only published products, active categories and the storefront's setting keys. Orders are priced only inside `place_order()`; the browser never sends prices. The order confirmation page is unlocked by a random token kept in an httpOnly cookie. Orders and enquiries can be created only by the website server: `place_order_checked()` / `record_enquiry_checked()` are executable solely with the server-only `SUPABASE_SERVICE_ROLE_KEY` and enforce rate limits in the database (part of the initial schema). That key is used for nothing else — admin pages and actions run as the signed-in administrator under RLS.
 
-**WhatsApp:** after an order, the confirmation page offers *Confirm Order on WhatsApp*, which opens WhatsApp with the order number, items, total and product image links pre-filled for the customer to send. Automatic business-sent WhatsApp messages would need the WhatsApp Business Platform (not configured).
+**WhatsApp ordering:** while online checkout is closed, product pages and the bag offer *Order on WhatsApp*. It opens WhatsApp with the product names, quantities, product-page links and photo links filled in; the customer adds their own name and address and decides whether to send it. Prices are included only from the real catalogue (never the preview prices). Links appear only once `NEXT_PUBLIC_SITE_URL` is the public https domain. A `wa.me` text link cannot attach images — photos are sent as links. The number comes from Store Settings → Contact.
+
+**WhatsApp after an on-site order:** after an order, the confirmation page offers *Confirm Order on WhatsApp*, which opens WhatsApp with the order number, items, total and product image links pre-filled for the customer to send. Automatic business-sent WhatsApp messages would need the WhatsApp Business Platform (not configured).
 
 **Ingredients (homepage carousel and /ingredients):** run `supabase/migrations/20261021000000_ingredients.sql` once in Supabase → SQL Editor (after the two earlier migrations). Then manage ingredients in `/admin/ingredients` — photos upload to `uploads/ingredients/` in the media bucket. Until one ingredient is published, the website shows the built-in confirmed list in `src/data/ingredients.ts` (Aloe Vera, Turmeric and Neem have no real photograph yet and show a line icon). Local test: `supabase/tests/ingredients_test.sql`.
 

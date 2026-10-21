@@ -28,7 +28,7 @@ export default async function AdminIngredientsPage() {
       </>
     );
   }
-  const products = (await getProducts("featured", 48)).map((p) => ({ handle: p.handle, title: p.title }));
+  const products = (await getProducts("featured", 48).catch(() => [])).map((p) => ({ handle: p.handle, title: p.title }));
   const live = rows.filter((r) => r.active).length;
 
   return (

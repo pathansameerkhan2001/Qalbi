@@ -57,7 +57,7 @@ const iconLink = "inline-flex size-10 items-center justify-center rounded-full b
  */
 export async function Footer() {
   const [collections, contact, policies, year] = await Promise.all([
-    getCollections(),
+    getCollections().catch(() => []),
     getContactSettings(),
     Promise.all(policyHandles.map(async (handle) => ((await getPolicy(handle)) ? handle : null))),
     currentYear(),
