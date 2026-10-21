@@ -42,7 +42,7 @@ export default async function AdminSettingsPage() {
     return (
       <>
         <AdminHeading title="Settings" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="store" />
       </>
     );
   }

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FlaskConical, GalleryHorizontal, Image as ImageIcon, LayoutDashboard, LayoutList, Megaphone, MessageSquare, Clapperboard, Newspaper, Package, Settings, ShoppingBag, Tags } from "lucide-react";
+import { FlaskConical, GalleryHorizontal, Image as ImageIcon, LayoutDashboard, LayoutList, Megaphone, Clapperboard, Newspaper, Package, Settings, Tags } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Orders and enquiries are intentionally not listed (their pages and data remain intact at /admin/orders and /admin/enquiries). */
 const items = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/hero", label: "Hero Sections", icon: GalleryHorizontal },
@@ -16,8 +17,6 @@ const items = [
   { href: "/admin/categories", label: "Categories", icon: Tags },
   { href: "/admin/ingredients", label: "Ingredients", icon: FlaskConical },
   { href: "/admin/media", label: "Media Library", icon: ImageIcon },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
-  { href: "/admin/enquiries", label: "Enquiries", icon: MessageSquare },
   { href: "/admin/settings", label: "Store Settings", icon: Settings },
 ];
 

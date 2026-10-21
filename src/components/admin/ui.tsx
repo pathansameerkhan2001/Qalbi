@@ -40,14 +40,35 @@ export const inr = (amount: number | string, currencyCode = "INR") => formatPric
 export const dateTime = (iso: string) =>
   new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(iso));
 
-export function SetupNotice({ error }: { error: unknown }) {
+/** Migration files (supabase/migrations/) that create each admin section's tables. */
+export const sectionMigrations = {
+  content: "20261019000000_content_management.sql",
+  ingredients: "20261021000000_ingredients.sql",
+  store: "20261018000000_initial_schema.sql",
+} as const;
+
+export function SetupNotice({ error, migration }: { error: unknown; migration?: keyof typeof sectionMigrations }) {
+  const message = error instanceof Error ? error.message : "Please try again.";
+  const missingSetup = /has not been applied/.test(message);
   return (
     <Card className="p-6 text-sm">
-      <p className="font-medium text-danger">The admin data could not be loaded.</p>
-      <p className="mt-1 text-muted">{error instanceof Error ? error.message : "Please try again."}</p>
-      <p className="mt-3 text-muted">
-        If this persists, check that the migrations in <code className="rounded bg-sand px-1">supabase/migrations/</code> have been applied in the Supabase SQL Editor.
-      </p>
+      <p className="font-medium text-danger">{missingSetup ? "This section's database tables don't exist yet." : "The admin data could not be loaded."}</p>
+      <p className="mt-1 text-muted">{message}</p>
+      {missingSetup && migration ? (
+        <ol className="mt-4 list-decimal space-y-1 pl-5 text-ink">
+          <li>
+            Open Supabase → <strong className="font-medium">SQL Editor</strong> → New query.
+          </li>
+          <li>
+            Paste the whole file <code className="rounded bg-sand px-1">supabase/migrations/{sectionMigrations[migration]}</code> and run it once.
+          </li>
+          <li>Reload this page.</li>
+        </ol>
+      ) : (
+        <p className="mt-3 text-muted">
+          If this persists, run <code className="rounded bg-sand px-1">supabase/scripts/check_setup.sql</code> in the Supabase SQL Editor to see which migrations are missing.
+        </p>
+      )}
     </Card>
   );
 }

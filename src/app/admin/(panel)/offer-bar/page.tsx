@@ -17,7 +17,7 @@ export default async function AdminOfferBarPage() {
     return (
       <>
         <AdminHeading title="Offer announcement bar" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="content" />
       </>
     );
   }

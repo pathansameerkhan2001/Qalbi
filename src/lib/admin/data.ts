@@ -2,7 +2,7 @@ import "server-only";
 import { createSessionClient } from "@/lib/supabase/server";
 import { supabaseConfig } from "@/lib/supabase/config";
 import { queryCategories, queryProducts, StoreQueryError, type CategoryRow, type ProductRow } from "@/lib/store/catalog";
-import { queryBlogPosts, queryHeroSlides, queryReels, type BlogPostRow, type HeroSlideRow, type ReelRow } from "@/lib/store/cms";
+import { queryBlogPosts, queryHeroSlides, queryIngredients, queryReels, type BlogPostRow, type HeroSlideRow, type IngredientRow, type ReelRow } from "@/lib/store/cms";
 import { requireAdmin } from "./auth";
 
 /**
@@ -61,28 +61,34 @@ export interface OrderRow {
 export const orderStatuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"] as const;
 export const paymentStatuses = ["pending", "paid", "failed", "refunded"] as const;
 
+/** Row count for the dashboard; null when the table does not exist yet (migration not applied). */
+/* eslint-disable @typescript-eslint/no-explicit-any -- PostgREST builder chain for an optional filter */
+async function countRows(db: Awaited<ReturnType<typeof adminClient>>, table: string, filter?: (q: any) => any): Promise<number | null> {
+  let query: any = db.from(table).select("id", { count: "exact", head: true });
+  if (filter) query = filter(query);
+  const { count, error } = await query;
+  if (error?.code && MISSING_OBJECT.has(error.code)) return null;
+  if (error) fail(table, error);
+  return count ?? 0;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 export async function getDashboard() {
   const db = await adminClient();
-  const count = async (q: PromiseLike<{ count: number | null; error: { code?: string; message: string } | null }>, scope: string) => {
-    const { count: n, error } = await q;
-    if (error) fail(scope, error);
-    return n ?? 0;
-  };
-  const [total, pending, completed, products, recentOrders, recentEnquiries, claims] = await Promise.all([
-    count(db.from("orders").select("id", { count: "exact", head: true }), "orders"),
-    count(db.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending"), "orders"),
-    count(db.from("orders").select("id", { count: "exact", head: true }).eq("status", "delivered"), "orders"),
-    count(db.from("products").select("id", { count: "exact", head: true }), "products"),
-    db.from("orders").select("id, order_number, customer_name, total, currency, status, payment_method, payment_status, created_at").order("created_at", { ascending: false }).limit(5),
-    db.from("enquiries").select("id, kind, name, subject, created_at, handled").order("created_at", { ascending: false }).limit(5),
+  const [products, published, outOfStock, categories, heroLive, reelsLive, postsLive, postsDraft, ingredientsLive, claims] = await Promise.all([
+    countRows(db, "products"),
+    countRows(db, "products", (q) => q.eq("is_published", true)),
+    countRows(db, "products", (q) => q.eq("is_published", true).eq("stock_quantity", 0)),
+    countRows(db, "categories", (q) => q.eq("is_active", true)),
+    countRows(db, "hero_slides", (q) => q.eq("is_active", true)),
+    countRows(db, "instagram_reels", (q) => q.eq("is_published", true)),
+    countRows(db, "blog_posts", (q) => q.eq("status", "published")),
+    countRows(db, "blog_posts", (q) => q.eq("status", "draft")),
+    countRows(db, "ingredients", (q) => q.eq("is_active", true)),
     db.from("store_settings").select("setting_value").eq("setting_key", "brand_claims").limit(1).maybeSingle(),
   ]);
-  if (recentOrders.error) fail("orders", recentOrders.error);
-  if (recentEnquiries.error) fail("enquiries", recentEnquiries.error);
   return {
-    counts: { total, pending, completed, products },
-    recentOrders: recentOrders.data ?? [],
-    recentEnquiries: recentEnquiries.data ?? [],
+    counts: { products, published, outOfStock, categories, heroLive, reelsLive, postsLive, postsDraft, ingredientsLive },
     claimsVerified: Boolean((claims.data?.setting_value as { verified?: boolean } | undefined)?.verified),
   };
 }
@@ -126,6 +132,11 @@ export async function listHeroSlides(): Promise<HeroSlideRow[]> {
 export async function listReels(): Promise<ReelRow[]> {
   const db = await adminClient();
   return loadCatalog(() => queryReels(db));
+}
+
+export async function listIngredients(): Promise<IngredientRow[]> {
+  const db = await adminClient();
+  return loadCatalog(() => queryIngredients(db));
 }
 
 export async function listBlogPosts(): Promise<BlogPostRow[]> {

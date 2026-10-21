@@ -6,6 +6,7 @@ import { ingredients as defaultIngredients } from "@/data/ingredients";
 import { trustBadges } from "@/data/trust-badges";
 import { mediaUrl } from "@/lib/assets";
 import { getStoreCategories, isSupabaseCommerce } from "./catalog";
+import { getActiveIngredients } from "./cms";
 import { getSetting } from "./settings";
 
 /**
@@ -41,9 +42,20 @@ export async function getHomeCategories(): Promise<Category[]> {
 }
 
 /**
- * Ingredients come from the built-in confirmed list (src/data/ingredients.ts).
- * The production database has no ingredients table.
+ * Active ingredients from /admin/ingredients (table public.ingredients). Until
+ * one is added — or before the migration has been applied — the built-in
+ * confirmed list in src/data/ingredients.ts is shown.
  */
 export async function getIngredients(): Promise<Ingredient[]> {
-  return defaultIngredients;
+  const rows = await getActiveIngredients();
+  if (rows.length === 0) return defaultIngredients;
+  return rows.map((r) => ({
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    // Uploads are cropped square for the carousel circle; dimensions are an aspect hint only.
+    image: r.imagePath ? { src: mediaUrl(r.imagePath), alt: r.imageAlt || r.name, width: 600, height: 600 } : null,
+    icon: r.icon,
+    productHandles: r.productHandles,
+  }));
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { getCollections, getCollectionWithProducts } from "@/lib/shopify";
+import { getCollections, getCollectionWithProducts, getCommerceSource } from "@/lib/shopify";
 import { parseSort } from "@/lib/sort";
 import { collectionTitles } from "@/data/categories";
 import { Container } from "@/components/ui/container";
@@ -26,6 +26,8 @@ export async function generateMetadata({ params }: PageProps<"/collections/[hand
     title: data.collection.title,
     description,
     alternates: { canonical: `/collections/${data.collection.handle}` },
+    // Empty collections and the preview catalogue are thin / unconfirmed content: keep them out of the index.
+    ...(data.products.length === 0 || getCommerceSource() === "development-fixtures" ? { robots: { index: false, follow: true } } : {}),
     openGraph: { title: data.collection.title, description, url: `/collections/${data.collection.handle}` },
   };
 }

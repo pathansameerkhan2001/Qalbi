@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { User } from "lucide-react";
-import { mainNavigation } from "@/data/navigation";
+import { getMainNavigation } from "@/lib/navigation";
 import { Container } from "@/components/ui/container";
 import { CartButton } from "./cart-button";
 import { DesktopNav, DesktopNavView } from "./desktop-nav";
@@ -9,10 +9,11 @@ import { Logo } from "./logo";
 import { MobileMenu } from "./mobile-menu";
 import { SearchDialog } from "./search-dialog";
 
-export function Header() {
+export async function Header() {
+  const mainNavigation = await getMainNavigation();
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/85">
-      <Container className="grid h-[4.75rem] grid-cols-[1fr_auto_1fr] items-center sm:h-[5.5rem] lg:grid-cols-[auto_1fr_auto] lg:gap-10">
+      <Container className="grid h-[4.5rem] grid-cols-[1fr_auto_1fr] items-center gap-2 sm:h-[5.25rem] lg:grid-cols-[auto_1fr_auto] lg:gap-10">
         <div className="flex items-center lg:hidden">
           <MobileMenu items={mainNavigation} />
         </div>
@@ -27,7 +28,7 @@ export function Header() {
           <Link
             href="/admin/login"
             prefetch={false}
-            className="hidden size-10 items-center justify-center text-ink transition hover:text-forest focus-visible:text-forest min-[380px]:inline-flex"
+            className="hidden size-10 items-center justify-center text-ink transition hover:text-forest focus-visible:text-forest sm:inline-flex"
             aria-label="Sign in"
             title="Sign in"
           >

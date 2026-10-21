@@ -30,7 +30,7 @@ export default async function AdminHomepagePage() {
     return (
       <>
         <AdminHeading title="Homepage sections" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="content" />
       </>
     );
   }

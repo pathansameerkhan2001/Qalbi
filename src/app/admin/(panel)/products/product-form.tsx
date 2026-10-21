@@ -214,12 +214,15 @@ export function ProductForm({
           </div>
           <div>
             <label htmlFor="p-inventory" className="label">Units in stock</label>
-            <input id="p-inventory" name="stock_quantity" type="number" min="0" step="1" defaultValue={initial.stock_quantity} className="field" />
+            <input id="p-inventory" name="stock_quantity" type="number" min="0" step="1" defaultValue={initial.stock_quantity} className="field" aria-describedby="p-inventory-hint" />
+            <p id="p-inventory-hint" className="mt-1 text-xs text-muted">Leave empty if you don&apos;t track stock. 0 shows the product as out of stock.</p>
             {err("stock_quantity")}
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_published" defaultChecked={initial.is_published} className="accent-[var(--color-forest)]" /> Published on the website
           </label>
+          <p className="-mt-2 pl-6 text-xs text-muted">Needs a price above ₹0 and at least one photo. Unticked = draft, hidden from customers.</p>
+          {err("is_published")}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_featured" defaultChecked={initial.is_featured} className="accent-[var(--color-forest)]" /> Featured (listed first)
           </label>

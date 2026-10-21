@@ -45,20 +45,19 @@ npm run assets:upload   # uploads public/assets/** to the Supabase bucket and ve
 - After a fully verified upload set `NEXT_PUBLIC_ASSET_SOURCE=supabase`; the site then loads every image from Supabase (`src/lib/assets.ts`). Until then identical local copies are served.
 - Every image is referenced by purpose in `src/data/images.ts` — no hard-coded URLs in components.
 
-## Admin panel, orders & checkout (Supabase)
+## Admin panel, products & checkout (Supabase)
 
-The production Supabase project already has its own `products`, `categories`, `product_images` and `store_settings` tables. The website uses them as they are. **Never run the files in `supabase/legacy/`** — they were written for an empty database and conflict with those tables.
+**Database setup (project `pcvzyjhlruricsanzuao`).** Run these in Supabase → SQL Editor, in this order, each file pasted whole and run once. Each is one transaction that stops without changing anything if it was already applied.
 
-Run these in Supabase → SQL Editor, in order (each is reviewed SQL in `supabase/production/`):
+| Order | File | Creates | Needed by |
+|---|---|---|---|
+| 1 | `supabase/migrations/20261018000000_initial_schema.sql` | admin users, catalogue, settings, orders, enquiries, checkout functions, storage policies | everything (already applied on the live project) |
+| 2 | `supabase/migrations/20261019000000_content_management.sql` | `hero_slides`, `instagram_reels`, `blog_posts`, product SEO columns | Hero Sections, Instagram Reels, Blogs, Offer Bar / Homepage visibility |
+| 3 | `supabase/migrations/20261021000000_ingredients.sql` | `ingredients` | Ingredients |
 
-| File | What it does |
-|---|---|
-| `00_preflight_readonly.sql` | Read-only checks. Run each query separately (select it, then Run). |
-| `01_store_additions.sql` | One transaction: adds `admin_users`, `orders`, `order_items`, `enquiries`, the checkout functions, RLS policies and `updated_at` triggers. Changes no existing column, constraint, row or bucket setting. |
-| `02_checkout_settings.sql` | Checkout defaults: Cash on Delivery on, UPI QR off, delivery ₹0. Never overwrites an existing row. |
-| `03_grant_admin.sql` | Makes the verified Supabase Auth user (by user id) an administrator. |
-| `04_abuse_protection.sql` | Orders/enquiries only via the website server, with database rate limits. Rollback: `98_rollback_abuse_protection.sql`. |
-| `99_rollback.sql` | Undoes 01 (refuses once orders or enquiries exist). |
+`supabase/scripts/check_setup.sql` is read-only and reports which of these are applied. `supabase/scripts/grant_admin.sql` makes a verified Auth user an administrator. Optional: `supabase/scripts/import_qalbi_products_as_drafts.sql` adds QALBI's five products as **drafts at ₹0** (no prices are invented; publishing is refused until a real price and photo are set). **Never run `supabase/legacy/*` or `supabase/production/*` on this project** — they were written for an older project with different tables.
+
+Local verification (never production): `supabase/tests/local_supabase_shim.sql` stands in for the Supabase platform on a plain PostgreSQL ≥ 15 database; then apply the migrations in order and run `supabase/tests/*_test.sql`.
 
 Then set `COMMERCE_SOURCE=supabase` to sell the products managed in `/admin` (ignored while Shopify is configured), and sign in at `/admin/login`.
 
@@ -66,11 +65,21 @@ Then set `COMMERCE_SOURCE=supabase` to sell the products managed in `/admin` (ig
 
 **Images:** `npm run assets:upload` copies `public/assets/**` into the bucket (needs `SUPABASE_SERVICE_ROLE_KEY` locally); then set `NEXT_PUBLIC_ASSET_SOURCE=supabase`. New images can also be uploaded in `/admin/media` (stored under `uploads/`).
 
-**How it is secured:** signing in is not enough. Every admin page and server action checks the Supabase session with the Auth server *and* the user's row in `admin_users` (`src/lib/admin/auth.ts`); a non-admin is signed straight back out. The database enforces the same rule with RLS through `public.is_admin()`, which uses the verified `auth.uid()` — never an email or id sent by the browser. Visitors can read only published products, active categories and the storefront's setting keys. Orders are priced only inside `place_order()`; the browser never sends prices. The order confirmation page is unlocked by a random token kept in an httpOnly cookie. Orders and enquiries can be created only by the website server: `place_order_checked()` / `record_enquiry_checked()` are executable solely with the server-only `SUPABASE_SERVICE_ROLE_KEY` and enforce rate limits in the database (`04_abuse_protection.sql`). That key is used for nothing else — admin pages and actions run as the signed-in administrator under RLS.
+**How it is secured:** signing in is not enough. Every admin page and server action checks the Supabase session with the Auth server *and* the user's row in `admin_users` (`src/lib/admin/auth.ts`); a non-admin is signed straight back out. The database enforces the same rule with RLS through `public.is_admin()`, which uses the verified `auth.uid()` — never an email or id sent by the browser. Visitors can read only published products, active categories and the storefront's setting keys. Orders are priced only inside `place_order()`; the browser never sends prices. The order confirmation page is unlocked by a random token kept in an httpOnly cookie. Orders and enquiries can be created only by the website server: `place_order_checked()` / `record_enquiry_checked()` are executable solely with the server-only `SUPABASE_SERVICE_ROLE_KEY` and enforce rate limits in the database (part of the initial schema). That key is used for nothing else — admin pages and actions run as the signed-in administrator under RLS.
 
 **WhatsApp:** after an order, the confirmation page offers *Confirm Order on WhatsApp*, which opens WhatsApp with the order number, items, total and product image links pre-filled for the customer to send. Automatic business-sent WhatsApp messages would need the WhatsApp Business Platform (not configured).
 
-**Tests:** `npm test` (checkout validation and WhatsApp message).
+**Ingredients (homepage carousel and /ingredients):** run `supabase/migrations/20261021000000_ingredients.sql` once in Supabase → SQL Editor (after the two earlier migrations). Then manage ingredients in `/admin/ingredients` — photos upload to `uploads/ingredients/` in the media bucket. Until one ingredient is published, the website shows the built-in confirmed list in `src/data/ingredients.ts` (Aloe Vera, Turmeric and Neem have no real photograph yet and show a line icon). Local test: `supabase/tests/ingredients_test.sql`.
+
+**Tests:** `npm test` (checkout validation, WhatsApp message, content rules, product rules and storefront mapping, breadcrumb structured data). Database tests: `supabase/tests/*_test.sql` (see above).
+
+## Google Search Console
+
+1. Set `NEXT_PUBLIC_SITE_URL` to the live https domain (no trailing slash) and redeploy — canonical URLs, `sitemap.xml` and `robots.txt` use it.
+2. Search Console → Add property → **Domain** → add the TXT record it shows at your DNS provider → Verify. (Or a URL-prefix property verified with the HTML-tag method via `metadata.verification.google` in `src/app/layout.tsx`.)
+3. Sitemaps → submit `https://<domain>/sitemap.xml`.
+4. URL Inspection → test the homepage and one product page → Request indexing.
+5. Products and collections enter the sitemap only from the real catalogue (`COMMERCE_SOURCE=supabase` or Shopify). In preview mode product/collection pages are `noindex` and carry no Offer data, because preview prices are not confirmed.
 
 ## Structure
 

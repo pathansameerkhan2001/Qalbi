@@ -24,15 +24,18 @@ export function ImageUploadField({
   hint,
   aspectClass = "aspect-[4/3]",
   required = false,
+  minWidth,
   onPathChange,
 }: {
   name: string;
   label: string;
-  folder: "hero" | "reels" | "blog" | "products" | "categories" | "payments";
+  folder: "hero" | "reels" | "blog" | "products" | "categories" | "ingredients" | "payments";
   defaultPath?: string;
   hint?: string;
   aspectClass?: string;
   required?: boolean;
+  /** Width in pixels below which the image will look soft where it is displayed (warning only). */
+  minWidth?: number;
   onPathChange?: (path: string, previewUrl: string | null) => void;
 }) {
   const id = useId();
@@ -40,6 +43,7 @@ export function ImageUploadField({
   const [path, setPath] = useState(defaultPath);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [sizeWarning, setSizeWarning] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   // Release the object URL of a local preview when it is replaced or the field unmounts.
@@ -58,6 +62,16 @@ export function ImageUploadField({
     const objectUrl = URL.createObjectURL(file);
     setLocalPreview(objectUrl);
     setMessage(null);
+    setSizeWarning(null);
+    if (minWidth) {
+      const probe = new window.Image();
+      probe.onload = () => {
+        if (probe.naturalWidth < minWidth) {
+          setSizeWarning(`This image is ${probe.naturalWidth} × ${probe.naturalHeight} px. For a sharp result here, use one at least ${minWidth} px wide.`);
+        }
+      };
+      probe.src = objectUrl;
+    }
     onPathChange?.(path, objectUrl);
     const data = new FormData();
     data.set("file", file);
@@ -138,6 +152,7 @@ export function ImageUploadField({
         className="field text-xs"
       />
       {hint && <p className="text-xs text-muted">{hint}</p>}
+      {sizeWarning && <p className="text-xs text-[#7a5418]">{sizeWarning}</p>}
       {message && (
         <p role={message.ok ? "status" : "alert"} className={cn("text-xs", message.ok ? "text-botanical" : "text-danger")}>
           {message.text}

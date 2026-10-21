@@ -32,7 +32,7 @@ export default async function AdminHeroPage() {
     return (
       <>
         <AdminHeading title="Hero sections" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="content" />
       </>
     );
   }

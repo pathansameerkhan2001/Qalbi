@@ -35,7 +35,7 @@ export function Logo({ className, tone = "gold", preload = false }: { className?
             width={brandAssets.logoWidth}
             height={brandAssets.logoHeight}
             preload={preload}
-            sizes="(min-width: 640px) 170px, 120px"
+            sizes={tone === "gold" ? "(min-width: 640px) 156px, 120px" : "170px"}
             className="block h-auto w-full"
           />
           {brandAssets.logoMaskSrc && (

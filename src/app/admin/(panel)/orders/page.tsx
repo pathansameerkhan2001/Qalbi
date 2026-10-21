@@ -18,7 +18,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
     return (
       <>
         <AdminHeading title="Orders" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="store" />
       </>
     );
   }

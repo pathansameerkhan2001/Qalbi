@@ -15,7 +15,7 @@ export default async function AdminEnquiriesPage() {
     return (
       <>
         <AdminHeading title="Enquiries" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="store" />
       </>
     );
   }

@@ -15,6 +15,7 @@ import { requireAdmin } from "./auth";
 import { orderStatuses, paymentStatuses } from "./data";
 import { checkbox, dbError, invalid, refreshStore, type ActionState } from "./action-helpers";
 import { storeImage } from "./media";
+import { productSchema } from "./product-rules";
 import { codBlockers, getCheckoutReadiness, verifyQrImage } from "./checkout-readiness";
 
 export type { ActionState };
@@ -28,7 +29,6 @@ export type { ActionState };
 const handleField = z.string().trim().toLowerCase().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and hyphens");
 const pathField = z.string().trim().max(300).regex(/^(https:\/\/|[a-z0-9])[^\s<>"']*$/i, "Enter a media path such as products/serum.webp");
 const optionalPath = z.union([pathField, z.literal("")]).transform((v) => v || null);
-const money = z.coerce.number().min(0, "Must be 0 or more").max(1_000_000);
 
 // ---------------------------------------------------------------------------
 // Authentication
@@ -94,26 +94,6 @@ export async function signOutAction() {
 // Products
 // ---------------------------------------------------------------------------
 
-const optionalUuid = z.union([z.uuid(), z.literal("")]).transform((v) => v || null);
-
-const productSchema = z.object({
-  id: z.union([z.uuid(), z.literal("")]),
-  slug: handleField,
-  name: z.string().trim().min(1, "Enter a name").max(120),
-  description: z.string().trim().max(4000),
-  price: money,
-  compare_at_price: z.union([z.literal(""), money]).transform((v) => (v === "" ? null : v)),
-  stock_quantity: z.union([z.literal(""), z.coerce.number().int().min(0, "Must be 0 or more").max(100000)]).transform((v) => (v === "" ? null : v)),
-  sku: z.string().trim().max(64).transform((v) => v || null),
-  category_id: optionalUuid,
-  is_published: checkbox,
-  is_featured: checkbox,
-  is_best_seller: checkbox,
-  images: z.array(z.object({ path: pathField, alt: z.string().trim().max(200) })).max(20),
-  seo_title: z.string().trim().max(120, "Keep the SEO title under 120 characters").transform((v) => v || null),
-  seo_description: z.string().trim().max(320, "Keep the meta description under 320 characters").transform((v) => v || null),
-});
-
 export async function saveProductAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
   if (isShopifyConfigured()) return { ok: false, message: "Products are managed in Shopify while the store is connected." };
@@ -146,9 +126,6 @@ export async function saveProductAction(_: ActionState, formData: FormData): Pro
   const { id, images: imageList, seo_title, seo_description, ...base } = parsed.data;
   // SEO columns are only written when used, so saving works before the SEO migration is applied.
   const fields = seo_title || seo_description || formData.get("seo_present") ? { ...base, seo_title, seo_description } : base;
-  if (fields.compare_at_price !== null && fields.compare_at_price <= fields.price) {
-    return { ok: false, message: "Please check the highlighted fields.", fieldErrors: { compare_at_price: "Compare-at price must be higher than the price" } };
-  }
 
   const db = await createSessionClient();
   const saved = id
@@ -374,7 +351,7 @@ export async function uploadMediaAction(_: ActionState, formData: FormData): Pro
 }
 
 /** Upload folders the content forms may use (uploads/<folder>/…). */
-const contentFolders = ["hero", "reels", "blog", "products", "categories", "payments"] as const;
+const contentFolders = ["hero", "reels", "blog", "products", "categories", "ingredients", "payments"] as const;
 
 /** Uploads one image for a content form and returns its media path (the form then saves the path). */
 export async function uploadImageAction(_: ActionState, formData: FormData): Promise<ActionState> {

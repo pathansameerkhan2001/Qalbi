@@ -1,9 +1,62 @@
 import Link from "next/link";
-import { ArrowRight, ShieldAlert } from "lucide-react";
+import { ArrowRight, CircleCheck, CircleDashed, ShieldAlert } from "lucide-react";
 import { getDashboard } from "@/lib/admin/data";
 import { requireAdmin } from "@/lib/admin/auth";
 import { getCommerceSource } from "@/lib/shopify";
-import { AdminHeading, Card, dateTime, inr, SetupNotice, StatusBadge } from "@/components/admin/ui";
+import { AdminHeading, Card, sectionMigrations, SetupNotice } from "@/components/admin/ui";
+import { cn } from "@/lib/utils";
+
+type Counts = Awaited<ReturnType<typeof getDashboard>>["counts"];
+
+/** A count, or "Setup needed" when the section's table does not exist yet. */
+function Value({ n }: { n: number | null }) {
+  return n === null ? <span className="text-base text-danger">Setup needed</span> : <>{n}</>;
+}
+
+function checklist(c: Counts, source: ReturnType<typeof getCommerceSource>) {
+  return [
+    {
+      done: c.heroLive !== null && c.reelsLive !== null && c.postsLive !== null,
+      title: "Hero, Reels and Blog tables",
+      detail: (
+        <>
+          Run <code className="rounded bg-sand px-1">supabase/migrations/{sectionMigrations.content}</code> in Supabase → SQL Editor.
+        </>
+      ),
+    },
+    {
+      done: c.ingredientsLive !== null,
+      title: "Ingredients table",
+      detail: (
+        <>
+          Run <code className="rounded bg-sand px-1">supabase/migrations/{sectionMigrations.ingredients}</code> after the one above.
+        </>
+      ),
+    },
+    {
+      done: (c.published ?? 0) > 0,
+      title: "Real products published",
+      detail: (
+        <>
+          Add or review products in{" "}
+          <Link href="/admin/products" className="text-forest underline">
+            Products
+          </Link>{" "}
+          with confirmed prices and photos, then tick “Published”.
+        </>
+      ),
+    },
+    {
+      done: source === "supabase" || source === "shopify",
+      title: "Website reads this catalogue",
+      detail: (
+        <>
+          Set <code className="rounded bg-sand px-1">COMMERCE_SOURCE=supabase</code> in Vercel (and <code className="rounded bg-sand px-1">.env.local</code>) once the products above are ready, then redeploy.
+        </>
+      ),
+    },
+  ];
+}
 
 export default async function AdminDashboard() {
   await requireAdmin();
@@ -14,28 +67,46 @@ export default async function AdminDashboard() {
     return (
       <>
         <AdminHeading title="Dashboard" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="store" />
       </>
     );
   }
   const source = getCommerceSource();
+  const c = data.counts;
+  const steps = checklist(c, source);
   const stats = [
-    { label: "Total orders", value: data.counts.total, href: "/admin/orders" },
-    { label: "Pending orders", value: data.counts.pending, href: "/admin/orders?status=pending" },
-    { label: "Completed orders", value: data.counts.completed, href: "/admin/orders?status=delivered" },
-    { label: "Products", value: data.counts.products, href: "/admin/products" },
+    { label: "Products on sale", value: c.published === null ? null : c.published - (c.outOfStock ?? 0), sub: c.products === null ? "" : `${c.products} in total`, href: "/admin/products" },
+    { label: "Hero slides live", value: c.heroLive, sub: "Homepage banner", href: "/admin/hero" },
+    { label: "Reels live", value: c.reelsLive, sub: "Instagram section", href: "/admin/reels" },
+    { label: "Blog posts live", value: c.postsLive, sub: c.postsDraft ? `${c.postsDraft} draft${c.postsDraft === 1 ? "" : "s"}` : "The QALBI Journal", href: "/admin/blog" },
+    { label: "Ingredients live", value: c.ingredientsLive, sub: c.ingredientsLive === 0 ? "Built-in list shown" : "Carousel", href: "/admin/ingredients" },
+    { label: "Active categories", value: c.categories, sub: "Shop menu", href: "/admin/categories" },
   ];
 
   return (
     <>
-      <AdminHeading title="Dashboard" description="Live figures from your QALBI store database." />
+      <AdminHeading title="Dashboard" description="Live figures from your QALBI database." />
 
-      {source !== "supabase" && (
-        <Card className="mb-6 border-gold/40 bg-gold-pale/40 p-4 text-sm">
-          The website is currently showing the {source === "shopify" ? "Shopify catalogue" : "preview catalogue"}. Set <code className="rounded bg-ivory px-1">COMMERCE_SOURCE=supabase</code> to sell the products
-          managed here, with Cash on Delivery and pay-by-phone checkout.
+      {steps.some((s) => !s.done) && (
+        <Card className="mb-6 p-5">
+          <h2 className="font-serif text-xl">Setup checklist</h2>
+          <ol className="mt-3 space-y-3 text-sm">
+            {steps.map((s) => (
+              <li key={s.title} className="flex gap-3">
+                {s.done ? <CircleCheck className="mt-0.5 size-5 shrink-0 text-botanical" aria-hidden /> : <CircleDashed className="mt-0.5 size-5 shrink-0 text-gold" aria-hidden />}
+                <span>
+                  <span className={cn("block font-medium", s.done ? "text-muted line-through decoration-line" : "text-ink")}>
+                    {s.title}
+                    <span className="sr-only">{s.done ? " (done)" : " (to do)"}</span>
+                  </span>
+                  {!s.done && <span className="block text-muted">{s.detail}</span>}
+                </span>
+              </li>
+            ))}
+          </ol>
         </Card>
       )}
+
       {!data.claimsVerified && (
         <Card className="mb-6 flex gap-3 border-gold/40 bg-gold-pale/40 p-4 text-sm">
           <ShieldAlert className="mt-0.5 size-5 shrink-0 text-gold" aria-hidden />
@@ -50,67 +121,19 @@ export default async function AdminDashboard() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {stats.map((s) => (
-          <Link key={s.label} href={s.href} className="rounded-[3px] border border-line bg-ivory p-5 transition hover:border-gold-soft hover:shadow-soft">
+          <Link key={s.label} href={s.href} className="group rounded-[3px] border border-line bg-ivory p-5 transition hover:border-gold-soft hover:shadow-soft">
             <p className="text-xs uppercase tracking-[0.14em] text-muted">{s.label}</p>
-            <p className="mt-2 font-serif text-4xl text-ink tabular-nums">{s.value}</p>
+            <p className="mt-2 font-serif text-4xl text-ink tabular-nums">
+              <Value n={s.value} />
+            </p>
+            <p className="mt-1 flex items-center justify-between text-xs text-muted">
+              {s.sub}
+              <ArrowRight className="size-3.5 text-forest opacity-0 transition group-hover:opacity-100" aria-hidden />
+            </p>
           </Link>
         ))}
-      </div>
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <Card>
-          <div className="flex items-center justify-between border-b border-line px-5 py-3">
-            <h2 className="font-serif text-xl">Recent orders</h2>
-            <Link href="/admin/orders" className="inline-flex items-center gap-1 text-xs font-medium text-forest">
-              All orders <ArrowRight className="size-3.5" aria-hidden />
-            </Link>
-          </div>
-          {data.recentOrders.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-muted">No orders yet.</p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {data.recentOrders.map((o) => (
-                <li key={o.id}>
-                  <Link href={`/admin/orders/${o.id}`} className="flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-sand/50">
-                    <span>
-                      <span className="font-medium">{o.order_number}</span> · {o.customer_name}
-                      <span className="block text-xs text-muted">{dateTime(o.created_at)}</span>
-                    </span>
-                    <span className="flex flex-col items-end gap-1">
-                      <span className="tabular-nums">{inr(o.total, o.currency)}</span>
-                      <StatusBadge value={o.status} />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-        <Card>
-          <div className="flex items-center justify-between border-b border-line px-5 py-3">
-            <h2 className="font-serif text-xl">Recent enquiries</h2>
-            <Link href="/admin/enquiries" className="inline-flex items-center gap-1 text-xs font-medium text-forest">
-              All enquiries <ArrowRight className="size-3.5" aria-hidden />
-            </Link>
-          </div>
-          {data.recentEnquiries.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-muted">No enquiries yet.</p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {data.recentEnquiries.map((e) => (
-                <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-                  <span>
-                    <span className="font-medium">{e.name}</span> · {e.kind === "custom-skincare" ? "Customised skincare" : (e.subject ?? "Contact")}
-                    <span className="block text-xs text-muted">{dateTime(e.created_at)}</span>
-                  </span>
-                  {!e.handled && <StatusBadge value="pending" />}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
       </div>
     </>
   );

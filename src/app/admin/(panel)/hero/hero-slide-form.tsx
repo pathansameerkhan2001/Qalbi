@@ -91,7 +91,8 @@ export function HeroSlideForm({ initial, onAddAnother }: { initial: HeroSlideVal
             label="Desktop image"
             folder="hero"
             defaultPath={initial.desktopImagePath}
-            hint="Landscape, about 1600 × 860 px. Max 5 MB."
+            hint="Landscape, at least 1600 × 860 px (1920 × 1032 ideal). JPEG, PNG, WebP or AVIF, max 5 MB."
+            minWidth={1600}
             aspectClass="aspect-[160/86]"
             required
             onPathChange={(_, url) => setDesktopPreview(url)}
@@ -101,7 +102,8 @@ export function HeroSlideForm({ initial, onAddAnother }: { initial: HeroSlideVal
             label="Mobile image"
             folder="hero"
             defaultPath={initial.mobileImagePath}
-            hint="Portrait 4:5, about 1080 × 1350 px. Max 5 MB."
+            hint="Portrait 4:5, at least 1080 × 1350 px. JPEG, PNG, WebP or AVIF, max 5 MB."
+            minWidth={1080}
             aspectClass="aspect-[4/5] max-w-[12rem]"
             required
             onPathChange={(_, url) => setMobilePreview(url)}

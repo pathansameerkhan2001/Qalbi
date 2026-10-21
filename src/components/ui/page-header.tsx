@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { breadcrumbJsonLd } from "@/lib/site";
 import { Container } from "./container";
 
 interface PageHeaderProps {
@@ -14,6 +15,9 @@ export function PageHeader({ title, eyebrow, description, breadcrumbs, children 
   return (
     <div className="border-b border-line bg-sand">
       <Container className="py-8 sm:py-12">
+        {breadcrumbs && (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd(breadcrumbs) }} />
+        )}
         {breadcrumbs && (
           <nav aria-label="Breadcrumb" className="mb-4">
             <ol className="flex flex-wrap items-center gap-1 text-xs text-muted">

@@ -20,7 +20,7 @@ export default async function AdminReelsPage() {
     return (
       <>
         <AdminHeading title="Instagram Reels" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="content" />
       </>
     );
   }

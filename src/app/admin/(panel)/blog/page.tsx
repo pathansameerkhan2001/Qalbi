@@ -39,7 +39,7 @@ export default async function AdminBlogPage({ searchParams }: { searchParams: Pr
     return (
       <>
         <AdminHeading title="Blog" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="content" />
       </>
     );
   }

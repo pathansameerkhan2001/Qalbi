@@ -47,12 +47,19 @@ export interface TrustBadge {
   verified: boolean;
 }
 
+/** Line icons available for ingredient cards (src/components/ui/botanical-icons.tsx). */
+export const ingredientIcons = ["saffron", "rose", "coconut", "aloe", "turmeric", "neem", "cardamom", "leaf"] as const;
+export type IngredientIcon = (typeof ingredientIcons)[number];
+
 export interface Ingredient {
   slug: string;
   name: string;
   /** Short neutral description of the botanical. Not a product claim. */
   description: string;
-  image: ImageAsset;
+  /** Real photograph of the ingredient, or null — the card then shows `icon` in the circle. */
+  image: Pick<ImageAsset, "src" | "alt" | "width" | "height"> | null;
+  /** Line icon shown in the badge (and in place of a missing photograph). */
+  icon: IngredientIcon;
   /** Handles of products whose supplied formulation contains this ingredient. */
   productHandles: string[];
 }

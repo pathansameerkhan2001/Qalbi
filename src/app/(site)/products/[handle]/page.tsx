@@ -4,11 +4,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, MessageCircle } from "lucide-react";
 import type { Product } from "@/types/commerce";
-import { getProduct, getProductRecommendations, getProducts } from "@/lib/shopify";
+import { getCommerceSource, getProduct, getProductRecommendations, getProducts } from "@/lib/shopify";
 import { sanitizeHtml, whatsappLink } from "@/lib/utils";
 import { brandConfig } from "@/data/brand";
 import { truncate } from "@/lib/content/rules";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, breadcrumbJsonLd } from "@/lib/site";
 import { Container } from "@/components/ui/container";
 import { ProductDetailSkeleton, ProductGridSkeleton } from "@/components/ui/skeletons";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -34,11 +34,15 @@ export async function generateMetadata({ params }: PageProps<"/products/[handle]
     title,
     description,
     alternates: { canonical: `/products/${product.handle}` },
+    // Preview catalogue: prices are unconfirmed, so these pages must not be indexed.
+    ...(getCommerceSource() === "development-fixtures" ? { robots: { index: false, follow: true } } : {}),
     openGraph: { title, description, url: `/products/${product.handle}`, images: image },
   };
 }
 
+/** Product schema; Offers only for the real catalogue (preview prices are unconfirmed). */
 function productJsonLd(product: Product) {
+  const realPrices = getCommerceSource() !== "development-fixtures";
   const data = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -49,17 +53,19 @@ function productJsonLd(product: Product) {
     ...(product.sku ? { sku: product.sku } : {}),
     ...(product.productType ? { category: product.productType } : {}),
     brand: { "@type": "Brand", name: brandConfig.name },
-    offers: product.variants.map((v) => ({
-      "@type": "Offer",
-      url: absoluteUrl(`/products/${product.handle}`),
-      price: v.price.amount,
-      priceCurrency: v.price.currencyCode,
-      itemCondition: "https://schema.org/NewCondition",
-      availability: v.availableForSale ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-    })),
-    ...(product.rating
-      ? { aggregateRating: { "@type": "AggregateRating", ratingValue: product.rating.value, bestRating: product.rating.scaleMax, reviewCount: product.rating.count } }
+    ...(realPrices
+      ? {
+          offers: product.variants.map((v) => ({
+            "@type": "Offer",
+            url: absoluteUrl(`/products/${product.handle}`),
+            price: v.price.amount,
+            priceCurrency: v.price.currencyCode,
+            itemCondition: "https://schema.org/NewCondition",
+            availability: v.availableForSale ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          })),
+        }
       : {}),
+    ...(product.rating ? { aggregateRating: { "@type": "AggregateRating", ratingValue: product.rating.value, bestRating: product.rating.scaleMax, reviewCount: product.rating.count } } : {}),
   };
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
@@ -95,11 +101,26 @@ async function ProductDetail({ params }: { params: PageProps<"/products/[handle]
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: productJsonLd(product) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd([{ label: "Products", href: "/products" }, { label: product.title }]) }} />
       <nav aria-label="Breadcrumb" className="pt-6">
         <ol className="flex flex-wrap items-center gap-1 text-xs text-muted">
-          <li><Link href="/" className="hover:text-forest">Home</Link></li>
-          <li className="flex items-center gap-1"><ChevronRight aria-hidden className="size-3" /><Link href="/products" className="hover:text-forest">Products</Link></li>
-          <li className="flex items-center gap-1"><ChevronRight aria-hidden className="size-3" /><span aria-current="page" className="text-ink">{product.title}</span></li>
+          <li>
+            <Link href="/" className="hover:text-forest">
+              Home
+            </Link>
+          </li>
+          <li className="flex items-center gap-1">
+            <ChevronRight aria-hidden className="size-3" />
+            <Link href="/products" className="hover:text-forest">
+              Products
+            </Link>
+          </li>
+          <li className="flex items-center gap-1">
+            <ChevronRight aria-hidden className="size-3" />
+            <span aria-current="page" className="text-ink">
+              {product.title}
+            </span>
+          </li>
         </ol>
       </nav>
       <div className="grid gap-8 py-8 lg:grid-cols-2 lg:gap-14 lg:py-10">
@@ -126,8 +147,19 @@ async function ProductDetail({ params }: { params: PageProps<"/products/[handle]
               ) : (
                 <p className="text-muted">
                   The full ingredient list for this product will be published soon. For details now, message us on{" "}
-                  <a href={whatsappLink(`Hello QALBI Naturals, could you share the ingredient list for ${product.title}?`)} target="_blank" rel="noopener noreferrer" className="text-forest underline underline-offset-2">WhatsApp</a>{" "}
-                  or email <a href={brandConfig.emailUrl} className="text-forest underline underline-offset-2">{brandConfig.email}</a>.
+                  <a
+                    href={whatsappLink(`Hello QALBI Naturals, could you share the ingredient list for ${product.title}?`)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-forest underline underline-offset-2"
+                  >
+                    WhatsApp
+                  </a>{" "}
+                  or email{" "}
+                  <a href={brandConfig.emailUrl} className="text-forest underline underline-offset-2">
+                    {brandConfig.email}
+                  </a>
+                  .
                 </p>
               )}
             </InfoSection>
@@ -153,7 +185,13 @@ async function ProductDetail({ params }: { params: PageProps<"/products/[handle]
           </a>
         </div>
       </div>
-      <Suspense fallback={<div className="border-t border-line py-12"><ProductGridSkeleton /></div>}>
+      <Suspense
+        fallback={
+          <div className="border-t border-line py-12">
+            <ProductGridSkeleton />
+          </div>
+        }
+      >
         <Recommendations product={product} />
       </Suspense>
     </>

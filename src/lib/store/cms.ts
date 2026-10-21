@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPublicClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import type { JournalArticle } from "@/types/content";
+import { ingredientIcons, type IngredientIcon, type JournalArticle } from "@/types/content";
 import { mediaUrl } from "@/lib/assets";
 import { parseBlogBody, readingMinutes } from "@/lib/content/rules";
 import { STORE_TAG, StoreQueryError } from "./catalog";
@@ -56,9 +56,24 @@ export interface BlogPostRow {
   updatedAt: string;
 }
 
+export interface IngredientRow {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  imagePath: string | null;
+  imageAlt: string | null;
+  icon: IngredientIcon;
+  productHandles: string[];
+  sort: number;
+  active: boolean;
+}
+
 const HERO_COLUMNS = "id, heading, subtitle, button_label, button_href, desktop_image_path, mobile_image_path, alt_text, sort_order, is_active";
 const REEL_COLUMNS = "id, reel_url, caption, thumbnail_path, sort_order, is_published";
 const POST_COLUMNS = "id, slug, title, excerpt, body, category, author, cover_image_path, cover_alt, seo_title, seo_description, status, published_at, created_at, updated_at";
+
+const INGREDIENT_COLUMNS = "id, slug, name, description, image_path, image_alt, icon, product_handles, sort_order, is_active";
 
 type Row = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v : null);
@@ -83,6 +98,19 @@ const toReel = (r: Row): ReelRow => ({
   thumbnailPath: String(r.thumbnail_path),
   sort: Number(r.sort_order ?? 0),
   published: r.is_published === true,
+});
+
+const toIngredient = (r: Row): IngredientRow => ({
+  id: String(r.id),
+  slug: String(r.slug),
+  name: String(r.name),
+  description: String(r.description ?? ""),
+  imagePath: str(r.image_path),
+  imageAlt: str(r.image_alt),
+  icon: (ingredientIcons as readonly string[]).includes(String(r.icon)) ? (r.icon as IngredientIcon) : "leaf",
+  productHandles: Array.isArray(r.product_handles) ? r.product_handles.map(String) : [],
+  sort: Number(r.sort_order ?? 0),
+  active: r.is_active === true,
 });
 
 const toPost = (r: Row): BlogPostRow => ({
@@ -117,6 +145,12 @@ export async function queryReels(db: SupabaseClient): Promise<ReelRow[]> {
   const { data, error } = await db.from("instagram_reels").select(REEL_COLUMNS).order("sort_order").order("created_at");
   if (error) throw new StoreQueryError("Instagram Reels", error);
   return (data ?? []).map(toReel);
+}
+
+export async function queryIngredients(db: SupabaseClient): Promise<IngredientRow[]> {
+  const { data, error } = await db.from("ingredients").select(INGREDIENT_COLUMNS).order("sort_order").order("created_at");
+  if (error) throw new StoreQueryError("ingredients", error);
+  return (data ?? []).map(toIngredient);
 }
 
 export async function queryBlogPosts(db: SupabaseClient, filter?: { id?: string; slug?: string }): Promise<BlogPostRow[]> {
@@ -157,6 +191,13 @@ export async function getPublishedReels(): Promise<ReelRow[]> {
   cacheLife("minutes");
   cacheTag(STORE_TAG);
   return publicRead(() => queryReels(createPublicClient()));
+}
+
+export async function getActiveIngredients(): Promise<IngredientRow[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(STORE_TAG);
+  return publicRead(() => queryIngredients(createPublicClient()));
 }
 
 export async function getPublishedPosts(): Promise<BlogPostRow[]> {

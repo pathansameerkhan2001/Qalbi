@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import { listAdminProducts } from "@/lib/admin/data";
 import { requireAdmin } from "@/lib/admin/auth";
 import { mediaUrl } from "@/lib/assets";
 import { isShopifyConfigured } from "@/lib/shopify/config";
-import { AdminHeading, Card, inr, SetupNotice, StatusBadge } from "@/components/admin/ui";
+import { getCommerceSource } from "@/lib/shopify";
+import { productVisibility } from "@/lib/admin/product-rules";
+import { cn } from "@/lib/utils";
+import { AdminHeading, Card, inr, SetupNotice } from "@/components/admin/ui";
 
 export const metadata: Metadata = { title: "Products" };
+
+const visibilityLabel = { draft: "Draft", "on-sale": "On sale", "out-of-stock": "Out of stock" } as const;
+const visibilityTone = { draft: "bg-line text-muted", "on-sale": "bg-botanical/15 text-forest", "out-of-stock": "bg-gold-pale text-[#7a5418]" } as const;
 
 export default async function AdminProductsPage() {
   await requireAdmin();
@@ -19,11 +25,14 @@ export default async function AdminProductsPage() {
     return (
       <>
         <AdminHeading title="Products" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="store" />
       </>
     );
   }
   const shopify = isShopifyConfigured();
+  const live = getCommerceSource() === "supabase";
+  const counts = { draft: 0, "on-sale": 0, "out-of-stock": 0 };
+  for (const p of products) counts[productVisibility(p)]++;
 
   return (
     <>
@@ -34,6 +43,18 @@ export default async function AdminProductsPage() {
           </Link>
         )}
       </AdminHeading>
+      {!shopify && !live && (
+        <Card className="mb-4 border-gold/40 bg-gold-pale/40 p-4 text-sm">
+          <strong className="font-medium">These products are not on the website yet.</strong> The storefront is showing its built-in preview catalogue because{" "}
+          <code className="rounded bg-ivory px-1">COMMERCE_SOURCE=supabase</code> is not set. Products saved here are stored in the database and appear on the website as soon as that setting is
+          enabled (see the Dashboard checklist).
+        </Card>
+      )}
+      {products.length > 0 && (
+        <p className="mb-3 text-sm text-muted" role="status">
+          {products.length} product{products.length === 1 ? "" : "s"} · {counts["on-sale"]} on sale · {counts["out-of-stock"]} out of stock · {counts.draft} draft
+        </p>
+      )}
       <Card className="overflow-x-auto">
         {products.length === 0 ? (
           <p className="px-5 py-12 text-center text-sm text-muted">No products yet. Add your first product.</p>
@@ -66,8 +87,12 @@ export default async function AdminProductsPage() {
                     <td className="px-4 py-3 tabular-nums">{inr(p.price)}</td>
                     <td className="px-4 py-3 tabular-nums">{p.inventory ?? <span className="text-muted">Not tracked</span>}</td>
                     <td className="px-4 py-3">
-                      <StatusBadge value={p.published && (p.inventory === null || p.inventory > 0) ? "confirmed" : "cancelled"} />
-                      <span className="ml-1 text-xs text-muted">{p.published ? (p.inventory === 0 ? "Out of stock" : "On sale") : "Draft (not published)"}</span>
+                      <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[0.7rem] font-medium", visibilityTone[productVisibility(p)])}>{visibilityLabel[productVisibility(p)]}</span>
+                      {live && p.published && (
+                        <Link href={`/products/${p.handle}`} target="_blank" className="ml-2 inline-flex items-center gap-1 text-xs text-forest">
+                          View <ExternalLink className="size-3" aria-hidden />
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 );

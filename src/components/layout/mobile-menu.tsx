@@ -8,6 +8,7 @@ import { ChevronDown, Mail, Menu, User, X } from "lucide-react";
 import type { NavItem } from "@/types/content";
 import { brandConfig } from "@/data/brand";
 import { InstagramIcon, WhatsAppIcon } from "@/components/ui/brand-icons";
+import { Logo } from "./logo";
 import { cn, whatsappLink } from "@/lib/utils";
 
 export function MobileMenu({ items }: { items: NavItem[] }) {
@@ -92,7 +93,10 @@ export function MobileMenu({ items }: { items: NavItem[] }) {
                   transition={{ type: "tween", duration: 0.28, ease: "easeOut" }}
                 >
                   <div className="flex items-center justify-between border-b border-line px-5 py-4">
-                    <span className="font-serif text-2xl italic text-gold">Qalbi</span>
+                    {/* Closing on navigation: the logo links home. */}
+                    <div onClick={(e) => (e.target as HTMLElement).closest("a") && setOpen(false)}>
+                      <Logo className="items-start [&>span]:w-[104px]" />
+                    </div>
                     <button ref={closeRef} type="button" onClick={() => setOpen(false)} className="inline-flex size-10 items-center justify-center" aria-label="Close menu">
                       <X className="size-5" aria-hidden />
                     </button>

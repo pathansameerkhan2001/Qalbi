@@ -2,10 +2,11 @@ import Link from "next/link";
 import { cacheLife } from "next/cache";
 import { Mail } from "lucide-react";
 import { brandConfig } from "@/data/brand";
-import { footerExploreLinks } from "@/data/navigation";
+import { footerExploreLinks, footerHelpLinks } from "@/data/navigation";
 import type { NavLink } from "@/types/content";
 import { Container } from "@/components/ui/container";
 import { InstagramIcon, WhatsAppIcon } from "@/components/ui/brand-icons";
+import { SprigOrnament } from "@/components/ui/botanical-icons";
 import { NewsletterForm } from "@/components/forms/newsletter-form";
 import { getCollections, getPolicy, policyHandles, type PolicyHandle } from "@/lib/shopify";
 import { getContactSettings } from "@/lib/store/settings";
@@ -13,7 +14,7 @@ import { deliveryStatus } from "@/lib/server/delivery";
 import { Logo } from "./logo";
 
 const policyLabels: Record<PolicyHandle, string> = {
-  "shipping-policy": "Shipping",
+  "shipping-policy": "Shipping Policy",
   "refund-policy": "Returns & Refunds",
   "privacy-policy": "Privacy Policy",
   "terms-of-service": "Terms & Conditions",
@@ -26,16 +27,18 @@ async function currentYear() {
   return new Date().getFullYear();
 }
 
+const groupTitle = "mb-4 font-sans text-[0.7rem] font-medium uppercase tracking-[0.2em] text-gold-soft";
+const footerLink = "inline-block py-1.5 text-sm text-ivory/72 transition hover:text-ivory focus-visible:text-ivory";
+
 function LinkGroup({ title, links }: { title: string; links: NavLink[] }) {
   if (links.length === 0) return null;
   return (
     <nav aria-label={title}>
-      <h2 className="mb-3 font-sans text-[0.72rem] font-medium uppercase tracking-[0.16em] text-gold-soft">{title}</h2>
+      <h2 className={groupTitle}>{title}</h2>
       <ul>
         {links.map((link) => (
           <li key={link.href}>
-            {/* py-1.5 keeps every link a comfortable touch target without large gaps. */}
-            <Link href={link.href} className="inline-block py-1.5 text-sm text-ivory/75 transition hover:text-ivory">
+            <Link href={link.href} className={footerLink}>
               {link.label}
             </Link>
           </li>
@@ -45,7 +48,7 @@ function LinkGroup({ title, links }: { title: string; links: NavLink[] }) {
   );
 }
 
-const iconLink = "inline-flex size-10 items-center justify-center rounded-full border border-ivory/25 text-ivory/85 transition hover:border-gold-soft hover:text-gold-soft";
+const iconLink = "inline-flex size-10 items-center justify-center rounded-full border border-gold-soft/35 text-ivory/85 transition hover:border-gold-soft hover:bg-ivory/5 hover:text-gold-soft";
 
 /**
  * Storefront footer. Shows only links that lead somewhere real: shop links from
@@ -70,11 +73,14 @@ export async function Footer() {
 
   return (
     <footer className="relative overflow-hidden bg-forest text-ivory">
-      <Container className="grid grid-cols-2 gap-x-6 gap-y-10 py-12 sm:py-14 lg:grid-cols-[1.4fr_1fr_1fr_1.4fr] lg:gap-x-10 lg:py-16">
-        <div className="col-span-2 flex flex-col items-start gap-4 lg:col-span-1">
+      {/* Fine gold rule at the top edge. */}
+      <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-soft/60 to-transparent" />
+
+      <Container className="grid grid-cols-2 gap-x-6 gap-y-10 pb-10 pt-14 sm:grid-cols-3 sm:pt-16 lg:grid-cols-12 lg:gap-x-8 lg:pb-12 lg:pt-20">
+        <div className="col-span-2 flex flex-col items-start gap-5 sm:col-span-3 lg:col-span-4 lg:pr-6">
           <Logo tone="light" className="items-start" />
-          <p className="max-w-xs text-sm leading-relaxed text-ivory/70">{brandConfig.description}</p>
-          <ul className="flex items-center gap-3" aria-label="Social and contact links">
+          <p className="max-w-sm text-sm leading-relaxed text-ivory/70">{brandConfig.description}</p>
+          <ul className="flex items-center gap-2.5" aria-label="Social and contact links">
             <li>
               <a href={brandConfig.instagramUrl} target="_blank" rel="noopener noreferrer" aria-label={`${brandConfig.name} on Instagram (opens Instagram)`} className={iconLink}>
                 <InstagramIcon className="size-[1.05rem]" />
@@ -93,58 +99,63 @@ export async function Footer() {
           </ul>
         </div>
 
-        <LinkGroup title="Shop" links={shopLinks} />
-        <LinkGroup title="Explore" links={footerExploreLinks} />
-
-        <div className="col-span-2 space-y-8 lg:col-span-1">
+        <div className="lg:col-span-3">
+          <LinkGroup title="Shop" links={shopLinks} />
+        </div>
+        <div className="lg:col-span-2">
+          <LinkGroup title="Discover" links={footerExploreLinks} />
+        </div>
+        <div className="col-span-2 grid grid-cols-2 gap-x-6 gap-y-10 sm:col-span-1 sm:grid-cols-1 lg:col-span-3">
+          <LinkGroup title="Help" links={[...footerHelpLinks, ...policyLinks]} />
           <section aria-labelledby="footer-contact">
-            <h2 id="footer-contact" className="mb-3 font-sans text-[0.72rem] font-medium uppercase tracking-[0.16em] text-gold-soft">
-              Contact
+            <h2 id="footer-contact" className={groupTitle}>
+              Get in Touch
             </h2>
-            <ul className="space-y-1 text-sm">
+            <ul className="text-sm">
               <li>
-                <a href={`mailto:${contact.email}`} className="inline-block break-all py-1.5 text-ivory/75 transition hover:text-ivory">
+                <a href={`mailto:${contact.email}`} className={`${footerLink} break-all`}>
                   {contact.email}
                 </a>
               </li>
               <li>
-                <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="inline-block py-1.5 text-ivory/75 transition hover:text-ivory">
+                <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className={footerLink}>
                   WhatsApp {contact.whatsappDisplay}
+                </a>
+              </li>
+              <li>
+                <a href={brandConfig.instagramUrl} target="_blank" rel="noopener noreferrer" className={footerLink}>
+                  Instagram {brandConfig.instagramHandle}
                 </a>
               </li>
             </ul>
           </section>
-          {deliveryStatus.newsletter && (
-            <section aria-labelledby="footer-newsletter">
-              <h2 id="footer-newsletter" className="mb-3 font-sans text-[0.72rem] font-medium uppercase tracking-[0.16em] text-gold-soft">
-                Newsletter
-              </h2>
-              <NewsletterForm />
-            </section>
-          )}
         </div>
+
+        {deliveryStatus.newsletter && (
+          <section aria-labelledby="footer-newsletter" className="col-span-2 border-t border-ivory/10 pt-8 sm:col-span-3 lg:col-span-12 lg:grid lg:grid-cols-12 lg:items-center lg:gap-8">
+            <div className="lg:col-span-5">
+              <h2 id="footer-newsletter" className="font-serif text-2xl text-ivory">
+                Notes from the QALBI studio
+              </h2>
+              <p className="mt-1 text-sm text-ivory/65">New rituals and launches, occasionally. Unsubscribe any time.</p>
+            </div>
+            <div className="mt-4 lg:col-span-7 lg:mt-0">
+              <NewsletterForm />
+            </div>
+          </section>
+        )}
       </Container>
 
-      <div className="border-t border-ivory/10">
-        <Container className="flex flex-col gap-3 py-5 text-xs text-ivory/60 sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            © {year} {brandConfig.name}. All rights reserved.
-          </p>
-          {policyLinks.length > 0 && (
-            <nav aria-label="Policies">
-              <ul className="flex flex-wrap gap-x-5 gap-y-1">
-                {policyLinks.map((l) => (
-                  <li key={l.href}>
-                    <Link href={l.href} className="inline-block py-1 hover:text-ivory">
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          )}
-        </Container>
-      </div>
+      <Container>
+        <SprigOrnament className="justify-center text-gold-soft/70 before:w-full before:max-w-[40%] after:w-full after:max-w-[40%]" />
+      </Container>
+
+      <Container className="flex flex-col items-center gap-2 py-6 text-center text-xs text-ivory/55 sm:flex-row sm:justify-between sm:text-left">
+        <p>
+          © {year} {brandConfig.name}. All rights reserved.
+        </p>
+        <p className="font-serif text-sm italic tracking-wide text-gold-soft/80">{brandConfig.tagline}</p>
+      </Container>
     </footer>
   );
 }

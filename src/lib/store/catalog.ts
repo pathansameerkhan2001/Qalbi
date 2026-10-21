@@ -1,7 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Collection, Product, ProductImage } from "@/types/commerce";
+import type { Collection, Product } from "@/types/commerce";
 import { mediaUrl } from "@/lib/assets";
 import { createPublicClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -9,8 +9,9 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 /** Cache tag for everything read from the Supabase store tables. Admin writes call updateTag(STORE_TAG). */
 export const STORE_TAG = "store";
 
-/** Collection handle for products flagged `is_best_seller` (shown as “The QALBI Favourites”). */
-export const BESTSELLERS_HANDLE = "bestsellers";
+import { BESTSELLERS_HANDLE, rowToProduct, type ProductImageRow, type ProductRow } from "./product-mapping";
+
+export { BESTSELLERS_HANDLE, rowToProduct, type ProductImageRow, type ProductRow };
 
 /**
  * Supabase is the catalogue source only when explicitly enabled
@@ -68,39 +69,6 @@ interface DbCategory {
   image_url: string | null;
   sort_order: number | null;
   is_active: boolean | null;
-}
-
-// ---------------------------------------------------------------------------
-// App-facing shapes
-// ---------------------------------------------------------------------------
-
-export interface ProductImageRow {
-  id: string;
-  path: string;
-  alt: string;
-  sort: number;
-  isPrimary: boolean;
-}
-
-export interface ProductRow {
-  id: string;
-  handle: string;
-  title: string;
-  description: string;
-  price: number;
-  compareAtPrice: number | null;
-  /** null = stock not tracked. */
-  inventory: number | null;
-  sku: string | null;
-  categoryId: string | null;
-  category: { handle: string; title: string } | null;
-  featured: boolean;
-  bestSeller: boolean;
-  published: boolean;
-  createdAt: string;
-  seoTitle: string | null;
-  seoDescription: string | null;
-  images: ProductImageRow[];
 }
 
 export interface CategoryRow {
@@ -206,54 +174,6 @@ export async function queryCategories(db: SupabaseClient): Promise<CategoryRow[]
 // ---------------------------------------------------------------------------
 // Storefront
 // ---------------------------------------------------------------------------
-
-/** Image dimensions are not stored; 4:5 matches the product photography and only informs aspect hints. */
-function toImage(path: string, alt: string): ProductImage {
-  return { url: mediaUrl(path), alt, width: 960, height: 1200 };
-}
-
-export function rowToProduct(row: ProductRow): Product {
-  const price = { amount: row.price, currencyCode: "INR" };
-  const compareAt = row.compareAtPrice === null ? null : { amount: row.compareAtPrice, currencyCode: "INR" };
-  const images = row.images.map((img) => toImage(img.path, img.alt || row.title));
-  const inStock = row.published && (row.inventory === null || row.inventory > 0);
-  const collectionHandles = [...(row.category ? [row.category.handle] : []), ...(row.bestSeller ? [BESTSELLERS_HANDLE] : [])];
-  return {
-    id: row.id,
-    handle: row.handle,
-    title: row.title,
-    description: row.description,
-    descriptionHtml: "",
-    productType: row.category?.title ?? "",
-    tags: row.featured ? ["featured"] : [],
-    availableForSale: inStock,
-    featuredImage: images[0] ?? null,
-    images,
-    options: [{ name: "Title", values: ["Default Title"] }],
-    // One purchasable unit per product: the variant id is the product id.
-    variants: [
-      {
-        id: row.id,
-        title: "Default Title",
-        availableForSale: inStock,
-        quantityAvailable: row.inventory,
-        price,
-        compareAtPrice: compareAt,
-        selectedOptions: [{ name: "Title", value: "Default Title" }],
-        image: images[0] ?? null,
-      },
-    ],
-    priceRange: { min: price, max: price },
-    compareAtPriceRange: compareAt ? { min: compareAt, max: compareAt } : null,
-    rating: null,
-    ingredients: null,
-    directions: null,
-    warnings: null,
-    collectionHandles,
-    seo: { title: row.seoTitle, description: row.seoDescription },
-    sku: row.sku,
-  };
-}
 
 export async function getStoreProducts(): Promise<Product[]> {
   "use cache";

@@ -50,10 +50,12 @@ export const images = {
     combos: photo("categories/combos-collection.webp", "QALBI Booster Serum, Radiance Glow Cream, Facial Cleanser and Moisturizer", 600, 600),
     customised: photo("categories/customised-studio.webp", "QALBI Skin Lightening Cream with roses", 600, 600),
   },
+  /** Square crops for the ingredient carousel circles (largest clean region of each source photo). */
   ingredientsList: {
-    saffron: photo("ingredients/saffron-bowl.webp", "Saffron threads in a wooden bowl", 250, 240),
-    rose: photo("ingredients/rose-fresh.webp", "Fresh pink rose and petals on silk", 250, 250),
-    coconut: photo("ingredients/coconut.webp", "A freshly split coconut", 350, 350),
+    saffron: photo("ingredients/saffron.webp", "Saffron threads in a wooden bowl", 320, 320),
+    rose: photo("ingredients/rose-petals.webp", "Dried rose petals on a wooden table", 400, 400),
+    coconut: photo("ingredients/coconut-split.webp", "A freshly split coconut with coconut water", 340, 340),
+    cardamom: photo("ingredients/cardamom.webp", "Whole green cardamom pods", 470, 470),
   },
   products: {
     serum: photo("products/multipurpose-booster-serum.webp", "QALBI Multipurpose Booster Serum on marble", 960, 1200),

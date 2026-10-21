@@ -13,3 +13,22 @@ export function absoluteUrl(pathOrUrl: string): string {
   if (/^https?:\/\//.test(pathOrUrl)) return pathOrUrl;
   return `${siteUrl}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`;
 }
+
+/**
+ * schema.org BreadcrumbList for the visible breadcrumb trail (Home is added first).
+ * The current page (no href) is the last item and carries no URL, as Google allows.
+ */
+export function breadcrumbJsonLd(crumbs: { label: string; href?: string }[]): string {
+  const items = [{ label: "Home", href: "/" }, ...crumbs];
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: c.label,
+      ...(c.href ? { item: absoluteUrl(c.href) } : {}),
+    })),
+  };
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}

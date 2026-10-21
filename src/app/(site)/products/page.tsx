@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { getProducts } from "@/lib/shopify";
 import { parseSort } from "@/lib/sort";
-import { productCategoryLinks } from "@/data/navigation";
+import { getCategoryLinks } from "@/lib/navigation";
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProductGridSkeleton } from "@/components/ui/skeletons";
@@ -32,7 +32,8 @@ async function ProductListing({ searchParams }: { searchParams: PageProps<"/prod
   );
 }
 
-export default function ProductsPage({ searchParams }: PageProps<"/products">) {
+export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
+  const categoryLinks = await getCategoryLinks();
   return (
     <>
       <PageHeader
@@ -43,7 +44,7 @@ export default function ProductsPage({ searchParams }: PageProps<"/products">) {
       >
         <nav aria-label="Product categories" className="mt-6">
           <ul className="scroll-row -mx-4 gap-2 px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-            {productCategoryLinks.map((link) => (
+            {categoryLinks.map((link) => (
               <li key={link.href} className="shrink-0">
                 <Link href={link.href} className="inline-flex min-h-9 items-center rounded-full border border-line bg-ivory px-4 text-xs font-medium text-ink transition hover:border-forest hover:text-forest">
                   {link.label}

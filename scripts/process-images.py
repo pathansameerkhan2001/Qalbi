@@ -142,6 +142,19 @@ def logo() -> None:
     print(f"brand/qalbi-logo.png: {out.width}x{out.height} {dest.stat().st_size // 1024} KB")
 
 
+def ingredient_crops() -> None:
+    """Square ingredient photos for the homepage carousel (shown in ~180 px circles).
+
+    The largest clean region of each ingredient in QALBI's photographs; never upscaled.
+    Aloe vera, turmeric and neem have no usable photograph yet — the website shows a
+    line icon for them until a real photo is uploaded in /admin/ingredients.
+    """
+    make(10, (740, 870, 320, 320), "ingredients/saffron.webp", 600, 86)
+    make(25, (150, 320, 400, 400), "ingredients/rose-petals.webp", 600, 86)
+    make(37, (10, 650, 340, 340), "ingredients/coconut-split.webp", 600, 86)
+    make(19, (0, 420, 470, 470), "ingredients/cardamom.webp", 600, 86)
+
+
 if __name__ == "__main__":
     logo()
     logo_mask()
@@ -193,9 +206,7 @@ if __name__ == "__main__":
     # (client-10's label text is never included — only its ingredient styling).
     # Only ingredients confirmed by QALBI are pictured: no cardamom, manjistha or licorice.
     make(35, (330, 0, 960, 1200), "hero/lineup-mobile.webp", 1080, 85)
-    make(10, (790, 870, 250, 240), "ingredients/saffron-bowl.webp", 600)
-    make(37, (0, 650, 350, 350), "ingredients/coconut.webp", 600)
-    make(15, (0, 700, 250, 250), "ingredients/rose-fresh.webp", 600)
+    ingredient_crops()
     make(14, (0, 240, 704, 600), "ingredients/ingredients-hero-saffron.webp", 828, 85)
     shot(47, 4 / 3, "about/about-forest.webp", 1200, fy=0.55, quality=85)
     make(15, (0, 630, 240, 240), "categories/lip-care-roses.webp", 600)

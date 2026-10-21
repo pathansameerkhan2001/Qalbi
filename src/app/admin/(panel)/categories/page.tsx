@@ -63,7 +63,7 @@ export default async function AdminCategoriesPage() {
     return (
       <>
         <AdminHeading title="Categories" />
-        <SetupNotice error={error} />
+        <SetupNotice error={error} migration="store" />
       </>
     );
   }

@@ -136,7 +136,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostValues }) {
 
       <div className="space-y-6">
         <section className="space-y-4 rounded-[3px] border border-line bg-ivory p-5">
-          <ImageUploadField name="cover_image_path" label="Cover image" folder="blog" defaultPath={initial.coverImagePath} hint="Landscape, about 1600 × 900 px. Required to publish." aspectClass="aspect-[16/9]" />
+          <ImageUploadField name="cover_image_path" label="Cover image" folder="blog" defaultPath={initial.coverImagePath} hint="Landscape, at least 1600 × 900 px. Required to publish." aspectClass="aspect-[16/9]" minWidth={1600} />
           {err("cover_image_path")}
           <div>
             <label htmlFor={fid("cover-alt")} className="label">Cover description (alt text)</label>

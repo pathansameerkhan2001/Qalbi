@@ -4,11 +4,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSessionClient } from "@/lib/supabase/server";
 import { fromIstInput, isMediaPath, isSafeSiteLink, isSlug, normalizeReelUrl, slugify } from "@/lib/content/rules";
+import { ingredientIcons } from "@/types/content";
 import { requireAdmin } from "./auth";
 import { checkbox, dbError, invalid, refreshStore, type ActionState } from "./action-helpers";
 
 /**
- * Admin mutations for website content (hero slides, Instagram Reels, blog posts).
+ * Admin mutations for website content (hero slides, Instagram Reels, ingredients, blog posts).
  * Same pattern as actions.ts: requireAdmin() first, then writes with the
  * administrator's own session so row level security applies as well.
  */
@@ -76,6 +77,61 @@ export async function deleteHeroSlideAction(_: ActionState, formData: FormData):
   if (error) return dbError("hero slide", error);
   refreshStore("/admin/hero", "/");
   return { ok: true, message: "Slide deleted. Its images stay in the Media library." };
+}
+
+// ---------------------------------------------------------------------------
+// Ingredients (homepage carousel and /ingredients)
+// ---------------------------------------------------------------------------
+
+const ingredientSchema = z
+  .object({
+    id,
+    name: z.string().trim().min(1, "Enter the ingredient name").max(40, "Keep the name under 40 characters"),
+    slug: z
+      .string()
+      .trim()
+      .transform((v) => slugify(v))
+      .refine((v) => v.length > 0 && v.length <= 60 && isSlug(v), "Use lowercase letters, numbers and hyphens"),
+    description: z.string().trim().min(1, "Add a short description").max(160, "Keep the description under 160 characters"),
+    image_path: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || isMediaPath(v), "Upload an image or leave it empty")
+      .transform((v) => v || null),
+    image_alt: optionalText(200),
+    icon: z.enum(ingredientIcons, "Choose an icon"),
+    product_handles: z.array(z.string().refine(isSlug)).max(20),
+    sort_order: sortOrder,
+    is_active: checkbox,
+  })
+  .refine((v) => v.image_path === null || v.image_alt !== null, { path: ["image_alt"], message: "Describe the photo for screen readers" });
+
+export async function saveIngredientAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const name = String(formData.get("name") ?? "");
+  const parsed = ingredientSchema.safeParse({
+    ...Object.fromEntries(["id", "name", "description", "image_path", "image_alt", "icon", "sort_order", "is_active"].map((k) => [k, field(formData, k)])),
+    slug: String(formData.get("slug") ?? "") || name,
+    product_handles: formData.getAll("product_handles").map(String),
+  });
+  if (!parsed.success) return invalid(parsed.error);
+  const { id: ingredientId, ...fields } = parsed.data;
+  const db = await createSessionClient();
+  const { error } = ingredientId ? await db.from("ingredients").update(fields).eq("id", ingredientId) : await db.from("ingredients").insert(fields);
+  if (error) return dbError("ingredient", error, "An ingredient with that URL handle already exists.");
+  refreshStore("/admin/ingredients", "/", "/ingredients");
+  return { ok: true, message: ingredientId ? "Ingredient saved." : fields.is_active ? "Ingredient added and published." : "Ingredient added as hidden. Tick “Show on the website” to publish it." };
+}
+
+export async function deleteIngredientAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const ingredientId = z.uuid().safeParse(formData.get("id"));
+  if (!ingredientId.success) return { ok: false, message: "Unknown ingredient." };
+  const db = await createSessionClient();
+  const { error } = await db.from("ingredients").delete().eq("id", ingredientId.data);
+  if (error) return dbError("ingredient", error);
+  refreshStore("/admin/ingredients", "/", "/ingredients");
+  return { ok: true, message: "Ingredient deleted. Its photo stays in the Media library." };
 }
 
 // ---------------------------------------------------------------------------

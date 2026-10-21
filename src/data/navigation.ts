@@ -34,14 +34,18 @@ export const announcements: AnnouncementMessage[] = [
   { id: "custom", text: "Personalised skincare on request", href: "/customised-skincare" },
 ];
 
-/** Footer "Explore" links (pages that always exist). Shop links come from the live collections; policy links only when a policy has content. */
+/** Footer "Discover" links (pages that always exist). Shop links come from the live collections. */
 export const footerExploreLinks: NavLink[] = [
   { label: "About Us", href: "/about" },
   { label: "Ingredients", href: "/ingredients" },
   { label: "The QALBI Journal", href: "/journal" },
   { label: "Customer Feedback", href: "/reviews" },
+];
+
+/** Footer "Help" links; policy links are appended only when a policy has content. */
+export const footerHelpLinks: NavLink[] = [
   { label: "FAQs", href: "/faqs" },
-  { label: "Contact", href: "/contact" },
+  { label: "Contact Us", href: "/contact" },
 ];
 
 export const socialLinks = {

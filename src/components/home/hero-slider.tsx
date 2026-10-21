@@ -53,7 +53,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
     <section
       aria-roledescription="carousel"
       aria-label="QALBI Naturals product range"
-      className="relative w-full overflow-hidden bg-sand"
+      className="relative mx-auto w-full max-w-[1600px] overflow-hidden bg-sand"
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
       onFocus={() => setHeld(true)}
@@ -70,7 +70,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
             className={cn("absolute inset-0 transition-opacity duration-[1400ms] ease-out", i === active ? "opacity-100" : "opacity-0")}
           >
             <picture className="absolute inset-0 block">
-              <source media="(min-width: 768px)" srcSet={slide.desktopSrcSet} sizes="100vw" />
+              <source media="(min-width: 768px)" srcSet={slide.desktopSrcSet} sizes="(min-width: 1600px) 1600px, 100vw" />
               <source srcSet={slide.mobileSrcSet} sizes="100vw" />
               <img
                 src={slide.src}

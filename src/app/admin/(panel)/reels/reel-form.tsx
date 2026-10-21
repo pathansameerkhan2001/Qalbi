@@ -65,6 +65,7 @@ export function ReelForm({ initial, onAddAnother }: { initial: ReelValues; onAdd
           defaultPath={initial.thumbnailPath}
           hint="Portrait 9:16, about 720 × 1280 px — a frame from the Reel works well. Max 5 MB."
           aspectClass="aspect-[9/16] max-w-[9rem]"
+          minWidth={540}
           required
           onPathChange={(_, preview) => setThumb(preview)}
         />

@@ -53,9 +53,9 @@ export default async function IngredientsPage() {
       <section aria-labelledby="botanicals-heading" className="py-12 sm:py-16">
         <Container>
           <SectionHeading id="botanicals-heading" title="Featured Botanicals" description="Short notes on the botanicals that inspire QALBI. Product-specific ingredient lists are shown on each product page." />
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+          <ul className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4">
             {ingredients.map((ingredient) => (
-              <li key={ingredient.slug}>
+              <li key={ingredient.slug} className="@container">
                 <IngredientCard ingredient={ingredient} products={products} />
               </li>
             ))}
