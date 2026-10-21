@@ -23,9 +23,10 @@ export function isShopifyConfigured(): boolean {
 }
 
 /**
- * Development fixtures are allowed only when Shopify is not configured and
- * we are not explicitly in strict production mode.
+ * Development fixtures are allowed only when Shopify is not configured, the
+ * database catalogue is not selected (COMMERCE_SOURCE=supabase never falls back
+ * to preview products) and we are not explicitly in strict production mode.
  */
 export function allowDevelopmentFixtures(): boolean {
-  return !isShopifyConfigured() && process.env.COMMERCE_DISABLE_FIXTURES !== "true";
+  return !isShopifyConfigured() && process.env.COMMERCE_SOURCE !== "supabase" && process.env.COMMERCE_DISABLE_FIXTURES !== "true";
 }

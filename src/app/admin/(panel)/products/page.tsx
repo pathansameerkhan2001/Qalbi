@@ -7,7 +7,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { mediaUrl } from "@/lib/assets";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { getCommerceSource } from "@/lib/shopify";
-import { productVisibility } from "@/lib/admin/product-rules";
+import { productVisibility, publishBlockers } from "@/lib/admin/product-rules";
 import { setProductPublishedAction } from "@/lib/admin/actions";
 import { RowForm } from "@/components/admin/row-form";
 import { cn } from "@/lib/utils";
@@ -84,6 +84,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
             <tbody className="divide-y divide-line">
               {products.map((p) => {
                 const image = p.images[0];
+                const blockers = publishBlockers({ name: p.title, price: p.price, imageCount: p.images.length });
                 return (
                   <tr key={p.id} className="hover:bg-sand/40">
                     <td className="px-4 py-3">
@@ -101,6 +102,11 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
                     <td className="px-4 py-3 tabular-nums">{p.inventory ?? <span className="text-muted">Not tracked</span>}</td>
                     <td className="px-4 py-3">
                       <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[0.7rem] font-medium", visibilityTone[productVisibility(p)])}>{visibilityLabel[productVisibility(p)]}</span>
+                      {!p.published && blockers.length > 0 && (
+                        <Link href={`/admin/products/${p.id}`} className="mt-1 block text-xs text-[#7a5418] underline-offset-2 hover:underline">
+                          Before publishing: {blockers.join(", ")}
+                        </Link>
+                      )}
                       {live && p.published && (
                         <Link href={`/products/${p.handle}`} target="_blank" className="ml-2 inline-flex items-center gap-1 text-xs text-forest">
                           View <ExternalLink className="size-3" aria-hidden />

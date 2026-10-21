@@ -52,12 +52,29 @@ export function dbError(scope: string, error: { code?: string; message: string }
     case "42P01":
       return { ok: false, message: "The database setup for this section has not been applied yet." };
   }
-  return { ok: false, message: `Could not save ${scope}. Please try again.` };
+  // Unexpected database error: show the database's own reason so the administrator can act on it.
+  return { ok: false, message: `Could not save ${scope}: ${error.message}${error.code ? ` (code ${error.code})` : ""}.` };
 }
 
-/** Refreshes cached storefront data after an admin write. */
+/** Storefront routes that show catalogue data (products, categories, menu, sitemap). */
+const storefrontPaths: [string, "page" | "layout"][] = [
+  ["/", "page"],
+  ["/products", "page"],
+  ["/products/[handle]", "page"],
+  ["/collections/[handle]", "page"],
+  ["/search", "page"],
+  ["/sitemap.xml", "page"],
+];
+
+/**
+ * Refreshes cached storefront data after an admin write: the store data cache
+ * tag (every cached catalogue read), the storefront pages listed above, the
+ * site layout (header menu / footer categories) and any extra admin paths.
+ */
 export function refreshStore(...paths: string[]) {
   updateTag(STORE_TAG);
+  for (const [p, type] of storefrontPaths) revalidatePath(p, type);
+  revalidatePath("/", "layout");
   for (const p of paths) revalidatePath(p);
 }
 

@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
-import { createSessionClient } from "@/lib/supabase/server";
+import { createPublicClient, createSessionClient } from "@/lib/supabase/server";
+import { getCommerceSource } from "@/lib/shopify";
 import { isSupabaseConfigured, supabaseConfig } from "@/lib/supabase/config";
 import { STORE_TAG } from "@/lib/store/catalog";
 import { settingSchemas, type SettingKey } from "@/lib/store/settings";
@@ -158,7 +159,11 @@ export async function saveProductAction(_: ActionState, formData: FormData): Pro
   return { ok: true, message: "Product saved." };
 }
 
-/** Publish / unpublish from the product list. Publishing re-checks the stored price and photos on the server. */
+/**
+ * Publish / unpublish from the product list. Publishing re-checks the stored
+ * price and photos on the server, and success is reported only after the
+ * database returns the row with the new is_published value.
+ */
 export async function setProductPublishedAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
   if (isShopifyConfigured()) return { ok: false, message: "Products are managed in Shopify while the store is connected." };
@@ -166,22 +171,43 @@ export async function setProductPublishedAction(_: ActionState, formData: FormDa
   if (!parsed.success) return { ok: false, message: "Unknown product." };
   const publish = parsed.data.publish === "true";
   const db = await createSessionClient();
+  const [product, images] = await Promise.all([
+    db.from("products").select("name, slug, price").eq("id", parsed.data.id).maybeSingle(),
+    db.from("product_images").select("id", { count: "exact", head: true }).eq("product_id", parsed.data.id),
+  ]);
+  if (product.error) return dbError("product", product.error);
+  if (images.error) return dbError("product images", images.error);
+  if (!product.data) return { ok: false, message: "Product not found — it may have been deleted. Reload the page." };
+  const name = String(product.data.name ?? "");
   if (publish) {
-    const [product, images] = await Promise.all([
-      db.from("products").select("name, price").eq("id", parsed.data.id).maybeSingle(),
-      db.from("product_images").select("id", { count: "exact", head: true }).eq("product_id", parsed.data.id),
-    ]);
-    if (product.error) return dbError("product", product.error);
-    if (images.error) return dbError("product images", images.error);
-    if (!product.data) return { ok: false, message: "Product not found." };
-    const blockers = publishBlockers({ name: String(product.data.name ?? ""), price: Number(product.data.price), imageCount: images.count ?? 0 });
-    if (blockers.length) return { ok: false, message: `Before publishing, ${blockers.join(" and ")}.` };
+    const price = Number(product.data.price);
+    const blockers = publishBlockers({ name, price, imageCount: images.count ?? 0 });
+    if (blockers.length) {
+      const priceNote = price > 0 ? "" : ` (the saved price is ${price === 0 ? "₹0" : "missing"})`;
+      return { ok: false, message: `“${name}” can't be published yet: ${blockers.join(" and ")}${priceNote}. Open the product, fill this in and save, then publish.` };
+    }
   }
-  const { data, error } = await db.from("products").update({ is_published: publish }).eq("id", parsed.data.id).select("id");
+  const { data, error } = await db.from("products").update({ is_published: publish }).eq("id", parsed.data.id).select("id, is_published");
   if (error) return dbError("product", error);
-  if (!data?.length) return { ok: false, message: "Product not found or not editable." };
-  refreshStore("/admin/products", "/", "/products");
-  return { ok: true, message: publish ? "Published." : "Unpublished — hidden from customers." };
+  // Row level security turns a forbidden update into "0 rows updated" without an error.
+  if (!data?.length) return { ok: false, message: "The database did not update this product — this account may not have administrator rights for products (row level security)." };
+  if (data[0].is_published !== publish) return { ok: false, message: `The database still has “${name}” as ${data[0].is_published ? "published" : "a draft"}. Please try again.` };
+  refreshStore("/admin/products", `/products/${product.data.slug}`);
+  if (!publish) return { ok: true, message: `“${name}” is now a draft — hidden from customers.` };
+
+  // Confirm visitors can now read it (the same anonymous access the storefront uses).
+  const visible = await createPublicClient().from("products").select("id").eq("id", parsed.data.id).maybeSingle();
+  if (visible.error || !visible.data) {
+    if (visible.error) console.error("[admin] public visibility check:", visible.error.code ?? visible.error.message);
+    return { ok: true, message: `“${name}” is saved as published, but the public website could not read it yet. Check the products read policy in Supabase.` };
+  }
+  return {
+    ok: true,
+    message:
+      getCommerceSource() === "supabase"
+        ? `“${name}” is published and live on the website.`
+        : `“${name}” is published in the database. The website shows it once COMMERCE_SOURCE=supabase is set (see the Dashboard checklist).`,
+  };
 }
 
 export async function deleteProductAction(_: ActionState, formData: FormData): Promise<ActionState> {
@@ -240,10 +266,36 @@ export async function saveCategoryAction(_: ActionState, formData: FormData): Pr
   if (!parsed.success) return invalid(parsed.error);
   const { id, ...fields } = parsed.data;
   const db = await createSessionClient();
-  const { error } = id ? await db.from("categories").update(fields).eq("id", id) : await db.from("categories").insert(fields);
+  const { data, error } = id
+    ? await db.from("categories").update(fields).eq("id", id).select("id, is_active")
+    : await db.from("categories").insert(fields).select("id, is_active");
   if (error) return dbError("category", error);
-  refreshStore("/admin/categories", "/", "/products");
-  return { ok: true, message: `Saved “${fields.name}”.` };
+  // Row level security turns a forbidden write into "0 rows" without an error: never report that as saved.
+  if (!data?.length) return { ok: false, message: "The database did not save this category — this account may not have administrator rights for categories." };
+  refreshStore("/admin/categories", "/admin/products", `/collections/${fields.slug}`);
+  return { ok: true, message: `Saved “${fields.name}” — ${categoryVisibilityNote(data[0].is_active === true)}` };
+}
+
+function categoryVisibilityNote(active: boolean): string {
+  if (!active) return "hidden from the website.";
+  return getCommerceSource() === "supabase"
+    ? "visible on the website (menu, “Shop by Category” and /products)."
+    : "marked visible; the website shows it once COMMERCE_SOURCE=supabase is set.";
+}
+
+/** Show / hide a category from the category list without opening its form. */
+export async function setCategoryActiveAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const parsed = z.object({ id: z.uuid(), active: z.enum(["true", "false"]) }).safeParse({ id: formData.get("id"), active: formData.get("active") });
+  if (!parsed.success) return { ok: false, message: "Unknown category." };
+  const active = parsed.data.active === "true";
+  const db = await createSessionClient();
+  const { data, error } = await db.from("categories").update({ is_active: active }).eq("id", parsed.data.id).select("name, slug, is_active");
+  if (error) return dbError("category", error);
+  if (!data?.length) return { ok: false, message: "The database did not update this category — this account may not have administrator rights for categories." };
+  if (data[0].is_active !== active) return { ok: false, message: "The database did not change the category's visibility. Please try again." };
+  refreshStore("/admin/categories", "/admin/products", `/collections/${data[0].slug}`);
+  return { ok: true, message: `“${data[0].name}” is ${categoryVisibilityNote(active)}` };
 }
 
 export async function deleteCategoryAction(_: ActionState, formData: FormData): Promise<ActionState> {
@@ -251,12 +303,13 @@ export async function deleteCategoryAction(_: ActionState, formData: FormData): 
   const id = z.uuid().safeParse(formData.get("id"));
   if (!id.success) return { ok: false, message: "Unknown category." };
   const db = await createSessionClient();
-  const { error } = await db.from("categories").delete().eq("id", id.data);
+  const { data, error } = await db.from("categories").delete().eq("id", id.data).select("id");
   if (error) {
     if (error.code === "23503") return { ok: false, message: "Move the products in this category to another category first." };
     return dbError("category", error);
   }
-  refreshStore("/admin/categories", "/", "/products");
+  if (!data?.length) return { ok: false, message: "Category not found or not deletable." };
+  refreshStore("/admin/categories");
   return { ok: true, message: "Category deleted." };
 }
 

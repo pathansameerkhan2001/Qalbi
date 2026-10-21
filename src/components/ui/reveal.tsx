@@ -1,19 +1,41 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
-/** Fades and lifts its content into view once, as it scrolls into the viewport (instant for reduced-motion users). */
+/**
+ * Fades and lifts its content into view once, as it scrolls into the viewport.
+ * CSS transition + IntersectionObserver (no animation library). Content is only
+ * hidden while scripting is available (see .reveal in globals.css), and
+ * reduced-motion visitors see it instantly.
+ */
 export function Reveal({ children, delay = 0, className }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const reduce = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      el.dataset.shown = "";
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -80px 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 28 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "0px 0px -80px 0px" }}
-      transition={reduce ? { duration: 0 } : { duration: 0.8, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <div ref={ref} data-shown={shown ? "" : undefined} className={cn("reveal", className)} style={delay ? { transitionDelay: `${delay}s` } : undefined}>
       {children}
-    </motion.div>
+    </div>
   );
 }

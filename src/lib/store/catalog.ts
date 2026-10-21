@@ -16,10 +16,12 @@ export { BESTSELLERS_HANDLE, rowToProduct, type ProductImageRow, type ProductRow
 /**
  * Supabase is the catalogue source only when explicitly enabled
  * (COMMERCE_SOURCE=supabase) and Shopify is not configured — so there is never
- * more than one source of truth for product data.
+ * more than one source of truth for product data. Missing Supabase keys do NOT
+ * switch the shop back to the preview catalogue: the catalogue reads then fail
+ * with CatalogUnavailableError and the shop pages show their error state.
  */
 export function isSupabaseCommerce(shopifyConfigured: boolean): boolean {
-  return !shopifyConfigured && process.env.COMMERCE_SOURCE === "supabase" && isSupabaseConfigured();
+  return !shopifyConfigured && process.env.COMMERCE_SOURCE === "supabase";
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +190,10 @@ export class CatalogUnavailableError extends Error {
 }
 
 function unavailable(error: unknown): never {
+  if (!isSupabaseConfigured()) {
+    console.error("[store] COMMERCE_SOURCE=supabase but NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are not set");
+    throw new CatalogUnavailableError("configuration");
+  }
   if (error instanceof StoreQueryError) {
     console.error(`[store] ${error.scope} query failed:`, error.dbError.code ?? error.dbError.message);
     throw new CatalogUnavailableError(error.scope);

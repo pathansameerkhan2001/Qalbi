@@ -6,6 +6,7 @@ import { isSafeSiteLink } from "@/lib/content/rules";
 import { homepageSectionIds } from "@/lib/content/homepage";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicClient } from "@/lib/supabase/server";
+import { deliveryChargeFor as chargeForTerms, type DeliveryTerms } from "@/lib/checkout/delivery";
 import { STORE_TAG } from "./catalog";
 
 /**
@@ -15,8 +16,9 @@ import { STORE_TAG } from "./catalog";
  */
 
 export const checkoutSettingsSchema = z.object({
-  codEnabled: z.boolean().default(true),
-  phoneEnabled: z.boolean().default(true),
+  // Payment methods stay off unless an administrator switched them on (also when the setting can't be read).
+  codEnabled: z.boolean().default(false),
+  phoneEnabled: z.boolean().default(false),
   deliveryCharge: z.number().min(0).max(10000).default(0),
   freeDeliveryOver: z.number().min(0).max(1000000).nullable().default(null),
   /** Media path of the business's real UPI QR code. QR payment is offered only when this is set. */
@@ -91,6 +93,12 @@ export async function getCheckoutSettings(): Promise<SettingValue<"checkout">> {
   return (await getSetting("checkout")) ?? checkoutSettingsSchema.parse({});
 }
 
+/** Delivery terms saved in Store Settings → Checkout, or null when that setting can't be read (never guessed). */
+export async function getDeliveryTerms(): Promise<DeliveryTerms | null> {
+  const settings = await getSetting("checkout");
+  return settings ? { charge: settings.deliveryCharge, freeOver: settings.freeDeliveryOver } : null;
+}
+
 export async function getContactSettings(): Promise<SettingValue<"contact">> {
   return (await getSetting("contact")) ?? contactSettingsSchema.parse({});
 }
@@ -102,6 +110,5 @@ export function qrPaymentReady(settings: SettingValue<"checkout">): boolean {
 
 /** Delivery charge for a subtotal — display only; the database computes the charged amount. */
 export function deliveryChargeFor(subtotal: number, settings: SettingValue<"checkout">): number {
-  if (settings.freeDeliveryOver !== null && subtotal >= settings.freeDeliveryOver) return 0;
-  return settings.deliveryCharge;
+  return chargeForTerms(subtotal, { charge: settings.deliveryCharge, freeOver: settings.freeDeliveryOver });
 }

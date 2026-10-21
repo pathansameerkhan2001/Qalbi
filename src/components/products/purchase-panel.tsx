@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { LoaderCircle, Minus, Plus } from "lucide-react";
 import type { Product } from "@/types/commerce";
 import { track } from "@/lib/analytics";
-import { cn, formatPrice } from "@/lib/utils";
-import { publicImageUrl, type WhatsAppOrderConfig } from "@/lib/checkout/whatsapp";
-import { WhatsAppOrderButton } from "./whatsapp-order-button";
+import { cn } from "@/lib/utils";
+import { whatsappUrl, type WhatsAppOrderConfig } from "@/lib/checkout/whatsapp";
+import { useCart } from "@/components/cart/cart-provider";
+import { WhatsAppIcon } from "@/components/ui/brand-icons";
 import { AddToCartButton } from "./add-to-cart-button";
 import { Price } from "./price";
 
@@ -95,23 +97,68 @@ export function PurchasePanel({ product, whatsapp }: { product: Product; whatsap
         />
       </div>
 
-      {whatsapp && variant && (
-        <WhatsAppOrderButton
-          digits={whatsapp.digits}
-          label={available ? "Order on WhatsApp" : "Ask about availability on WhatsApp"}
-          estimatedTotal={whatsapp.priceConfirmed ? formatPrice({ amount: variant.price.amount * quantity, currencyCode: variant.price.currencyCode }) : null}
-          items={[
-            {
-              title: product.title,
-              quantity,
-              unitPrice: whatsapp.priceConfirmed ? formatPrice(variant.price) : null,
-              url: whatsapp.siteOrigin ? `${whatsapp.siteOrigin}/products/${product.handle}` : null,
-              imageUrl: publicImageUrl((variant.image ?? product.featuredImage)?.url, whatsapp.siteOrigin),
-              details: product.description,
-            },
-          ]}
-        />
+      {whatsapp && variant && <WhatsAppOrder whatsapp={whatsapp} product={product} variantId={variant.id} available={available} quantity={quantity} />}
+    </div>
+  );
+}
+
+/**
+ * WhatsApp ordering from the product page. Orders go through the bag, where the
+ * customer's delivery details are checked and the message is built from
+ * verified prices; a sold-out product only gets an availability question.
+ */
+function WhatsAppOrder({
+  whatsapp,
+  product,
+  variantId,
+  available,
+  quantity,
+}: {
+  whatsapp: WhatsAppOrderConfig;
+  product: Product;
+  variantId: string;
+  available: boolean;
+  quantity: number;
+}) {
+  const { addItem, mode } = useCart();
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!/^[1-9][0-9]{9,14}$/.test(whatsapp.digits)) return null;
+  if (!available) {
+    const page = whatsapp.siteOrigin ? ` ${whatsapp.siteOrigin}/products/${product.handle}` : "";
+    return (
+      <a href={whatsappUrl(whatsapp.digits, `Hello QALBI Naturals! Is ${product.title} available again?${page}`)} target="_blank" rel="noopener noreferrer" className="btn btn-outline w-full">
+        <WhatsAppIcon className="size-4" /> Ask about availability on WhatsApp
+        <span className="sr-only"> (opens WhatsApp)</span>
+      </a>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      <button
+        type="button"
+        disabled={busy || mode === "unavailable"}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          if (await addItem(variantId, quantity, { handle: product.handle, title: product.title })) router.push("/cart#delivery-details");
+          else {
+            setError("Couldn't add to your bag. Please try again.");
+            setBusy(false);
+          }
+        }}
+        className="btn btn-outline w-full"
+      >
+        {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <WhatsAppIcon className="size-4" />} Order on WhatsApp
+      </button>
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
       )}
+      <p className="text-xs leading-relaxed text-muted">Adds this to your bag and asks for your delivery details, then opens WhatsApp with your order for you to review and send.</p>
     </div>
   );
 }

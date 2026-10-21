@@ -43,48 +43,68 @@ export interface WhatsAppOrderConfig {
   priceConfirmed: boolean;
 }
 
-/** One product in a WhatsApp order request. */
+/** One product in a WhatsApp order request. Prices are formatted on the server from catalogue data. */
 export interface WhatsAppRequestItem {
   title: string;
   quantity: number;
   /** Formatted unit price, or null when the price is not confirmed (preview catalogue). */
   unitPrice: string | null;
+  /** Formatted unit price × quantity, or null when the price is not confirmed. */
+  lineTotal: string | null;
   /** Public https product page, or null when the site has no public address yet. */
   url: string | null;
   /** Public https image URL, or null. Sent as a link: WhatsApp text links cannot attach files. */
   imageUrl: string | null;
-  /** Short label text such as "Repair | Nourish | Brightens". */
-  details?: string | null;
+}
+
+/** Order request from the bag: verified items and totals plus the delivery details the customer entered. */
+export interface WhatsAppOrderRequest {
+  items: WhatsAppRequestItem[];
+  /** Formatted amounts, or null when not confirmed (then the shop confirms them in WhatsApp). */
+  subtotal: string | null;
+  delivery: string | null;
+  total: string | null;
+  customer: { name: string; address: string; pinCode: string };
 }
 
 const httpsOnly = (value: string | null | undefined) => (value && /^https:\/\/[^\s]+$/.test(value) ? value : null);
 
 /**
- * Message for a customer-initiated WhatsApp order request (product page or bag).
- * It contains only product information; the customer adds their own name and
- * address in WhatsApp before choosing to send it. Prices are included only when
- * confirmed, and nothing claims a photo is attached — photos are links.
+ * Message for a customer-initiated WhatsApp order request from the bag. The
+ * customer reviews it in WhatsApp and decides whether to send it: it is a
+ * request, not a placed order. Prices are stated only when confirmed, and
+ * nothing claims a photo is attached — photos are links.
  */
-export function orderRequestWhatsAppMessage(items: WhatsAppRequestItem[], estimatedTotal: string | null): string {
-  const blocks = items.map((item, i) => {
+export function orderRequestWhatsAppMessage(order: WhatsAppOrderRequest): string {
+  const blocks = order.items.map((item, i) => {
     const lines = [`${i + 1}. ${item.title} × ${item.quantity}`];
-    lines.push(item.unitPrice ? `   Price: ${item.unitPrice} each` : "   Price: please confirm");
-    if (item.details?.trim()) lines.push(`   Details: ${item.details.trim().slice(0, 160)}`);
+    lines.push(item.unitPrice && item.lineTotal ? `   Price: ${item.unitPrice} each · Item total: ${item.lineTotal}` : "   Price: please confirm");
     const url = httpsOnly(item.url);
     if (url) lines.push(`   Product page: ${url}`);
     const image = httpsOnly(item.imageUrl);
     if (image) lines.push(`   Photo (link): ${image}`);
     return lines.join("\n");
   });
-  const allPriced = items.every((i) => i.unitPrice);
+  const allPriced = order.items.every((i) => i.unitPrice && i.lineTotal);
+  const totals =
+    allPriced && order.subtotal
+      ? [
+          `Subtotal: ${order.subtotal}`,
+          `Delivery: ${order.delivery ?? "to be confirmed"}`,
+          order.delivery && order.total ? `Total: ${order.total}` : "Total: to be confirmed with the delivery charge",
+        ]
+      : ["Total: please confirm"];
   return [
     "Hello QALBI Naturals! I would like to order:",
     "",
     blocks.join("\n\n"),
     "",
-    ...(estimatedTotal && allPriced ? [`Estimated total: ${estimatedTotal} (delivery charge to be confirmed)`, ""] : []),
-    "My name:",
-    "Delivery address and PIN code:",
+    ...totals,
+    "",
+    "Deliver to:",
+    `Name: ${order.customer.name}`,
+    `Address: ${order.customer.address}`,
+    `PIN code: ${order.customer.pinCode}`,
     "",
     "Please confirm availability, the final amount and how to pay. Thank you!",
   ].join("\n");

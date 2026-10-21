@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { CartView } from "@/components/cart/cart-view";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { isSupabaseCommerce } from "@/lib/store/catalog";
-import { getCheckoutSettings, qrPaymentReady } from "@/lib/store/settings";
+import { getCheckoutSettings, getDeliveryTerms, qrPaymentReady } from "@/lib/store/settings";
 import { isServerWriteConfigured } from "@/lib/supabase/server";
 import { getWhatsAppOrderConfig } from "@/lib/whatsapp-order";
 
@@ -19,8 +19,9 @@ async function onSiteCheckoutOpen(): Promise<boolean> {
 }
 
 async function Bag() {
-  const [checkoutOpen, whatsapp] = await Promise.all([onSiteCheckoutOpen(), getWhatsAppOrderConfig()]);
-  return <CartView checkoutOpen={checkoutOpen} whatsapp={whatsapp} />;
+  const store = !isShopifyConfigured() && isSupabaseCommerce(false);
+  const [checkoutOpen, whatsapp, delivery] = await Promise.all([onSiteCheckoutOpen(), getWhatsAppOrderConfig(), store ? getDeliveryTerms() : null]);
+  return <CartView checkoutOpen={checkoutOpen} whatsapp={whatsapp} delivery={delivery} />;
 }
 
 export default function CartPage() {

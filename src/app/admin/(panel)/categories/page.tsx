@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { listAdminCategories, listAdminProducts } from "@/lib/admin/data";
 import { requireAdmin } from "@/lib/admin/auth";
-import { deleteCategoryAction, saveCategoryAction } from "@/lib/admin/actions";
+import { deleteCategoryAction, saveCategoryAction, setCategoryActiveAction } from "@/lib/admin/actions";
 import { getCommerceSource } from "@/lib/shopify";
 import type { CategoryRow } from "@/lib/store/catalog";
 import { homeCategories } from "@/data/categories";
@@ -102,6 +102,11 @@ export default async function AdminCategoriesPage() {
           ? "Visible categories appear on the website straight away; a category page lists only its published products."
           : "They appear on the website once COMMERCE_SOURCE=supabase is set (see the Dashboard checklist)."}{" "}
         A category with products cannot be deleted — move its products to another category first, or untick “Visible” to hide it.
+        {categories.length > 0 && active === 0 && (
+          <span className="mt-2 block text-ink">
+            All categories are hidden. Categories added by the product import script start hidden on purpose — use “Show on website” on each one you want customers to see.
+          </span>
+        )}
       </Card>
       <div className="space-y-4">
         {categories.map((c) => {
@@ -113,6 +118,15 @@ export default async function AdminCategoriesPage() {
                 <span className="text-muted">
                   /collections/{c.handle} · {n.total} product{n.total === 1 ? "" : "s"} ({n.live} published)
                 </span>
+                <RowForm
+                  action={setCategoryActiveAction}
+                  submitLabel={c.active ? "Hide from website" : "Show on website"}
+                  confirm={c.active ? `Hide “${c.title}” from the website menu and category pages?` : undefined}
+                  className="ml-auto flex justify-end"
+                >
+                  <input type="hidden" name="id" value={c.id} />
+                  <input type="hidden" name="active" value={c.active ? "false" : "true"} />
+                </RowForm>
               </div>
               <RowForm action={saveCategoryAction} submitLabel="Save category" className="grid gap-4">
                 <CategoryFields c={c} />

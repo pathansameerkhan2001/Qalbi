@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, Mail, Menu, User, X } from "lucide-react";
 import type { NavItem } from "@/types/content";
 import { brandConfig } from "@/data/brand";
@@ -17,7 +16,6 @@ export function MobileMenu({ items }: { items: NavItem[] }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
   const isClient = useSyncExternalStore(subscribeNoop, () => true, () => false);
 
   useEffect(() => {
@@ -67,105 +65,96 @@ export function MobileMenu({ items }: { items: NavItem[] }) {
       {/* Portalled to <body>: the header's backdrop-filter would otherwise confine this fixed drawer to the header box. */}
       {isClient &&
         createPortal(
-          <AnimatePresence>
-            {open && (
-              <>
-                <motion.div
-                  key="overlay"
-                  className="fixed inset-0 z-[70] bg-ink/40"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setOpen(false)}
-                  aria-hidden
-                />
-                <motion.div
-                  key="panel"
-                  id="mobile-menu"
-                  ref={panelRef}
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Menu"
-                  className="fixed inset-y-0 left-0 z-[80] flex w-[86vw] max-w-sm flex-col bg-ivory shadow-lift"
-                  initial={reduceMotion ? { opacity: 0 } : { x: "-100%" }}
-                  animate={reduceMotion ? { opacity: 1 } : { x: 0 }}
-                  exit={reduceMotion ? { opacity: 0 } : { x: "-100%" }}
-                  transition={{ type: "tween", duration: 0.28, ease: "easeOut" }}
-                >
-                  <div className="flex items-center justify-between border-b border-line px-5 py-4">
-                    {/* Closing on navigation: the logo links home. */}
-                    <div onClick={(e) => (e.target as HTMLElement).closest("a") && setOpen(false)}>
-                      <Logo className="items-start [&>span]:w-[104px]" />
-                    </div>
-                    <button ref={closeRef} type="button" onClick={() => setOpen(false)} className="inline-flex size-10 items-center justify-center" aria-label="Close menu">
-                      <X className="size-5" aria-hidden />
-                    </button>
-                  </div>
-                  <nav
-                    aria-label="Mobile"
-                    className="flex-1 overflow-y-auto px-5 py-4"
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest("a")) setOpen(false);
-                    }}
-                  >
-                    <ul className="divide-y divide-line">
-                      {items.map((item) => (
-                        <li key={item.href}>
-                          {item.children ? (
-                            <>
-                              <button
-                                type="button"
-                                className="flex w-full items-center justify-between py-3.5 text-left font-serif text-xl text-ink"
-                                aria-expanded={expanded === item.href}
-                                onClick={() => setExpanded((v) => (v === item.href ? null : item.href))}
-                              >
-                                {item.label}
-                                <ChevronDown aria-hidden className={cn("size-4 transition-transform", expanded === item.href && "rotate-180")} />
-                              </button>
-                              {expanded === item.href && (
-                                <ul className="pb-3 pl-3">
-                                  <li>
-                                    <Link href={item.href} className="block py-2 text-sm font-medium text-forest">
-                                      Shop All Products
-                                    </Link>
-                                  </li>
-                                  {item.children.map((child) => (
-                                    <li key={child.href}>
-                                      <Link href={child.href} className="block py-2 text-sm text-muted hover:text-forest">
-                                        {child.label}
-                                      </Link>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </>
-                          ) : (
-                            <Link href={item.href} className="block py-3.5 font-serif text-xl text-ink hover:text-gold">
-                              {item.label}
-                            </Link>
+          <>
+            {/* Always mounted, so opening and closing animate with CSS (.drawer-* in globals.css); inert while closed. */}
+            <div
+              className="drawer-overlay invisible fixed inset-0 z-[70] bg-ink/40 opacity-0 data-[open]:visible data-[open]:opacity-100"
+              data-open={open ? "" : undefined}
+              onClick={() => setOpen(false)}
+              aria-hidden
+            />
+            <div
+              id="mobile-menu"
+              ref={panelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu"
+              inert={!open}
+              data-open={open ? "" : undefined}
+              className="drawer-panel invisible fixed inset-y-0 left-0 z-[80] flex w-[86vw] max-w-sm -translate-x-full flex-col bg-ivory shadow-lift data-[open]:visible data-[open]:translate-x-0"
+            >
+              <div className="flex items-center justify-between border-b border-line px-5 py-4">
+                {/* Closing on navigation: the logo links home. */}
+                <div onClick={(e) => (e.target as HTMLElement).closest("a") && setOpen(false)}>
+                  <Logo className="items-start [&>span]:w-[104px]" />
+                </div>
+                <button ref={closeRef} type="button" onClick={() => setOpen(false)} className="inline-flex size-10 items-center justify-center" aria-label="Close menu">
+                  <X className="size-5" aria-hidden />
+                </button>
+              </div>
+              <nav
+                aria-label="Mobile"
+                className="flex-1 overflow-y-auto px-5 py-4"
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("a")) setOpen(false);
+                }}
+              >
+                <ul className="divide-y divide-line">
+                  {items.map((item) => (
+                    <li key={item.href}>
+                      {item.children ? (
+                        <>
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-between py-3.5 text-left font-serif text-xl text-ink"
+                            aria-expanded={expanded === item.href}
+                            onClick={() => setExpanded((v) => (v === item.href ? null : item.href))}
+                          >
+                            {item.label}
+                            <ChevronDown aria-hidden className={cn("size-4 transition-transform", expanded === item.href && "rotate-180")} />
+                          </button>
+                          {expanded === item.href && (
+                            <ul className="pb-3 pl-3">
+                              <li>
+                                <Link href={item.href} className="block py-2 text-sm font-medium text-forest">
+                                  Shop All Products
+                                </Link>
+                              </li>
+                              {item.children.map((child) => (
+                                <li key={child.href}>
+                                  <Link href={child.href} className="block py-2 text-sm text-muted hover:text-forest">
+                                    {child.label}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
                           )}
-                        </li>
-                      ))}
-                    </ul>
-                  </nav>
-                  <div className="space-y-3 border-t border-line px-5 py-5 text-sm">
-                    <a href={whatsappLink()} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-ink hover:text-forest">
-                      <WhatsAppIcon className="size-4 text-botanical" /> {brandConfig.whatsappNumber}
-                    </a>
-                    <a href={brandConfig.emailUrl} className="flex items-center gap-3 text-ink hover:text-forest">
-                      <Mail aria-hidden className="size-4 text-botanical" /> {brandConfig.email}
-                    </a>
-                    <a href={brandConfig.instagramUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-ink hover:text-forest">
-                      <InstagramIcon className="size-4 text-botanical" /> {brandConfig.instagramHandle}
-                    </a>
-                    <Link href="/admin/login" prefetch={false} onClick={() => setOpen(false)} className="flex items-center gap-3 text-ink hover:text-forest">
-                      <User aria-hidden className="size-4 text-botanical" strokeWidth={1.8} /> Sign in
-                    </Link>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>,
+                        </>
+                      ) : (
+                        <Link href={item.href} className="block py-3.5 font-serif text-xl text-ink hover:text-gold">
+                          {item.label}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <div className="space-y-3 border-t border-line px-5 py-5 text-sm">
+                <a href={whatsappLink()} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-ink hover:text-forest">
+                  <WhatsAppIcon className="size-4 text-botanical" /> {brandConfig.whatsappNumber}
+                </a>
+                <a href={brandConfig.emailUrl} className="flex items-center gap-3 text-ink hover:text-forest">
+                  <Mail aria-hidden className="size-4 text-botanical" /> {brandConfig.email}
+                </a>
+                <a href={brandConfig.instagramUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-ink hover:text-forest">
+                  <InstagramIcon className="size-4 text-botanical" /> {brandConfig.instagramHandle}
+                </a>
+                <Link href="/admin/login" prefetch={false} onClick={() => setOpen(false)} className="flex items-center gap-3 text-ink hover:text-forest">
+                  <User aria-hidden className="size-4 text-botanical" strokeWidth={1.8} /> Sign in
+                </Link>
+              </div>
+            </div>
+          </>,
           document.body,
         )}
     </div>

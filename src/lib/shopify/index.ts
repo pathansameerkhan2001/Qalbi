@@ -75,7 +75,7 @@ async function localProducts(): Promise<Product[]> {
 export async function getProducts(sort: ProductSortKey = "featured", first = 48): Promise<Product[]> {
   "use cache";
   cacheLife("minutes");
-  cacheTag(CATALOG_TAG);
+  cacheTag(CATALOG_TAG, STORE_TAG);
 
   if (!isShopifyConfigured()) return sortFixtures(await localProducts(), sort);
   const { sortKey, reverse } = productSort[sort];
@@ -91,7 +91,7 @@ export async function getProducts(sort: ProductSortKey = "featured", first = 48)
 export async function getProduct(handle: string): Promise<Product | null> {
   "use cache";
   cacheLife("minutes");
-  cacheTag(CATALOG_TAG);
+  cacheTag(CATALOG_TAG, STORE_TAG);
 
   if (!isShopifyConfigured()) return (await localProducts()).find((p) => p.handle === handle) ?? null;
   const data = await shopifyFetch<{ product: ShopifyProduct | null }>(PRODUCT_QUERY, {
@@ -104,7 +104,7 @@ export async function getProduct(handle: string): Promise<Product | null> {
 export async function getProductRecommendations(product: Pick<Product, "id" | "handle" | "collectionHandles">): Promise<Product[]> {
   "use cache";
   cacheLife("minutes");
-  cacheTag(CATALOG_TAG);
+  cacheTag(CATALOG_TAG, STORE_TAG);
 
   if (!isShopifyConfigured()) {
     return (await localProducts())
@@ -121,7 +121,7 @@ export async function getProductRecommendations(product: Pick<Product, "id" | "h
 export async function searchProducts(term: string): Promise<Product[]> {
   "use cache";
   cacheLife("minutes");
-  cacheTag(CATALOG_TAG);
+  cacheTag(CATALOG_TAG, STORE_TAG);
 
   const query = term.trim().slice(0, 100);
   if (!query) return [];
@@ -147,8 +147,9 @@ export async function searchProducts(term: string): Promise<Product[]> {
 
 export async function getCollections(): Promise<Collection[]> {
   "use cache";
-  cacheLife("hours");
-  cacheTag(CATALOG_TAG);
+  // Minutes, like the products: category visibility changes must reach the menu promptly.
+  cacheLife("minutes");
+  cacheTag(CATALOG_TAG, STORE_TAG);
 
   if (!isShopifyConfigured()) {
     if (isSupabaseCommerce(false)) return getStoreCollections();
@@ -164,7 +165,7 @@ export async function getCollectionWithProducts(
 ): Promise<{ collection: Collection; products: Product[] } | null> {
   "use cache";
   cacheLife("minutes");
-  cacheTag(CATALOG_TAG);
+  cacheTag(CATALOG_TAG, STORE_TAG);
 
   if (!isShopifyConfigured() && isSupabaseCommerce(false)) {
     const collection = (await getStoreCollections()).find((c) => c.handle === handle);
@@ -225,7 +226,7 @@ export const policyHandles = Object.keys(policyFields) as PolicyHandle[];
 export async function getPolicy(handle: PolicyHandle): Promise<ShopPolicy | null> {
   "use cache";
   cacheLife("hours");
-  cacheTag(CATALOG_TAG);
+  cacheTag(CATALOG_TAG, STORE_TAG);
 
   if (!isShopifyConfigured()) return null;
   const data = await shopifyFetch<{ shop: Record<string, ShopifyPolicy | null> }>(SHOP_POLICIES_QUERY);

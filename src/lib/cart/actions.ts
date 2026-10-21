@@ -17,6 +17,12 @@ import {
   CART_QUERY,
 } from "@/lib/shopify/queries";
 import type { ShopifyCart, ShopifyUserError } from "@/lib/shopify/types";
+import { customerDetailsErrors, customerDetailsSchema, type CustomerDetailsErrors, type CustomerDetailsInput } from "@/lib/checkout/customer-details";
+import { deliveryChargeFor } from "@/lib/checkout/delivery";
+import { orderRequestWhatsAppMessage, publicImageUrl, whatsappUrl } from "@/lib/checkout/whatsapp";
+import { getDeliveryTerms } from "@/lib/store/settings";
+import { getWhatsAppOrderConfig } from "@/lib/whatsapp-order";
+import { formatPrice } from "@/lib/utils";
 
 export interface CartResult {
   cart: Cart | null;
@@ -151,4 +157,71 @@ export async function updateCartLineAction(lineId: string, quantity: number): Pr
 
 export async function removeCartLineAction(lineId: string): Promise<CartResult> {
   return updateCartLineAction(lineId, 0);
+}
+
+// ---------------------------------------------------------------------------
+// WhatsApp order request
+// ---------------------------------------------------------------------------
+
+export type WhatsAppOrderResult =
+  | { ok: true; url: string; message: string }
+  | { ok: false; error: string; fieldErrors?: CustomerDetailsErrors };
+
+/**
+ * Builds the prefilled WhatsApp order message for the bag. The items, prices and
+ * delivery charge are re-read on the server (bag cookie + catalogue + Store
+ * Settings) — nothing priced comes from the browser. Only the customer's own
+ * delivery details are taken from the form; they are used for this message
+ * only and are never stored or logged. Nothing is sent: the customer opens the
+ * returned link and decides in WhatsApp whether to send it.
+ */
+export async function prepareWhatsAppOrderAction(input: CustomerDetailsInput): Promise<WhatsAppOrderResult> {
+  const details = customerDetailsSchema.safeParse(input ?? {});
+  if (!details.success) return { ok: false, error: "Please check your delivery details.", fieldErrors: customerDetailsErrors(details.error) };
+
+  try {
+    const m = mode();
+    if (m === "unavailable") return { ok: false, error: "The shop is not available right now." };
+    const [bag, config] = await Promise.all([getCartAction(), getWhatsAppOrderConfig()]);
+    if (bag.error) return { ok: false, error: "We couldn't check your bag right now. Please try again." };
+    const cart = bag.cart;
+    if (!cart || cart.lines.length === 0) return { ok: false, error: "Your bag is empty — products that are no longer available were removed. Please reload the page." };
+    if (!/^[1-9][0-9]{9,14}$/.test(config.digits)) return { ok: false, error: "WhatsApp ordering isn't set up yet. Please contact us by email instead." };
+
+    if (isLocal(m)) {
+      const catalog = await localCatalog(m);
+      for (const line of cart.lines) {
+        const variant = catalog.flatMap((p) => p.variants).find((v) => v.id === line.merchandise.id);
+        const title = line.merchandise.product.title;
+        if (!variant?.availableForSale) return { ok: false, error: `${title} is sold out. Please remove it from your bag to continue.` };
+        if (variant.quantityAvailable !== null && line.quantity > variant.quantityAvailable) {
+          return { ok: false, error: `Only ${variant.quantityAvailable} of ${title} left. Please lower the quantity to continue.` };
+        }
+      }
+    }
+
+    const priced = config.priceConfirmed;
+    const subtotal = cart.cost.subtotalAmount;
+    const terms = priced && m === "store" ? await getDeliveryTerms() : null;
+    const delivery = terms ? { amount: deliveryChargeFor(subtotal.amount, terms), currencyCode: subtotal.currencyCode } : null;
+    const message = orderRequestWhatsAppMessage({
+      items: cart.lines.map((line) => ({
+        title: line.merchandise.product.title,
+        quantity: line.quantity,
+        unitPrice: priced ? formatPrice(line.merchandise.price) : null,
+        lineTotal: priced ? formatPrice(line.cost.totalAmount) : null,
+        url: config.siteOrigin ? `${config.siteOrigin}/products/${line.merchandise.product.handle}` : null,
+        imageUrl: publicImageUrl(line.merchandise.product.featuredImage?.url, config.siteOrigin),
+      })),
+      subtotal: priced ? formatPrice(subtotal) : null,
+      delivery: delivery ? formatPrice(delivery) : null,
+      total: delivery ? formatPrice({ amount: subtotal.amount + delivery.amount, currencyCode: subtotal.currencyCode }) : null,
+      customer: details.data,
+    });
+    return { ok: true, url: whatsappUrl(config.digits, message), message };
+  } catch (error) {
+    // Logged without the customer's details.
+    console.error("[cart] WhatsApp order:", error instanceof Error ? error.name : "Unknown error");
+    return { ok: false, error: "We couldn't prepare your WhatsApp message. Please try again." };
+  }
 }
