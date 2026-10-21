@@ -10,9 +10,15 @@ export function CardOverlay({ title, video }: { title: string; video: boolean })
   return (
     <>
       <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-forest-deep/85 via-forest-deep/5 to-transparent" />
-      <span aria-hidden className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-ink/25 text-ivory backdrop-blur-sm">
-        {video ? <Play className="ml-0.5 size-3.5 fill-ivory" /> : <InstagramIcon className="size-4" />}
-      </span>
+      {video ? (
+        <span aria-hidden className="absolute left-1/2 top-[42%] flex size-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-ivory/60 bg-forest-deep/30 text-ivory backdrop-blur-[2px] transition duration-500 group-hover:scale-110 group-hover:border-gold-soft group-hover:bg-forest-deep/50">
+          <Play className="ml-1 size-5 fill-ivory" />
+        </span>
+      ) : (
+        <span aria-hidden className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-ink/25 text-ivory backdrop-blur-sm">
+          <InstagramIcon className="size-4" />
+        </span>
+      )}
       <span className="absolute inset-x-3 bottom-3">
         <span className="block font-serif text-lg leading-tight text-ivory">{title}</span>
         <span aria-hidden className="mt-1 flex items-center gap-1 text-[0.7rem] uppercase tracking-[0.16em] text-gold-pale/90 opacity-80 transition group-hover:opacity-100">

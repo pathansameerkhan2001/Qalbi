@@ -146,8 +146,8 @@ def ingredient_crops() -> None:
     """Square ingredient photos for the homepage carousel (shown in ~180 px circles).
 
     The largest clean region of each ingredient in QALBI's photographs; never upscaled.
-    Aloe vera, turmeric and neem have no usable photograph yet — the website shows a
-    line icon for them until a real photo is uploaded in /admin/ingredients.
+    Aloe vera, turmeric and neem have no QALBI photograph; their crops come from
+    public-domain photos (scripts/process-licensed-images.py).
     """
     make(10, (740, 870, 320, 320), "ingredients/saffron.webp", 600, 86)
     make(25, (150, 320, 400, 400), "ingredients/rose-petals.webp", 600, 86)

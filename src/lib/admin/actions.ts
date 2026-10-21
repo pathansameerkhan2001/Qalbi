@@ -9,6 +9,7 @@ import { isSupabaseConfigured, supabaseConfig } from "@/lib/supabase/config";
 import { STORE_TAG } from "@/lib/store/catalog";
 import { settingSchemas, type SettingKey } from "@/lib/store/settings";
 import { homepageSectionIds } from "@/lib/content/homepage";
+import { suggestedCategories } from "@/data/category-suggestions";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { headers } from "next/headers";
@@ -298,19 +299,93 @@ export async function setCategoryActiveAction(_: ActionState, formData: FormData
   return { ok: true, message: `“${data[0].name}” is ${categoryVisibilityNote(active)}` };
 }
 
+/**
+ * Deletes a category. If products still use it, the administrator must choose
+ * where they go (`reassign_to`: another category's id, or "none" for no
+ * category); they are moved first, and the database still refuses the delete
+ * if any product remains (on delete restrict).
+ */
 export async function deleteCategoryAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
-  const id = z.uuid().safeParse(formData.get("id"));
-  if (!id.success) return { ok: false, message: "Unknown category." };
+  const parsed = z
+    .object({ id: z.uuid(), reassign_to: z.union([z.uuid(), z.literal("none"), z.literal("")]) })
+    .safeParse({ id: formData.get("id"), reassign_to: formData.get("reassign_to") ?? "" });
+  if (!parsed.success) return { ok: false, message: "Unknown category." };
+  const { id, reassign_to } = parsed.data;
+  if (reassign_to === id) return { ok: false, message: "Choose a different category for its products." };
   const db = await createSessionClient();
-  const { data, error } = await db.from("categories").delete().eq("id", id.data).select("id");
+
+  const used = await db.from("products").select("id", { count: "exact", head: true }).eq("category_id", id);
+  if (used.error) return dbError("category", used.error);
+  const productCount = used.count ?? 0;
+  if (productCount > 0) {
+    if (!reassign_to) return { ok: false, message: `${productCount} product${productCount === 1 ? " uses" : "s use"} this category. Choose where to move ${productCount === 1 ? "it" : "them"} first.` };
+    const target = reassign_to === "none" ? null : reassign_to;
+    if (target) {
+      const exists = await db.from("categories").select("id").eq("id", target).maybeSingle();
+      if (exists.error) return dbError("category", exists.error);
+      if (!exists.data) return { ok: false, message: "The category chosen for its products no longer exists. Reload the page." };
+    }
+    const moved = await db.from("products").update({ category_id: target }).eq("category_id", id).select("id");
+    if (moved.error) return dbError("product", moved.error);
+    if ((moved.data?.length ?? 0) < productCount) return { ok: false, message: "Not every product could be moved, so the category was kept. Please try again." };
+  }
+
+  const { data, error } = await db.from("categories").delete().eq("id", id).select("id");
   if (error) {
-    if (error.code === "23503") return { ok: false, message: "Move the products in this category to another category first." };
+    if (error.code === "23503") return { ok: false, message: "Products were added to this category meanwhile. Reload the page and try again." };
     return dbError("category", error);
   }
   if (!data?.length) return { ok: false, message: "Category not found or not deletable." };
-  refreshStore("/admin/categories");
-  return { ok: true, message: "Category deleted." };
+  refreshStore("/admin/categories", "/admin/products");
+  return { ok: true, message: productCount ? `Category deleted; its ${productCount} product${productCount === 1 ? " was" : "s were"} moved.` : "Category deleted." };
+}
+
+/** Moves a category one place up or down, then renumbers all of them 10, 20, 30… so the order stays unambiguous. */
+export async function moveCategoryAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const parsed = z.object({ id: z.uuid(), direction: z.enum(["up", "down"]) }).safeParse({ id: formData.get("id"), direction: formData.get("direction") });
+  if (!parsed.success) return { ok: false, message: "Unknown category." };
+  const db = await createSessionClient();
+  const { data, error } = await db.from("categories").select("id, sort_order").order("sort_order").order("name");
+  if (error) return dbError("category", error);
+  const list = data ?? [];
+  const from = list.findIndex((c) => c.id === parsed.data.id);
+  const to = from + (parsed.data.direction === "up" ? -1 : 1);
+  if (from < 0) return { ok: false, message: "Category not found. Reload the page." };
+  if (to < 0 || to >= list.length) return { ok: true, message: "" };
+  [list[from], list[to]] = [list[to], list[from]];
+  const changes = list.map((c, i) => ({ id: c.id as string, sort: (i + 1) * 10, before: c.sort_order as number })).filter((c) => c.sort !== c.before);
+  const results = await Promise.all(changes.map((c) => db.from("categories").update({ sort_order: c.sort }).eq("id", c.id).select("id")));
+  const failed = results.find((r) => r.error || !r.data?.length);
+  if (failed) return failed.error ? dbError("category", failed.error) : { ok: false, message: "The database did not save the new order — this account may not have administrator rights for categories." };
+  refreshStore("/admin/categories", "/admin/products");
+  return { ok: true, message: "" };
+}
+
+/** Adds one of the proposed categories (src/data/categories.ts), always hidden. */
+export async function addSuggestedCategoryAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const suggestion = suggestedCategories.find((s) => s.slug === formData.get("slug"));
+  if (!suggestion) return { ok: false, message: "Unknown suggestion." };
+  const db = await createSessionClient();
+  const last = await db.from("categories").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
+  if (last.error) return dbError("category", last.error);
+  const { data, error } = await db
+    .from("categories")
+    .insert({
+      name: suggestion.name,
+      slug: suggestion.slug,
+      description: suggestion.description || null,
+      image_url: suggestion.imagePath,
+      sort_order: (Number(last.data?.sort_order) || 0) + 10,
+      is_active: false,
+    })
+    .select("id");
+  if (error) return dbError("category", error, `A category with the handle “${suggestion.slug}” already exists.`);
+  if (!data?.length) return { ok: false, message: "The database did not save this category — this account may not have administrator rights for categories." };
+  refreshStore("/admin/categories", "/admin/products");
+  return { ok: true, message: `Added “${suggestion.name}” as hidden.` };
 }
 
 // ---------------------------------------------------------------------------

@@ -12,20 +12,22 @@ export interface AdminUser {
 export type AdminCheck = { status: "ok"; user: AdminUser } | { status: "not-configured" } | { status: "signed-out" } | { status: "forbidden"; email: string };
 
 /**
- * Data Access Layer for the admin area. Verifies the session with Supabase
- * Auth (getUser contacts the auth server, so a forged cookie is rejected) and
- * then checks the admin_users table. Memoised per request.
+ * Data Access Layer for the admin area. Verifies the session token's signature
+ * and expiry (getClaims: checked locally against the project's published ES256
+ * signing keys, so a forged or expired cookie is rejected without a round trip
+ * to Supabase Auth) and then checks the admin_users table with that token, so
+ * the database itself confirms the administrator. Memoised per request.
  */
 export const checkAdmin = cache(async (): Promise<AdminCheck> => {
   if (!isSupabaseConfigured()) return { status: "not-configured" };
   const supabase = await createSessionClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { status: "signed-out" };
-  const { data, error } = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
-  if (error || !data) return { status: "forbidden", email: user.email ?? "" };
-  return { status: "ok", user: { id: user.id, email: user.email ?? "" } };
+  const { data: auth, error: authError } = await supabase.auth.getClaims();
+  const userId = authError ? undefined : auth?.claims.sub;
+  if (!userId) return { status: "signed-out" };
+  const email = typeof auth?.claims.email === "string" ? auth.claims.email : "";
+  const { data, error } = await supabase.from("admin_users").select("user_id").eq("user_id", userId).maybeSingle();
+  if (error || !data) return { status: "forbidden", email };
+  return { status: "ok", user: { id: userId, email } };
 });
 
 /** For admin pages and server actions: returns the admin or redirects to the login page. */

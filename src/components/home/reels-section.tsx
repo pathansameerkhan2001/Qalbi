@@ -49,7 +49,7 @@ export async function ReelsSection() {
         </Reveal>
 
         <Reveal delay={0.1}>
-          <ScrollRow label="QALBI on Instagram" listClassName="-mx-4 gap-3 px-4 pb-2 pt-1 sm:mx-0 sm:gap-4 sm:px-0">
+          <ScrollRow label="QALBI on Instagram" tone="dark" autoAdvance={reels.length > 0 ? 4500 : undefined} listClassName="-mx-4 scroll-px-4 gap-3 px-4 pb-2 pt-1 sm:mx-0 sm:scroll-px-0 sm:gap-4 sm:px-0">
             {reels.length > 0
               ? reels.map((reel) => (
                   <li key={reel.id} className={itemClass}>

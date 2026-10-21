@@ -16,6 +16,8 @@ export const metadata: Metadata = { title: "Ingredients" };
 
 export default async function AdminIngredientsPage() {
   await requireAdmin();
+  // Both reads start together (the product list is only for the "Found in" picker).
+  const productList = getProducts("featured", 48).catch(() => []);
   let rows: IngredientRow[];
   try {
     rows = await listIngredients();
@@ -28,7 +30,7 @@ export default async function AdminIngredientsPage() {
       </>
     );
   }
-  const products = (await getProducts("featured", 48).catch(() => [])).map((p) => ({ handle: p.handle, title: p.title }));
+  const products = (await productList).map((p) => ({ handle: p.handle, title: p.title }));
   const live = rows.filter((r) => r.active).length;
 
   return (

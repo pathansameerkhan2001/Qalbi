@@ -1,19 +1,19 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { signInAction } from "@/lib/admin/actions";
-import { ActionMessage, FieldError, initialActionState, SubmitButton } from "@/components/admin/form-bits";
+import { ActionMessage, FieldError, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
 
 export function LoginForm() {
-  const [state, action] = useActionState(signInAction, initialActionState);
+  const { state, pending, formProps } = useAdminForm(signInAction);
   const [email, setEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const emailError = state.fieldErrors?.email;
   const passwordError = state.fieldErrors?.password;
 
   return (
-    <form action={action} className="mt-6 space-y-4" noValidate>
+    <form {...formProps} className="mt-6 space-y-4" noValidate>
       <div>
         <label htmlFor="admin-email" className="label">
           Email
@@ -63,7 +63,7 @@ export function LoginForm() {
         <FieldError state={state} name="password" id="admin-password-error" />
       </div>
       <ActionMessage state={state} />
-      <SubmitButton className="w-full" pendingLabel="Signing in…">
+      <SubmitButton pending={pending} className="w-full" pendingLabel="Signing in…">
         Sign in
       </SubmitButton>
     </form>

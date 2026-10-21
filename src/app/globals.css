@@ -14,6 +14,8 @@
   --color-muted: #66695f;
   --color-gold: #a8823f;
   --color-gold-soft: #c9a96a;
+  /* Gold for small text on light surfaces: 4.5:1 or better on ivory, cream and sand (WCAG AA). */
+  --color-gold-deep: #86662c;
   --color-gold-pale: #efe4cc;
   --color-line: #e5dece;
   --color-sand: #f1ecdf;
@@ -153,7 +155,7 @@
     font-weight: 500;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: var(--color-gold);
+    color: var(--color-gold-deep);
   }
   .link-underline {
     background-image: linear-gradient(currentColor, currentColor);

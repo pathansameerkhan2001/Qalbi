@@ -35,12 +35,12 @@ export function SectionHeading({ title, eyebrow, description, action, as: Tag = 
             href={action.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-gold hover:text-forest"
+            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-forest underline-offset-4 hover:text-gold hover:underline"
           >
             {action.label} <ArrowRight aria-hidden className="size-4" />
           </a>
         ) : (
-          <Link href={action.href} className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-gold hover:text-forest">
+          <Link href={action.href} className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-forest underline-offset-4 hover:text-gold hover:underline">
             {action.label} <ArrowRight aria-hidden className="size-4" />
           </Link>
         ))}

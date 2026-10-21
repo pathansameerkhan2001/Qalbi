@@ -29,7 +29,8 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-  await supabase.auth.getUser();
+  // Refreshes the token when it is about to expire; otherwise verifies it locally (no Auth round trip).
+  await supabase.auth.getClaims();
   return response;
 }
 

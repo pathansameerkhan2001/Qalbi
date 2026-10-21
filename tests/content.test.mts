@@ -66,3 +66,22 @@ test("publication dates are entered and shown in India Standard Time", () => {
   assert.equal(fromIstInput("19/10/2026"), null);
   assert.equal(toIstInput(null), "");
 });
+
+test("suggested categories fit the categories table and never repeat a handle", async () => {
+  const { existsSync } = await import("node:fs");
+  const { suggestedCategories } = await import("../src/data/category-suggestions.ts");
+  const slugs = new Set<string>();
+  for (const s of suggestedCategories) {
+    assert.equal(isSlug(s.slug), true, s.slug);
+    assert.equal(slugs.has(s.slug), false, `duplicate ${s.slug}`);
+    slugs.add(s.slug);
+    assert.ok(s.name.length >= 1 && s.name.length <= 80, s.name);
+    assert.ok(s.description.length <= 400, s.slug);
+    assert.ok(s.basis.length > 0, `${s.slug} needs a basis for the store owner`);
+    // Only QALBI's own website photos, and they must exist.
+    if (s.imagePath) {
+      assert.equal(isMediaPath(s.imagePath), true, s.imagePath);
+      assert.ok(existsSync(`public/assets/${s.imagePath}`), `${s.imagePath} is missing`);
+    }
+  }
+});

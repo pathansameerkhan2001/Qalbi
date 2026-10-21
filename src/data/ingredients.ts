@@ -11,8 +11,10 @@ import { images } from "./images";
  * information names the ingredient — none is linked without that. Descriptions are
  * neutral notes about the botanical itself, not product claims.
  *
- * `image: null` means no real QALBI photograph exists yet: the card shows the
- * line icon instead. Never substitute unrelated stock photography.
+ * Aloe Vera, Turmeric and Neem use public-domain photographs of the botanical
+ * itself (assets-source/licensed/LICENSES.md), pending owner approval; the others are
+ * crops of QALBI's own photographs. `image: null` makes the card show the line icon.
+ * Never substitute unrelated stock photography.
  */
 export const ingredients: Ingredient[] = [
   {
@@ -43,7 +45,7 @@ export const ingredients: Ingredient[] = [
     slug: "aloe-vera",
     name: "Aloe Vera",
     description: "A succulent botanical known for its cooling, soothing gel.",
-    image: null,
+    image: images.ingredientsList.aloeVera,
     icon: "aloe",
     productHandles: [],
   },
@@ -51,7 +53,7 @@ export const ingredients: Ingredient[] = [
     slug: "turmeric",
     name: "Turmeric",
     description: "Golden turmeric, a treasured ingredient in traditional Indian skincare.",
-    image: null,
+    image: images.ingredientsList.turmeric,
     icon: "turmeric",
     productHandles: [],
   },
@@ -59,7 +61,7 @@ export const ingredients: Ingredient[] = [
     slug: "neem",
     name: "Neem",
     description: "Neem leaves, valued in traditional botanical skincare for generations.",
-    image: null,
+    image: images.ingredientsList.neem,
     icon: "neem",
     productHandles: [],
   },

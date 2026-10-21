@@ -69,12 +69,16 @@ const storefrontPaths: [string, "page" | "layout"][] = [
 /**
  * Refreshes cached storefront data after an admin write: the store data cache
  * tag (every cached catalogue read), the storefront pages listed above, the
- * site layout (header menu / footer categories) and any extra admin paths.
+ * storefront layout (header menu / footer categories) and any extra admin paths.
+ *
+ * Only the (site) layout is invalidated, not the root layout: invalidating "/"
+ * also re-rendered the whole admin shell (with its access check) in every
+ * action response and discarded every prefetched admin page.
  */
 export function refreshStore(...paths: string[]) {
   updateTag(STORE_TAG);
   for (const [p, type] of storefrontPaths) revalidatePath(p, type);
-  revalidatePath("/", "layout");
+  revalidatePath("/(site)", "layout");
   for (const p of paths) revalidatePath(p);
 }
 

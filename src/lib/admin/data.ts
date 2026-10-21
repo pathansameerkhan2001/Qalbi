@@ -124,6 +124,21 @@ export async function listAdminCategories(): Promise<CategoryRow[]> {
   return loadCatalog(() => queryCategories(db));
 }
 
+/** Products per category id ({ total, live = published }), from one two-column query. */
+export async function categoryProductCounts(): Promise<Map<string, { total: number; live: number }>> {
+  const db = await adminClient();
+  const { data, error } = await db.from("products").select("category_id, is_published").not("category_id", "is", null);
+  if (error) fail("products", error);
+  const counts = new Map<string, { total: number; live: number }>();
+  for (const p of data ?? []) {
+    const c = counts.get(p.category_id as string) ?? { total: 0, live: 0 };
+    c.total++;
+    if (p.is_published) c.live++;
+    counts.set(p.category_id as string, c);
+  }
+  return counts;
+}
+
 export async function listHeroSlides(): Promise<HeroSlideRow[]> {
   const db = await adminClient();
   return loadCatalog(() => queryHeroSlides(db));

@@ -1,16 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
 import { updateOrderAction } from "@/lib/admin/actions";
-import { ActionMessage, initialActionState, SubmitButton } from "@/components/admin/form-bits";
+import { ActionMessage, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
 
 const statuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"] as const;
 const paymentStatuses = ["pending", "paid", "failed", "refunded"] as const;
 
 export function OrderStatusForm({ id, status, paymentStatus, paymentMethod }: { id: string; status: string; paymentStatus: string; paymentMethod: "COD" | "PHONE" }) {
-  const [state, action] = useActionState(updateOrderAction, initialActionState);
+  const { state, pending, formProps } = useAdminForm(updateOrderAction);
   return (
-    <form action={action} className="mt-4 space-y-4">
+    <form {...formProps} className="mt-4 space-y-4">
       <input type="hidden" name="id" value={id} />
       <div>
         <label htmlFor="order-status" className="label">
@@ -41,7 +40,7 @@ export function OrderStatusForm({ id, status, paymentStatus, paymentMethod }: { 
         </p>
       </div>
       <ActionMessage state={state} />
-      <SubmitButton className="w-full">Save changes</SubmitButton>
+      <SubmitButton pending={pending} className="w-full">Save changes</SubmitButton>
     </form>
   );
 }

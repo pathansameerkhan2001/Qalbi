@@ -31,7 +31,8 @@ export interface Category {
   /** Shopify collection handle, or null for non-collection destinations. */
   collectionHandle: string | null;
   href: string;
-  image: ImageAsset;
+  /** null = no photo yet: the card shows a plain botanical tile (never an unrelated photo). */
+  image: ImageAsset | null;
 }
 
 export interface TrustBadge {

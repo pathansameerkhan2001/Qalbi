@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { Monitor, Plus, Smartphone } from "lucide-react";
 import { saveHeroSlideAction } from "@/lib/admin/content-actions";
 import { mediaUrl } from "@/lib/assets";
-import { ActionMessage, FieldError, initialActionState, SubmitButton } from "@/components/admin/form-bits";
+import { ActionMessage, FieldError, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { HeroOverlay, hasHeroContent } from "@/components/home/hero-overlay";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,7 @@ export function NewHeroSlide({ nextSort }: { nextSort: number }) {
 }
 
 export function HeroSlideForm({ initial, onAddAnother }: { initial: HeroSlideValues; onAddAnother?: () => void }) {
-  const [state, action] = useActionState(saveHeroSlideAction, initialActionState);
+  const { state, pending, formProps } = useAdminForm(saveHeroSlideAction);
   const [values, setValues] = useState(initial);
   const [desktopPreview, setDesktopPreview] = useState<string | null>(initial.desktopImagePath ? mediaUrl(initial.desktopImagePath) : null);
   const [mobilePreview, setMobilePreview] = useState<string | null>(initial.mobileImagePath ? mediaUrl(initial.mobileImagePath) : null);
@@ -55,7 +55,7 @@ export function HeroSlideForm({ initial, onAddAnother }: { initial: HeroSlideVal
   const previewSrc = device === "desktop" ? desktopPreview : mobilePreview;
 
   return (
-    <form action={action} className="grid gap-6 lg:grid-cols-2">
+    <form {...formProps} className="grid gap-6 lg:grid-cols-2">
       <input type="hidden" name="id" value={initial.id} />
       <div className="space-y-4">
         <div>
@@ -121,7 +121,7 @@ export function HeroSlideForm({ initial, onAddAnother }: { initial: HeroSlideVal
         </div>
         {err("sort_order")}
         <div className="flex flex-wrap items-center gap-3">
-          <SubmitButton>{initial.id ? "Save slide" : "Add slide"}</SubmitButton>
+          <SubmitButton pending={pending}>{initial.id ? "Save slide" : "Add slide"}</SubmitButton>
           <ActionMessage state={state} />
         </div>
       </div>

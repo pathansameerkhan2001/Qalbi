@@ -49,6 +49,21 @@ export function ImageUploadField({
   // Release the object URL of a local preview when it is replaced or the field unmounts.
   useEffect(() => () => void (localPreview && URL.revokeObjectURL(localPreview)), [localPreview]);
 
+  // A form reset (e.g. after adding a row) also clears this field's own state.
+  const pathRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const form = pathRef.current?.form;
+    if (!form) return;
+    const onReset = () => {
+      setPath(defaultPath);
+      setLocalPreview(null);
+      setMessage(null);
+      setSizeWarning(null);
+    };
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, [defaultPath]);
+
   const preview = localPreview ?? (path ? safeMediaUrl(path) : null);
 
   const update = (next: string, previewUrl: string | null) => {
@@ -140,6 +155,7 @@ export function ImageUploadField({
         )}
       </div>
       <input
+        ref={pathRef}
         name={name}
         value={path}
         onChange={(e) => {

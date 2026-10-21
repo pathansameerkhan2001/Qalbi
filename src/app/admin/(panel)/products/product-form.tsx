@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, Trash2, Upload } from "lucide-react";
 import { saveProductAction, uploadImageAction } from "@/lib/admin/actions";
-import { ActionMessage, FieldError, initialActionState, SubmitButton } from "@/components/admin/form-bits";
+import { ActionMessage, FieldError, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
 
 export interface ProductFormValues {
   id: string;
@@ -42,7 +42,7 @@ export function ProductForm({
   mediaBase: { assets: string; uploads: string };
   readOnly: boolean;
 }) {
-  const [state, action] = useActionState(saveProductAction, initialActionState);
+  const { state, pending, formProps } = useAdminForm(saveProductAction);
   const [handle, setHandle] = useState(initial.slug);
   const [handleTouched, setHandleTouched] = useState(Boolean(initial.id));
   const [images, setImages] = useState(initial.images);
@@ -79,7 +79,7 @@ export function ProductForm({
   };
 
   return (
-    <form action={action} className="grid gap-6 lg:grid-cols-[1fr_300px]">
+    <form {...formProps} className="grid gap-6 lg:grid-cols-[1fr_300px]">
       <input type="hidden" name="id" value={initial.id} />
       <input type="hidden" name="images" value={JSON.stringify(images.filter((img) => img.path.trim()))} />
       <fieldset disabled={readOnly} className="space-y-6">
@@ -250,7 +250,7 @@ export function ProductForm({
         {!readOnly && (
           <div className="space-y-3">
             <ActionMessage state={state} />
-            <SubmitButton className="w-full">{initial.id ? "Save product" : "Create product"}</SubmitButton>
+            <SubmitButton pending={pending} className="w-full">{initial.id ? "Save product" : "Create product"}</SubmitButton>
           </div>
         )}
       </div>

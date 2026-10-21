@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { saveReelAction } from "@/lib/admin/content-actions";
 import { mediaUrl } from "@/lib/assets";
 import { normalizeReelUrl } from "@/lib/content/rules";
-import { ActionMessage, FieldError, initialActionState, SubmitButton } from "@/components/admin/form-bits";
+import { ActionMessage, FieldError, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { CardOverlay, cardClass } from "@/components/home/reel-card";
 
@@ -24,7 +24,7 @@ export function NewReel({ nextSort }: { nextSort: number }) {
 }
 
 export function ReelForm({ initial, onAddAnother }: { initial: ReelValues; onAddAnother?: () => void }) {
-  const [state, action] = useActionState(saveReelAction, initialActionState);
+  const { state, pending, formProps } = useAdminForm(saveReelAction);
   const [caption, setCaption] = useState(initial.caption);
   const [url, setUrl] = useState(initial.reelUrl);
   const [thumb, setThumb] = useState<string | null>(initial.thumbnailPath ? mediaUrl(initial.thumbnailPath) : null);
@@ -43,7 +43,7 @@ export function ReelForm({ initial, onAddAnother }: { initial: ReelValues; onAdd
   }
 
   return (
-    <form action={action} className="grid gap-6 md:grid-cols-[1fr_auto]">
+    <form {...formProps} className="grid gap-6 md:grid-cols-[1fr_auto]">
       <input type="hidden" name="id" value={initial.id} />
       <div className="space-y-4">
         <div>
@@ -79,7 +79,7 @@ export function ReelForm({ initial, onAddAnother }: { initial: ReelValues; onAdd
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <SubmitButton>{initial.id ? "Save Reel" : "Add Reel"}</SubmitButton>
+          <SubmitButton pending={pending}>{initial.id ? "Save Reel" : "Add Reel"}</SubmitButton>
           <ActionMessage state={state} />
         </div>
       </div>

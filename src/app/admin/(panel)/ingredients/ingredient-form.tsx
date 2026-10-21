@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { saveIngredientAction } from "@/lib/admin/content-actions";
 import { mediaUrl } from "@/lib/assets";
 import { slugify } from "@/lib/content/rules";
 import { ingredientIcons, type IngredientIcon } from "@/types/content";
-import { ActionMessage, FieldError, initialActionState, SubmitButton } from "@/components/admin/form-bits";
+import { ActionMessage, FieldError, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { IngredientSlide } from "@/components/home/ingredient-carousel";
 
@@ -47,7 +47,7 @@ export function NewIngredient({ nextSort, products }: { nextSort: number; produc
 }
 
 export function IngredientForm({ initial, products, onAddAnother }: { initial: IngredientValues; products: { handle: string; title: string }[]; onAddAnother?: () => void }) {
-  const [state, action] = useActionState(saveIngredientAction, initialActionState);
+  const { state, pending, formProps } = useAdminForm(saveIngredientAction);
   const [name, setName] = useState(initial.name);
   const [slug, setSlug] = useState(initial.slug);
   const [description, setDescription] = useState(initial.description);
@@ -68,7 +68,7 @@ export function IngredientForm({ initial, products, onAddAnother }: { initial: I
   }
 
   return (
-    <form action={action} className="grid gap-6 md:grid-cols-[1fr_auto]">
+    <form {...formProps} className="grid gap-6 md:grid-cols-[1fr_auto]">
       <input type="hidden" name="id" value={initial.id} />
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -146,7 +146,7 @@ export function IngredientForm({ initial, products, onAddAnother }: { initial: I
         </div>
         <FieldError state={state} name="sort_order" />
         <div className="flex flex-wrap items-center gap-3">
-          <SubmitButton>{initial.id ? "Save ingredient" : "Add ingredient"}</SubmitButton>
+          <SubmitButton pending={pending}>{initial.id ? "Save ingredient" : "Add ingredient"}</SubmitButton>
           <ActionMessage state={state} />
         </div>
       </div>

@@ -1,16 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { saveSettingAction } from "@/lib/admin/actions";
 import { isSafeSiteLink } from "@/lib/content/rules";
-import { ActionMessage, initialActionState, SubmitButton } from "@/components/admin/form-bits";
+import { ActionMessage, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
 import { OfferBarView, type OfferMessage } from "@/components/home/offer-bar-view";
 
 const MAX = 6;
 
 export function OfferBarForm({ initial }: { initial: { enabled: boolean; animate: boolean; messages: OfferMessage[] } }) {
-  const [state, action] = useActionState(saveSettingAction, initialActionState);
+  const { state, pending, formProps } = useAdminForm(saveSettingAction);
   const [enabled, setEnabled] = useState(initial.enabled);
   const [animate, setAnimate] = useState(initial.animate);
   const [messages, setMessages] = useState(initial.messages.map((m) => ({ ...m, href: m.href ?? "" })));
@@ -29,7 +29,7 @@ export function OfferBarForm({ initial }: { initial: { enabled: boolean; animate
   const badLink = messages.findIndex((m) => m.href.trim() && !isSafeSiteLink(m.href.trim()));
 
   return (
-    <form action={action} className="space-y-6">
+    <form {...formProps} className="space-y-6">
       <input type="hidden" name="key" value="offer_bar" />
       <input type="hidden" name="messages" value={JSON.stringify(cleaned)} />
 
@@ -92,7 +92,7 @@ export function OfferBarForm({ initial }: { initial: { enabled: boolean; animate
       </section>
 
       <div className="flex flex-wrap items-center gap-3">
-        <SubmitButton>Save offer bar</SubmitButton>
+        <SubmitButton pending={pending}>Save offer bar</SubmitButton>
         <ActionMessage state={state} />
       </div>
     </form>

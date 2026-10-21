@@ -56,6 +56,10 @@ export const images = {
     rose: photo("ingredients/rose-petals.webp", "Dried rose petals on a wooden table", 400, 400),
     coconut: photo("ingredients/coconut-split.webp", "A freshly split coconut with coconut water", 340, 340),
     cardamom: photo("ingredients/cardamom.webp", "Whole green cardamom pods", 470, 470),
+    // Public-domain (CC0) photographs, pending owner approval: see assets-source/licensed/LICENSES.md.
+    aloeVera: photo("ingredients/aloe-vera.webp", "Fleshy green aloe vera leaves with pale speckles and serrated edges", 600, 600),
+    turmeric: photo("ingredients/turmeric.webp", "A heap of bright golden ground turmeric", 600, 600),
+    neem: photo("ingredients/neem.webp", "A sprig of fresh green neem leaves with serrated leaflets", 600, 600),
   },
   products: {
     serum: photo("products/multipurpose-booster-serum.webp", "QALBI Multipurpose Booster Serum on marble", 960, 1200),
