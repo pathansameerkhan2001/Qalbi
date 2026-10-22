@@ -3,8 +3,8 @@
  * The hero and the offer bar are fixed at the top and managed on their own pages.
  */
 export const homepageSections = [
-  { id: "categories", label: "Shop by category" },
   { id: "trust_badges", label: "Trust badges" },
+  { id: "categories", label: "Shop by category" },
   { id: "favourites", label: "The QALBI Favourites (products)" },
   { id: "reels", label: "Instagram Reels" },
   { id: "lookbook", label: "Lookbook" },

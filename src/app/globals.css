@@ -321,6 +321,90 @@
     animation-play-state: paused;
   }
 
+  /* Benefits strip (components/home/trust-badges.tsx) ------------------------
+     Default: one swipeable, snapping row (phones, touch screens). Only the first
+     copy of the list is shown; the copies exist for the marquee below. */
+  .benefits-viewport {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.5rem;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding-inline: 0.5rem;
+  }
+  .benefits-viewport::-webkit-scrollbar {
+    display: none;
+  }
+  .benefits-track {
+    display: flex;
+    margin-inline: auto;
+  }
+  .benefits-set {
+    display: flex;
+  }
+  .benefits-set:not([data-copy="0"]),
+  .benefits-pause {
+    display: none;
+  }
+  .benefit {
+    scroll-snap-align: start;
+    white-space: nowrap;
+    border-left: 1px solid var(--color-line);
+  }
+  .benefits-set > .benefit:first-child {
+    border-left-color: transparent;
+  }
+  /* Mouse and trackpad screens: slow seamless marquee, one copy per loop. */
+  @media (min-width: 768px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .benefits-viewport {
+      overflow: hidden;
+      scroll-snap-type: none;
+      padding-inline: 0;
+      mask-image: linear-gradient(90deg, transparent, #000 4rem, #000 calc(100% - 4rem), transparent);
+    }
+    .benefits-track {
+      margin-inline: 0;
+      animation: benefits-marquee var(--benefits-duration, 44s) linear infinite;
+      will-change: transform;
+    }
+    .benefits-set:not([data-copy="0"]),
+    .benefits-pause {
+      display: flex;
+    }
+    .benefits-set > .benefit:first-child {
+      border-left-color: var(--color-line);
+    }
+    .benefits:hover .benefits-track,
+    .benefits:focus-within .benefits-track,
+    .benefits[data-paused] .benefits-track {
+      animation-play-state: paused;
+    }
+  }
+  /* Same screens with reduced motion: static, in balanced rows of four. */
+  @media (min-width: 768px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce) {
+    .benefits-viewport {
+      overflow: visible;
+      max-width: 1320px;
+      margin-inline: auto;
+      padding-inline: 1.5rem;
+    }
+    .benefits-track,
+    .benefits-set {
+      width: 100%;
+    }
+    .benefits-set {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .benefit {
+      white-space: normal;
+    }
+    .benefit:nth-child(4n + 1) {
+      border-left-color: transparent;
+    }
+  }
+
   /* Floating botanicals --------------------------------------------------- */
   .float-icon {
     animation: float-bob var(--dur, 12s) ease-in-out var(--delay, 0s) infinite alternate;
@@ -370,6 +454,11 @@
   }
   to {
     transform: translateX(-50%);
+  }
+}
+@keyframes benefits-marquee {
+  to {
+    transform: translate3d(calc(-100% / var(--benefits-sets, 2)), 0, 0);
   }
 }
 @keyframes kenburns {

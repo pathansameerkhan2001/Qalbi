@@ -19,7 +19,7 @@ const INTERVAL = 6500;
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
 /** Reduced-motion preference; `false` during SSR and hydration so server and client markup match. */
-function usePrefersReducedMotion() {
+export function usePrefersReducedMotion() {
   return useSyncExternalStore(
     (onChange) => {
       const query = window.matchMedia(REDUCED_MOTION);

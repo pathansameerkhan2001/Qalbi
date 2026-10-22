@@ -43,8 +43,8 @@ function siteJsonLd() {
 
 /** Homepage sections in their default order; /admin/homepage can reorder or hide them. */
 const sections: Record<HomepageSectionId, () => React.ReactNode> = {
-  categories: () => <CategoryScroller />,
   trust_badges: () => <TrustBadges />,
+  categories: () => <CategoryScroller />,
   favourites: () => (
     <Reveal>
       <Favourites />

@@ -24,6 +24,15 @@ export function assetUrl(path: string): string {
 }
 
 /**
+ * Public Supabase Storage URL for an object that exists only in the bucket
+ * (admin uploads, the hero film), whatever NEXT_PUBLIC_ASSET_SOURCE says.
+ * null when Supabase is not configured.
+ */
+export function storageUrl(path: string): string | null {
+  return supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/${assetsBucket}/${path.replace(/^\/+/, "")}` : null;
+}
+
+/**
  * URL for an image path stored in the database (products, categories, settings).
  * Absolute https URLs pass through; `uploads/…` objects exist only in Supabase
  * (added through /admin/media); other paths are the website assets above.
@@ -31,6 +40,6 @@ export function assetUrl(path: string): string {
 export function mediaUrl(path: string): string {
   if (/^https:\/\//.test(path)) return path;
   const clean = path.replace(/^\/+/, "");
-  if (clean.startsWith("uploads/") && supabaseUrl) return `${supabaseUrl}/storage/v1/object/public/${assetsBucket}/${clean}`;
+  if (clean.startsWith("uploads/")) return storageUrl(clean) ?? assetUrl(clean);
   return assetUrl(clean);
 }

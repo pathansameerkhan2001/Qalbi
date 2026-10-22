@@ -27,6 +27,31 @@ export const images = {
     ),
     mobile: photo("hero/lineup-mobile.webp", "QALBI Radiance Glow Cream, Anti-Aging cream, Facial Cleanser and Moisturizer", 960, 1200),
   },
+  /**
+   * Homepage hero film. Videos live only in Supabase Storage (bucket paths
+   * below), never in the repository; posters are their first frames, mirrored
+   * locally like every other image.
+   *
+   * OFF until approved: the current file (1280×720, 14.8 MB) misprints the
+   * label as "MULTIPURPOSE ROOSTER SERUM". While `approved` is false, or when
+   * Supabase isn't configured, the hero shows the verified product photos in
+   * `images.hero` instead, in the same layout.
+   *
+   * To replace it: run scripts/encode-hero-video.py on the corrected film with
+   * a new --version, upload both MP4s under those new names with Cache-Control
+   * max-age=31536000 (never overwrite a published name: browsers and the CDN
+   * keep it for a year), point the paths and posters here at them and set
+   * `approved: true`. `mobile` is optional (phones then get `desktop`).
+   */
+  heroFilm: {
+    approved: false,
+    desktop: "hero/qalbi-naturals-hero.mp4",
+    mobile: null as string | null,
+    poster: {
+      desktop: photo("hero/hero-video-poster.webp", "QALBI Multipurpose Booster Serum under a soft spotlight on deep green", 1280, 720),
+      mobile: null as ImageAsset | null,
+    },
+  },
   /** Additional hero slides: editorial triptychs on desktop, single portraits on phones. */
   heroSlides: [
     {
