@@ -5,6 +5,7 @@ import type { Collection, Product } from "@/types/commerce";
 import { mediaUrl } from "@/lib/assets";
 import { createPublicClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { homeCategories } from "@/data/categories";
 
 /** Cache tag for everything read from the Supabase store tables. Admin writes call updateTag(STORE_TAG). */
 export const STORE_TAG = "store";
@@ -224,6 +225,12 @@ export async function getStoreCategories(): Promise<CategoryRow[]> {
   }
 }
 
+/** QALBI's category photo for a handle (src/data/categories.ts), for categories saved without an image. */
+function builtInCollectionImage(handle: string): Collection["image"] {
+  const image = homeCategories.find((c) => c.collectionHandle === handle)?.image;
+  return image ? { url: image.src, alt: image.alt, width: image.width, height: image.height } : null;
+}
+
 export async function getStoreCollections(): Promise<Collection[]> {
   const [categories, products] = await Promise.all([getStoreCategories(), getStoreProducts()]);
   const collections: Collection[] = categories
@@ -233,7 +240,7 @@ export async function getStoreCollections(): Promise<Collection[]> {
       handle: c.handle,
       title: c.title,
       description: c.description,
-      image: c.imagePath ? { url: mediaUrl(c.imagePath), alt: c.title, width: 600, height: 600 } : null,
+      image: c.imagePath ? { url: mediaUrl(c.imagePath), alt: c.title, width: 600, height: 600 } : builtInCollectionImage(c.handle),
     }));
   if (!collections.some((c) => c.handle === BESTSELLERS_HANDLE) && products.some((p) => p.collectionHandles.includes(BESTSELLERS_HANDLE))) {
     collections.push({ id: "category-bestsellers", handle: BESTSELLERS_HANDLE, title: "The QALBI Favourites", description: "", image: null });

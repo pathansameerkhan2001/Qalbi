@@ -1,9 +1,11 @@
 /**
- * Proposed categories for /admin/categories → "Suggested categories". Proposals only:
- * an administrator adds each one deliberately, and it is always created HIDDEN, so
- * nothing appears on the website until the store owner shows it. `basis` records what
- * the website already holds for it, so the owner can judge whether QALBI sells it.
- * `imagePath` is QALBI's own photo for the category, where one exists.
+ * QALBI's approved category set ("Shop by Category", approved 2026-10-22), offered in
+ * /admin/categories → "Suggested categories". Proposals only: an administrator adds
+ * them deliberately and each is created HIDDEN, so nothing appears on the website
+ * until the store owner shows it. A suggestion whose handle or name already exists
+ * is not offered again (the first three reuse the handles the product import created).
+ * `basis` records which published products belong in it, so the owner can judge.
+ * `imagePath` is the category card photo, cropped from QALBI's own product photography.
  */
 export interface CategorySuggestion {
   name: string;
@@ -14,14 +16,12 @@ export interface CategorySuggestion {
 }
 
 export const suggestedCategories: CategorySuggestion[] = [
-  { name: "Face Wash & Cleansers", slug: "face-wash-cleansers", description: "Gentle daily cleansers for fresh, clean skin.", imagePath: "categories/face-wash-studio.webp", basis: "Facial Cleanser is in the catalogue." },
-  { name: "Serums", slug: "serums", description: "Lightweight serums for your daily ritual.", imagePath: "categories/serums-studio.webp", basis: "Multipurpose Booster Serum is in the catalogue." },
-  { name: "Face Creams & Moisturisers", slug: "face-creams-moisturisers", description: "Creams and moisturisers for day and night.", imagePath: "categories/face-creams-studio.webp", basis: "Radiance Glow Cream, Moisturizer and Anti-Aging Cream are in the catalogue." },
-  { name: "Lip Care", slug: "lip-care", description: "", imagePath: "categories/lip-care-roses.webp", basis: "Listed on the earlier website design; no lip product is in the catalogue yet." },
-  { name: "Face Masks & Treatments", slug: "face-masks-treatments", description: "", imagePath: "categories/face-masks-ubtan.webp", basis: "QALBI's photos show the Ayurvedic Ubtan Face & Body Scrub; it is not in the catalogue yet." },
-  { name: "Gift Sets & Combos", slug: "gift-sets-combos", description: "", imagePath: "categories/combos-collection.webp", basis: "Listed on the earlier website design as Combos; no set is in the catalogue yet." },
-  { name: "Sunscreen", slug: "sunscreen", description: "", imagePath: null, basis: "No sunscreen product or photo on the website — add only if QALBI sells one." },
-  { name: "Body Care", slug: "body-care", description: "", imagePath: null, basis: "Only the Ubtan Face & Body Scrub (pictured, not in the catalogue) relates to it — add only if QALBI sells body care." },
-  { name: "Hair Care", slug: "hair-care", description: "", imagePath: null, basis: "No hair-care product or photo on the website — add only if QALBI sells one." },
-  { name: "New Arrivals", slug: "new-arrivals", description: "", imagePath: null, basis: "A curated collection: assign new products to it yourself." },
+  { name: "Face Serums", slug: "serums", description: "Lightweight face serums for your daily ritual.", imagePath: "categories/shop-face-serums.webp", basis: "Multipurpose Booster Serum." },
+  { name: "Face Wash & Cleansers", slug: "face-wash-cleansers", description: "Gentle cleansers for fresh, clean skin.", imagePath: "categories/shop-face-wash-cleansers.webp", basis: "Facial Cleanser." },
+  { name: "Face Creams & Moisturizers", slug: "face-creams-moisturisers", description: "Creams and moisturizers for day and night.", imagePath: "categories/shop-face-creams-moisturizers.webp", basis: "Radiance Glow Cream, Gentle Moisturiser, Skin Lightening Cream, Anti Aging Cream." },
+  { name: "Scrubs & Face Masks", slug: "scrubs-face-masks", description: "Ayurvedic scrubs and masks for your weekly ritual.", imagePath: "categories/shop-scrubs-face-masks.webp", basis: "Ayurvedic Ubtan Face & Body Scrub." },
+  { name: "Hair Mask & Shampoo", slug: "hair-mask-shampoo", description: "Herbal hair masks and shampoos for your hair-care ritual.", imagePath: "categories/shop-hair-mask-shampoo.webp", basis: "Kesh Rasayan Hair Mask Powder, Jatamansi Root Care Shampoo." },
+  { name: "Lip, Eye & Lash Care", slug: "lip-eye-lash-care", description: "Care for lips, eyes and lashes.", imagePath: "categories/shop-lip-eye-lash-care.webp", basis: "QALBI Lip Balm." },
+  { name: "Body & Personal Care", slug: "body-personal-care", description: "Handcrafted care for everyday bathing and body rituals.", imagePath: "categories/shop-body-personal-care.webp", basis: "Ayurvedic Ubtan Soap." },
+  { name: "Herbal Tea", slug: "herbal-tea", description: "Herbal infusions from QALBI Naturals.", imagePath: "categories/shop-herbal-tea.webp", basis: "Beau Tea, QALBI Slimming Tea." },
 ];

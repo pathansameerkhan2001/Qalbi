@@ -28,8 +28,8 @@ export async function getTrustBadges(): Promise<TrustBadge[]> {
 /**
  * "Shop by Category". With the database catalogue only its active categories are
  * shown (never the planned built-in list, whose links would not exist); a
- * category without its own image uses QALBI's matching website photo, or a plain
- * botanical tile when there is none. If the catalogue cannot be read the row is
+ * category without its own image uses QALBI's matching category photo
+ * (src/data/categories.ts, by handle), or a plain botanical tile when there is none. If the catalogue cannot be read the row is
  * simply left out.
  */
 export async function getHomeCategories(): Promise<Category[]> {
@@ -45,8 +45,7 @@ export async function getHomeCategories(): Promise<Category[]> {
     const image = c.imagePath ? { src: mediaUrl(c.imagePath), alt: c.title, width: 600, height: 600, placeholder: false } : (builtIn.get(c.handle)?.image ?? null);
     return { label: c.title, collectionHandle: c.handle, href: `/collections/${c.handle}`, image };
   });
-  const custom = homeCategories.find((c) => c.collectionHandle === null);
-  return categories.length && custom ? [...categories, custom] : categories;
+  return categories;
 }
 
 /**

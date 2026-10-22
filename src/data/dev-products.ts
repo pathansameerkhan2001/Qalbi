@@ -1,6 +1,6 @@
 import type { Collection, Product, ProductImage } from "@/types/commerce";
 import type { ImageAsset } from "@/types/content";
-import { collectionTitles } from "./categories";
+import { collectionTitles, homeCategories } from "./categories";
 import { images } from "./images";
 
 /**
@@ -130,10 +130,16 @@ function toProduct(input: PreviewInput, index: number): Product {
 
 export const devProducts: Product[] = inputs.map(toProduct);
 
+/** The category card photo for a handle, as a collection banner image. */
+function categoryPhoto(handle: string): Collection["image"] {
+  const image = homeCategories.find((c) => c.collectionHandle === handle)?.image;
+  return image ? { url: image.src, alt: image.alt, width: image.width, height: image.height } : null;
+}
+
 export const devCollections: Collection[] = Object.entries(collectionTitles).map(([handle, title]) => ({
   id: `dev-collection-${handle}`,
   handle,
   title,
   description: "",
-  image: null,
+  image: categoryPhoto(handle),
 }));

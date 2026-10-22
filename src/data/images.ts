@@ -50,6 +50,17 @@ export const images = {
     combos: photo("categories/combos-collection.webp", "QALBI Booster Serum, Radiance Glow Cream, Facial Cleanser and Moisturizer", 600, 600),
     customised: photo("categories/customised-studio.webp", "QALBI Skin Lightening Cream with roses", 600, 600),
   },
+  /** "Shop by Category" cards (4:3), one QALBI product photo per category: scripts/process-category-images.py. */
+  shopCategories: {
+    faceSerums: photo("categories/shop-face-serums.webp", "QALBI Multipurpose Booster Serum on a wooden pedestal", 723, 542),
+    faceWash: photo("categories/shop-face-wash-cleansers.webp", "QALBI Facial Cleanser pump bottle in soft sunlight", 785, 589),
+    faceCreams: photo("categories/shop-face-creams-moisturizers.webp", "QALBI Radiance Glow Cream on a stone pedestal", 698, 523),
+    scrubsMasks: photo("categories/shop-scrubs-face-masks.webp", "QALBI Ayurvedic Ubtan Face & Body Scrub pouch", 900, 675),
+    hair: photo("categories/shop-hair-mask-shampoo.webp", "QALBI Jatamansi Root Care Shampoo bottle", 900, 675),
+    lipEyeLash: photo("categories/shop-lip-eye-lash-care.webp", "QALBI Lip Balm jar", 900, 675),
+    bodyCare: photo("categories/shop-body-personal-care.webp", "QALBI Ayurvedic Ubtan Soap bar", 900, 675),
+    herbalTea: photo("categories/shop-herbal-tea.webp", "QALBI Beau Tea pouch with a cup of rose-red herbal infusion", 900, 675),
+  },
   /** Square crops for the ingredient carousel circles (largest clean region of each source photo). */
   ingredientsList: {
     saffron: photo("ingredients/saffron.webp", "Saffron threads in a wooden bowl", 320, 320),

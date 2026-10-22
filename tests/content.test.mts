@@ -86,6 +86,32 @@ test("suggested categories fit the categories table and never repeat a handle", 
   }
 });
 
+test("the approved Shop by Category set: same eight names, handles and photos everywhere", async () => {
+  const { existsSync } = await import("node:fs");
+  const { suggestedCategories } = await import("../src/data/category-suggestions.ts");
+  // src/data/categories.ts uses app path aliases that plain Node can't load, so read its entries as text.
+  const source = (await import("node:fs")).readFileSync("src/data/categories.ts", "utf8");
+  const homeCategories = [...source.matchAll(/\{ label: "([^"]+)", collectionHandle: "([^"]+)"/g)].map((m) => ({ label: m[1], collectionHandle: m[2] }));
+  const approved = ["Face Serums", "Face Wash & Cleansers", "Face Creams & Moisturizers", "Scrubs & Face Masks", "Hair Mask & Shampoo", "Lip, Eye & Lash Care", "Body & Personal Care", "Herbal Tea"];
+  assert.deepEqual(suggestedCategories.map((s) => s.name), approved);
+  assert.deepEqual(homeCategories.map((c) => c.label), approved);
+  assert.deepEqual(homeCategories.map((c) => c.collectionHandle), suggestedCategories.map((s) => s.slug));
+  for (const s of suggestedCategories) {
+    assert.ok(s.imagePath, `${s.slug} needs a photo`);
+    assert.ok(existsSync(`public/assets/${s.imagePath}`), `${s.imagePath} is missing`);
+    assert.ok(s.description.length > 0, `${s.slug} needs an introduction`);
+  }
+});
+
+test("the shop-category assignment SQL never deletes and only fills empty product categories", async () => {
+  const { readFileSync } = await import("node:fs");
+  const code = readFileSync("supabase/scripts/assign_shop_categories.sql", "utf8").replace(/--.*$/gm, "");
+  assert.doesNotMatch(code, /\b(delete|drop|truncate|insert)\b/i);
+  assert.match(code, /update public\.products p set category_id = c\.id[\s\S]*?and p\.category_id is null;/);
+  // Renames and showing categories stay commented out until the owner approves them.
+  assert.doesNotMatch(code, /set name =|set is_active/);
+});
+
 test("the add-suggested-categories SQL matches the suggestion list and only inserts hidden rows", async () => {
   const { readFileSync } = await import("node:fs");
   const { suggestedCategories } = await import("../src/data/category-suggestions.ts");
