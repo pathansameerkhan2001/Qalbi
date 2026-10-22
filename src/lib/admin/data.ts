@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createSessionClient } from "@/lib/supabase/server";
 import { supabaseConfig } from "@/lib/supabase/config";
 import { queryCategories, queryProducts, StoreQueryError, type CategoryRow, type ProductRow } from "@/lib/store/catalog";
@@ -109,19 +110,20 @@ export async function getOrder(id: string): Promise<OrderRow | null> {
   return (data as OrderRow | null) ?? null;
 }
 
+/** All categories, read once per request (the product editor needs them for both the product and the dropdown). */
+export const listAdminCategories = cache(async (): Promise<CategoryRow[]> => {
+  const db = await adminClient();
+  return loadCatalog(() => queryCategories(db));
+});
+
 export async function listAdminProducts(): Promise<ProductRow[]> {
   const db = await adminClient();
-  return loadCatalog(() => queryProducts(db));
+  return loadCatalog(() => queryProducts(db, undefined, listAdminCategories()));
 }
 
 export async function getAdminProduct(id: string): Promise<ProductRow | null> {
   const db = await adminClient();
-  return (await loadCatalog(() => queryProducts(db, { id })))[0] ?? null;
-}
-
-export async function listAdminCategories(): Promise<CategoryRow[]> {
-  const db = await adminClient();
-  return loadCatalog(() => queryCategories(db));
+  return (await loadCatalog(() => queryProducts(db, { id }, listAdminCategories())))[0] ?? null;
 }
 
 /** Products per category id ({ total, live = published }), from one two-column query. */

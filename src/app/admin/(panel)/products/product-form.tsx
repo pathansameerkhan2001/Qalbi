@@ -245,6 +245,14 @@ export function ProductForm({
             ))}
           </select>
           {err("category_id")}
+          <p className="text-xs text-muted">
+            {categories.some((c) => !c.active) && "“(hidden)” categories can be assigned now; the product appears on that category's page once the category is shown. "}
+            Lists every category saved in{" "}
+            <Link href="/admin/categories" className="text-forest underline underline-offset-2">
+              Categories
+            </Link>{" "}
+            ({categories.length}). Add or show categories there.
+          </p>
         </fieldset>
 
         {!readOnly && (

@@ -139,7 +139,14 @@ export async function saveProductAction(_: ActionState, formData: FormData): Pro
   // previous rows are restored if inserting the new list fails.
   const previous = await db.from("product_images").select("image_url, alt_text, sort_order, is_primary").eq("product_id", productId);
   if (previous.error) return dbError("product images", previous.error);
-  const removed = await db.from("product_images").delete().eq("product_id", productId);
+  // Most saves don't touch the photos: skip the delete + insert round trips when the list is unchanged.
+  const before = [...(previous.data ?? [])].sort((a, b) => Number(a.sort_order) - Number(b.sort_order)).map((img) => `${img.image_url}\n${img.alt_text ?? ""}`);
+  const after = imageList.map((img) => `${img.path}\n${img.alt || ""}`);
+  if (id && before.join("\0") === after.join("\0")) {
+    refreshStore("/admin/products", "/", "/products");
+    return { ok: true, message: "Product saved." };
+  }
+  const removed =await db.from("product_images").delete().eq("product_id", productId);
   if (removed.error) return dbError("product images", removed.error);
   if (imageList.length) {
     const inserted = await db
@@ -386,6 +393,42 @@ export async function addSuggestedCategoryAction(_: ActionState, formData: FormD
   if (!data?.length) return { ok: false, message: "The database did not save this category — this account may not have administrator rights for categories." };
   refreshStore("/admin/categories", "/admin/products");
   return { ok: true, message: `Added “${suggestion.name}” as hidden.` };
+}
+
+/**
+ * Adds every proposed category that is not in the database yet (matched by handle
+ * or by name), all hidden. Idempotent: existing rows are never changed, and the
+ * insert ignores a handle that was added meanwhile (on conflict do nothing).
+ */
+export async function addAllSuggestedCategoriesAction(): Promise<ActionState> {
+  await requireAdmin();
+  const db = await createSessionClient();
+  const existing = await db.from("categories").select("slug, name, sort_order").order("sort_order", { ascending: false });
+  if (existing.error) return dbError("category", existing.error);
+  const rows = existing.data ?? [];
+  const taken = new Set(rows.flatMap((c) => [c.slug as string, String(c.name).trim().toLowerCase()]));
+  const missing = suggestedCategories.filter((s) => !taken.has(s.slug) && !taken.has(s.name.toLowerCase()));
+  if (missing.length === 0) return { ok: true, message: "Every suggested category is already in the list — nothing was added." };
+  const start = Number(rows[0]?.sort_order) || 0;
+  const { data, error } = await db
+    .from("categories")
+    .upsert(
+      missing.map((s, i) => ({
+        name: s.name,
+        slug: s.slug,
+        description: s.description || null,
+        image_url: s.imagePath,
+        sort_order: start + (i + 1) * 10,
+        is_active: false,
+      })),
+      { onConflict: "slug", ignoreDuplicates: true },
+    )
+    .select("name");
+  if (error) return dbError("category", error);
+  if (!data?.length) return { ok: false, message: "The database did not add any category — this account may not have administrator rights for categories, or they were added meanwhile. Reload the page." };
+  refreshStore("/admin/categories", "/admin/products");
+  const skipped = missing.length - data.length;
+  return { ok: true, message: `Added ${data.length} categor${data.length === 1 ? "y" : "ies"} as hidden${skipped ? ` (${skipped} already existed)` : ""}. They are now in the product editor's Category list.` };
 }
 
 // ---------------------------------------------------------------------------

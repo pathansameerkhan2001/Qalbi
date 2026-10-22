@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ExternalLink, Search } from "lucide-react";
-import { addSuggestedCategoryAction, deleteCategoryAction, moveCategoryAction, saveCategoryAction, setCategoryActiveAction } from "@/lib/admin/actions";
+import { addAllSuggestedCategoriesAction, addSuggestedCategoryAction, deleteCategoryAction, moveCategoryAction, saveCategoryAction, setCategoryActiveAction } from "@/lib/admin/actions";
 import type { CategoryRow } from "@/lib/store/catalog";
 import { mediaUrl } from "@/lib/assets";
 import { Card } from "@/components/admin/ui";
@@ -84,9 +84,24 @@ export function CategoryManager({ categories, builtInImage, suggestions }: { cat
 
       {suggestions.length > 0 && (
         <Card className="p-5">
-          <h2 className="font-serif text-xl">Suggested categories</h2>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h2 className="font-serif text-xl">Suggested categories</h2>
+            {suggestions.length > 1 && (
+              <RowForm
+                action={addAllSuggestedCategoriesAction}
+                submitLabel={`Add all ${suggestions.length} as hidden`}
+                pendingLabel="Adding…"
+                variant="quiet"
+                confirm={`Add ${suggestions.length} categories (${suggestions.map((s) => s.name).join(", ")})? They are saved hidden, stay empty until you assign products, and existing categories are not changed.`}
+                className="flex"
+              >
+                {null}
+              </RowForm>
+            )}
+          </div>
           <p className="mt-1 text-sm text-muted">
-            A starting set for a botanical skincare store. Add only the ones QALBI actually sells — each is created <strong className="font-medium text-ink">hidden</strong>, with QALBI&apos;s own photo where one exists, and you can rename it before showing it.
+            These are <strong className="font-medium text-ink">not in the database yet</strong>, so they are not in the product editor&apos;s Category list until added. Each is created{" "}
+            <strong className="font-medium text-ink">hidden</strong>, with QALBI&apos;s own photo where one exists; rename, delete or show it afterwards.
           </p>
           <ul className="mt-4 divide-y divide-line">
             {suggestions.map((s) => (

@@ -144,12 +144,13 @@ export class StoreQueryError extends Error {
  * what the client may see (visitors: published products and active categories;
  * administrators: everything).
  */
-export async function queryProducts(db: SupabaseClient, filter?: { id: string }): Promise<ProductRow[]> {
+export async function queryProducts(db: SupabaseClient, filter?: { id: string }, loadedCategories?: Promise<CategoryRow[]>): Promise<ProductRow[]> {
   const productQuery = (columns: string) => {
     const query = db.from("products").select(columns).order("is_featured", { ascending: false }).order("name");
     return filter ? query.eq("id", filter.id) : query;
   };
-  const [withSeo, categories] = await Promise.all([productQuery(PRODUCT_SEO_COLUMNS), queryCategories(db)]);
+  // Callers that already load the categories pass them in, so the table is read once per request.
+  const [withSeo, categories] = await Promise.all([productQuery(PRODUCT_SEO_COLUMNS), loadedCategories ?? queryCategories(db)]);
   let products = withSeo;
   // Before the SEO migration is applied the extra columns don't exist: read without them.
   if (products.error?.code && MISSING_COLUMN.has(products.error.code)) products = await productQuery(PRODUCT_COLUMNS);

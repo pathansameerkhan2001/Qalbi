@@ -85,3 +85,18 @@ test("suggested categories fit the categories table and never repeat a handle", 
     }
   }
 });
+
+test("the add-suggested-categories SQL matches the suggestion list and only inserts hidden rows", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { suggestedCategories } = await import("../src/data/category-suggestions.ts");
+  const sql = readFileSync("supabase/scripts/add_suggested_categories.sql", "utf8");
+  const code = sql.replace(/--.*$/gm, "");
+  for (const s of suggestedCategories) {
+    const row = new RegExp(`\\('${s.name.replace(/[&]/g, "\\$&")}',\\s*'${s.slug}',\\s*(null|'[^']*'),\\s*(null|'([^']*)')`).exec(code);
+    assert.ok(row, `${s.slug} is missing from the SQL`);
+    assert.equal(row[3] ?? null, s.imagePath, `${s.slug} image differs`);
+  }
+  assert.match(code, /on conflict \(slug\) do nothing/);
+  assert.match(code, /\bfalse\s*\nfrom proposed/);
+  assert.doesNotMatch(code, /\b(update|delete|drop|truncate)\b/i);
+});
