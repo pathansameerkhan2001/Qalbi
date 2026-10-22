@@ -2,9 +2,11 @@
 
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, Trash2, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, Plus, Trash2, Upload } from "lucide-react";
 import { saveProductAction, uploadImageAction } from "@/lib/admin/actions";
 import { ActionMessage, FieldError, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
+import { DescriptionEditor } from "./description-editor";
+import { NewCategoryDialog, type EditorCategory } from "./new-category-dialog";
 
 export interface ProductFormValues {
   id: string;
@@ -37,7 +39,7 @@ export function ProductForm({
   readOnly,
 }: {
   initial: ProductFormValues;
-  categories: { id: string; title: string; active: boolean }[];
+  categories: EditorCategory[];
   /** Base URLs used only for previews: [localAssetsBase, supabaseUploadsBase]. */
   mediaBase: { assets: string; uploads: string };
   readOnly: boolean;
@@ -46,6 +48,13 @@ export function ProductForm({
   const [handle, setHandle] = useState(initial.slug);
   const [handleTouched, setHandleTouched] = useState(Boolean(initial.id));
   const [images, setImages] = useState(initial.images);
+  const [categoryId, setCategoryId] = useState(initial.category_id);
+  // Categories created in this editor, kept until the server's list (props) includes them.
+  const [created, setCreated] = useState<EditorCategory[]>([]);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [categoryNotice, setCategoryNotice] = useState("");
+  const categoryList = [...categories, ...created.filter((c) => !categories.some((x) => x.id === c.id))];
+  const selectedCategory = categoryList.find((c) => c.id === categoryId);
 
   const preview = (path: string) => {
     if (!path) return "";
@@ -107,9 +116,7 @@ export function ProductForm({
             {err("slug")}
           </div>
           <div>
-            <label htmlFor="p-description" className="label">Description</label>
-            <textarea id="p-description" name="description" rows={4} defaultValue={initial.description} className="field resize-y" />
-            {err("description")}
+            <DescriptionEditor defaultValue={initial.description} productName={initial.name} error={err("description")} />
           </div>
           <div>
             <label htmlFor="p-sku" className="label">SKU <span className="font-normal text-muted">(optional)</span></label>
@@ -235,24 +242,46 @@ export function ProductForm({
           <h2 className="font-serif text-xl">
             <label htmlFor="p-category">Category</label>
           </h2>
-          <select id="p-category" name="category_id" defaultValue={initial.category_id} className="field">
+          <select id="p-category" name="category_id" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="field">
             <option value="">No category</option>
-            {categories.map((c) => (
+            {categoryList.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
-                {c.active ? "" : " (hidden)"}
+                {c.active ? "" : " (Hidden)"}
               </option>
             ))}
           </select>
           {err("category_id")}
+          {!readOnly && (
+            <button type="button" onClick={() => setCreatingCategory(true)} className="inline-flex items-center gap-1.5 text-sm font-medium text-forest underline-offset-2 hover:underline">
+              <Plus className="size-4" aria-hidden /> Create new category
+            </button>
+          )}
+          {categoryNotice && (
+            <p role="status" className="text-xs text-botanical">
+              {categoryNotice}
+            </p>
+          )}
+          {selectedCategory && !selectedCategory.active && (
+            <p className="text-xs text-[#7a5418]">“{selectedCategory.title}” is hidden: customers won&apos;t see it in the menu or on category pages until you show it in Categories.</p>
+          )}
           <p className="text-xs text-muted">
-            {categories.some((c) => !c.active) && "“(hidden)” categories can be assigned now; the product appears on that category's page once the category is shown. "}
-            Lists every category saved in{" "}
+            {categoryList.length} categor{categoryList.length === 1 ? "y" : "ies"} saved, hidden ones included.{" "}
             <Link href="/admin/categories" className="text-forest underline underline-offset-2">
-              Categories
-            </Link>{" "}
-            ({categories.length}). Add or show categories there.
+              Manage categories
+            </Link>
           </p>
+          {creatingCategory && (
+            <NewCategoryDialog
+              onClose={() => setCreatingCategory(false)}
+              onCreated={(category, message) => {
+                setCreated((l) => [...l, category]);
+                setCategoryId(category.id);
+                setCategoryNotice(message);
+                setCreatingCategory(false);
+              }}
+            />
+          )}
         </fieldset>
 
         {!readOnly && (

@@ -30,7 +30,7 @@ export const productSchema = z
     id: z.union([z.uuid(), z.literal("")]),
     slug: handleField,
     name: z.string().trim().min(1, "Enter a name").max(120),
-    description: z.string().trim().max(4000),
+    description: z.string().trim().max(4000, "Keep the description under 4,000 characters"),
     price: money,
     compare_at_price: z.union([z.literal(""), money]).transform((v) => (v === "" ? null : v)),
     stock_quantity: z

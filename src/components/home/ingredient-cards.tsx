@@ -3,10 +3,11 @@ import Link from "next/link";
 import type { Ingredient } from "@/types/content";
 import type { Product } from "@/types/commerce";
 import { BotanicalIcon } from "@/components/ui/botanical-icons";
+import { productsWithIngredient } from "@/lib/content/product-description";
 
 /** Ingredient card for the /ingredients page: same circle-and-badge styling as the homepage carousel. */
-export function IngredientCard({ ingredient, products = [] }: { ingredient: Ingredient; products?: Pick<Product, "handle" | "title">[] }) {
-  const linked = products.filter((p) => ingredient.productHandles.includes(p.handle));
+export function IngredientCard({ ingredient, products = [] }: { ingredient: Ingredient; products?: Pick<Product, "handle" | "title" | "description">[] }) {
+  const linked = productsWithIngredient(ingredient, products);
   return (
     <article id={ingredient.slug} className="flex h-full scroll-mt-32 flex-col items-center rounded-t-[50cqw] rounded-b-2xl border border-gold-soft/45 bg-ivory/80 px-3 pb-6 pt-3 text-center shadow-soft">
       <div className="relative w-full max-w-[13rem]">

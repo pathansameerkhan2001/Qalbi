@@ -8,6 +8,8 @@ import { getCommerceSource, getProduct, getProductRecommendations, getProducts }
 import { sanitizeHtml, whatsappLink } from "@/lib/utils";
 import { brandConfig } from "@/data/brand";
 import { truncate } from "@/lib/content/rules";
+import { descriptionSummary, parseProductDescription, stripMarkdown } from "@/lib/content/product-description";
+import { getIngredients } from "@/lib/store/content";
 import { absoluteUrl, breadcrumbJsonLd } from "@/lib/site";
 import { Container } from "@/components/ui/container";
 import { ProductDetailSkeleton, ProductGridSkeleton } from "@/components/ui/skeletons";
@@ -17,6 +19,8 @@ import { PurchasePanel } from "@/components/products/purchase-panel";
 import { getWhatsAppOrderConfig } from "@/lib/whatsapp-order";
 import { ProductGrid } from "@/components/products/product-grid";
 import { Rating } from "@/components/products/rating";
+import { ProductStory } from "@/components/products/product-story";
+import { DescriptionBlocks, InlineText } from "@/components/products/rich-text";
 
 export async function generateStaticParams() {
   const products = await getProducts("featured", 100).catch(() => []);
@@ -30,7 +34,7 @@ export async function generateMetadata({ params }: PageProps<"/products/[handle]
   if (!product) return { title: "Product not found", robots: { index: false } };
   const image = product.featuredImage && !product.featuredImage.placeholder ? [{ url: product.featuredImage.url, alt: product.featuredImage.alt }] : undefined;
   const title = product.seo?.title || product.title;
-  const description = truncate(product.seo?.description || product.description || `${product.title} by ${brandConfig.name}.`, 160);
+  const description = truncate(product.seo?.description || plainSummary(product) || `${product.title} by ${brandConfig.name}.`, 160);
   return {
     title,
     description,
@@ -41,6 +45,12 @@ export async function generateMetadata({ params }: PageProps<"/products/[handle]
   };
 }
 
+/** Search-engine text: the description's introduction without the repeated name or Markdown markers. */
+function plainSummary(product: Product): string {
+  if (product.descriptionHtml) return product.description;
+  return descriptionSummary(parseProductDescription(product.description, product.title)) ?? stripMarkdown(product.description);
+}
+
 /** Product schema; Offers only for the real catalogue (preview prices are unconfirmed). */
 function productJsonLd(product: Product) {
   const realPrices = getCommerceSource() !== "development-fixtures";
@@ -48,7 +58,7 @@ function productJsonLd(product: Product) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.title,
-    description: product.seo?.description || product.description,
+    description: product.seo?.description || plainSummary(product),
     image: product.images.filter((i) => !i.placeholder).map((i) => absoluteUrl(i.url)),
     url: absoluteUrl(`/products/${product.handle}`),
     ...(product.sku ? { sku: product.sku } : {}),
@@ -96,8 +106,14 @@ async function Recommendations({ product }: { product: Product }) {
 
 async function ProductDetail({ params }: { params: PageProps<"/products/[handle]">["params"] }) {
   const { handle } = await params;
-  const product = await getProduct(handle);
+  const [product, ingredients] = await Promise.all([getProduct(handle), getIngredients()]);
   if (!product) notFound();
+  // Shopify sends HTML (sanitised below); the database catalogue stores the structured text parsed here.
+  const parsed = parseProductDescription(product.descriptionHtml ? "" : product.description, product.title);
+  const summary = descriptionSummary(parsed);
+  // The first paragraph is the summary under the name; the rest of the intro goes in "About this product".
+  const firstParagraph = parsed.intro.find((b) => b.type === "p");
+  const about = parsed.intro.filter((b) => b !== firstParagraph);
 
   return (
     <>
@@ -130,24 +146,43 @@ async function ProductDetail({ params }: { params: PageProps<"/products/[handle]
           {product.productType && <p className="eyebrow mb-2">{product.productType}</p>}
           <h1 className="text-h2 text-ink sm:text-[2.6rem]">{product.title}</h1>
           {product.rating && <Rating rating={product.rating} className="mt-2" />}
+          {summary && <p className="mt-4 max-w-xl text-[0.97rem] leading-relaxed text-ink/80">{summary}</p>}
           <div className="mt-5">
             <PurchasePanel product={product} whatsapp={await getWhatsAppOrderConfig()} />
           </div>
 
           <div className="mt-8 border-t border-line">
-            <InfoSection title="Description" open>
-              {product.descriptionHtml ? (
+            {product.descriptionHtml ? (
+              <InfoSection title="Description" open>
                 <div className="space-y-3 [&_a]:text-forest [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5" dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.descriptionHtml) }} />
-              ) : (
-                <p>{product.description}</p>
-              )}
-            </InfoSection>
-            <InfoSection title="Ingredients">
-              {product.ingredients ? (
-                <p className="whitespace-pre-line">{product.ingredients}</p>
-              ) : (
+              </InfoSection>
+            ) : (
+              about.length > 0 && (
+                <InfoSection title="About this product" open>
+                  <DescriptionBlocks blocks={about} />
+                </InfoSection>
+              )
+            )}
+            {parsed.other.map((section) => (
+              <InfoSection key={section.heading} title={section.heading}>
+                <DescriptionBlocks blocks={section.blocks} />
+              </InfoSection>
+            ))}
+            <InfoSection title="Ingredients & product information">
+              <div className="space-y-3">
+                {product.ingredients && <p className="whitespace-pre-line">{product.ingredients}</p>}
+                {parsed.keyIngredients.length > 0 ? (
+                  <p>The key ingredients are listed above. The complete ingredient list is printed on the product packaging.</p>
+                ) : (
+                  !product.ingredients && <p className="text-muted">The full ingredient list for this product is not published on the website yet.</p>
+                )}
+                {parsed.notes.map((note, i) => (
+                  <p key={i} className="rounded-lg border border-line bg-sand/60 px-4 py-3 text-ink/80">
+                    <InlineText text={note} />
+                  </p>
+                ))}
                 <p className="text-muted">
-                  The full ingredient list for this product will be published soon. For details now, message us on{" "}
+                  For details, message us on{" "}
                   <a
                     href={whatsappLink(`Hello QALBI Naturals, could you share the ingredient list for ${product.title}?`)}
                     target="_blank"
@@ -162,9 +197,9 @@ async function ProductDetail({ params }: { params: PageProps<"/products/[handle]
                   </a>
                   .
                 </p>
-              )}
+              </div>
             </InfoSection>
-            {product.directions && (
+            {product.directions && !parsed.howToUse.length && (
               <InfoSection title="How to Use">
                 <p className="whitespace-pre-line">{product.directions}</p>
               </InfoSection>
@@ -186,6 +221,7 @@ async function ProductDetail({ params }: { params: PageProps<"/products/[handle]
           </a>
         </div>
       </div>
+      <ProductStory parsed={parsed} ingredients={ingredients} />
       <Suspense
         fallback={
           <div className="border-t border-line py-12">

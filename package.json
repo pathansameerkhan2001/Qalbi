@@ -10,7 +10,7 @@
     "assets:build": "python scripts/process-images.py",
     "assets:upload": "node scripts/upload-assets.mjs",
     "assets:audit": "node scripts/audit-assets.mjs",
-    "test": "node --test tests/checkout.test.mts tests/content.test.mts tests/seo.test.mts tests/products.test.mts"
+    "test": "node --test tests/checkout.test.mts tests/content.test.mts tests/seo.test.mts tests/products.test.mts tests/product-description.test.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

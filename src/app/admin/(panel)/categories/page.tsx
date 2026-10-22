@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Plus } from "lucide-react";
 import { categoryProductCounts, listAdminCategories } from "@/lib/admin/data";
 import { requireAdmin } from "@/lib/admin/auth";
 import { getCommerceSource } from "@/lib/shopify";
@@ -40,7 +41,11 @@ export default async function AdminCategoriesPage() {
 
   return (
     <>
-      <AdminHeading title="Categories" description="Collections shown in the shop menu, the “Shop by Category” row and on /products." />
+      <AdminHeading title="Categories" description="Collections shown in the shop menu, the “Shop by Category” row and on /products.">
+        <a href="#add-category" className="btn btn-primary btn-sm">
+          <Plus className="size-4" aria-hidden /> Add category
+        </a>
+      </AdminHeading>
       <Card className="mb-4 p-4 text-sm text-muted">
         {active} of {categories.length} categor{categories.length === 1 ? "y is" : "ies are"} visible.{" "}
         {live

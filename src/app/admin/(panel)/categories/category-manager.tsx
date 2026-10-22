@@ -72,9 +72,14 @@ export function CategoryManager({ categories, builtInImage, suggestions }: { cat
           </li>
         ))}
       </ul>
-      {categories.length === 0 && <Card className="p-6 text-sm text-muted">No categories yet. Add one below, or start from a suggestion.</Card>}
+      {categories.length === 0 && (
+        <Card className="p-6 text-center text-sm text-muted">
+          <p className="font-serif text-xl text-ink">No categories yet</p>
+          <p className="mt-1">Create your first one below, or add some from the suggestions. Products can also get a new category straight from the product editor.</p>
+        </Card>
+      )}
 
-      <Card className="border-dashed p-5">
+      <Card id="add-category" className="scroll-mt-6 border-dashed p-5 target:border-forest target:ring-2 target:ring-forest/20">
         <h2 className="mb-1 font-serif text-xl">Add a category</h2>
         <p className="mb-4 text-xs text-muted">New categories are saved hidden unless you tick “Visible on the website”.</p>
         <RowForm action={saveCategoryAction} submitLabel="Add category" className="grid gap-4" resetOnSuccess>

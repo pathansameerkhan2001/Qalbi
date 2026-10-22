@@ -258,30 +258,81 @@ export async function updateOrderAction(_: ActionState, formData: FormData): Pro
 // Categories & ingredients
 // ---------------------------------------------------------------------------
 
-export async function saveCategoryAction(_: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
-  const parsed = z
-    .object({
-      id: z.union([z.uuid(), z.literal("")]),
-      slug: handleField,
-      name: z.string().trim().min(1, "Enter a name").max(80),
-      description: z.string().trim().max(400).transform((v) => v || null),
-      image_url: z.union([imagePath, z.literal("")]).transform((v) => v || null),
-      sort_order: z.coerce.number().int().min(-1000).max(100000),
-      is_active: checkbox,
-    })
-    .safeParse(Object.fromEntries(["id", "slug", "name", "description", "image_url", "sort_order", "is_active"].map((k) => [k, formData.get(k) ?? ""])));
-  if (!parsed.success) return invalid(parsed.error);
+const categorySchema = z.object({
+  id: z.union([z.uuid(), z.literal("")]),
+  slug: handleField.max(100, "Keep the URL handle under 100 characters"),
+  name: z.string().trim().min(1, "Enter a name").max(80, "Keep the name under 80 characters"),
+  description: z.string().trim().max(400, "Keep the description under 400 characters").transform((v) => v || null),
+  image_url: z.union([imagePath, z.literal("")]).transform((v) => v || null),
+  sort_order: z.coerce.number().int().min(-1000).max(100000),
+  is_active: checkbox,
+});
+
+type CategoryWrite = { ok: false; state: ActionState } | { ok: true; row: { id: string; name: string; slug: string; is_active: boolean } };
+
+/**
+ * Validates and writes one category (insert when `id` is empty). Shared by the
+ * Categories page and the product editor's "Create new category" dialog, so both
+ * apply the same rules: unique handle (database constraint) and unique name
+ * (checked here, case-insensitively), and success only for a row the database returned.
+ */
+async function writeCategory(formData: FormData): Promise<CategoryWrite> {
+  const parsed = categorySchema.safeParse(Object.fromEntries(["id", "slug", "name", "description", "image_url", "sort_order", "is_active"].map((k) => [k, formData.get(k) ?? ""])));
+  if (!parsed.success) return { ok: false, state: invalid(parsed.error) };
   const { id, ...fields } = parsed.data;
   const db = await createSessionClient();
+
+  let sameName = db.from("categories").select("id").ilike("name", fields.name.replace(/[\\%_]/g, "\\$&")).limit(1);
+  if (id) sameName = sameName.neq("id", id);
+  const clash = await sameName;
+  if (clash.error) return { ok: false, state: dbError("category", clash.error) };
+  if (clash.data.length) return { ok: false, state: { ok: false, message: `A category named “${fields.name}” already exists.`, fieldErrors: { name: "This name is already used" } } };
+
   const { data, error } = id
-    ? await db.from("categories").update(fields).eq("id", id).select("id, is_active")
-    : await db.from("categories").insert(fields).select("id, is_active");
-  if (error) return dbError("category", error);
+    ? await db.from("categories").update(fields).eq("id", id).select("id, name, slug, is_active")
+    : await db.from("categories").insert(fields).select("id, name, slug, is_active");
+  if (error) {
+    const state = dbError("category", error, `The URL handle “${fields.slug}” is already used by another category. Choose a different handle.`);
+    return { ok: false, state: error.code === "23505" ? { ...state, fieldErrors: { slug: "Already used by another category" } } : state };
+  }
   // Row level security turns a forbidden write into "0 rows" without an error: never report that as saved.
-  if (!data?.length) return { ok: false, message: "The database did not save this category — this account may not have administrator rights for categories." };
-  refreshStore("/admin/categories", "/admin/products", `/collections/${fields.slug}`);
-  return { ok: true, message: `Saved “${fields.name}” — ${categoryVisibilityNote(data[0].is_active === true)}` };
+  if (!data?.length) return { ok: false, state: { ok: false, message: "The database did not save this category — this account may not have administrator rights for categories." } };
+  const row = data[0] as { id: string; name: string; slug: string; is_active: boolean };
+  // A hidden category is not on the website, so only the admin lists need refreshing.
+  if (row.is_active || id) refreshStore("/admin/categories", `/collections/${row.slug}`);
+  else revalidatePath("/admin/categories");
+  return { ok: true, row };
+}
+
+export async function saveCategoryAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const result = await writeCategory(formData);
+  if (!result.ok) return result.state;
+  return { ok: true, message: `Saved “${result.row.name}” — ${categoryVisibilityNote(result.row.is_active === true)}` };
+}
+
+/**
+ * The product editor's "Create new category": inserts a category (hidden unless
+ * ticked) and returns it, so the editor adds it to its dropdown and selects it
+ * without reloading the page or touching the unsaved product fields.
+ */
+export async function createCategoryFromEditorAction(formData: FormData): Promise<ActionState & { category?: { id: string; title: string; active: boolean } }> {
+  await requireAdmin();
+  formData.set("id", "");
+  if (!formData.get("sort_order")) {
+    const db = await createSessionClient();
+    const last = await db.from("categories").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
+    if (last.error) return dbError("category", last.error);
+    formData.set("sort_order", String((Number(last.data?.sort_order) || 0) + 10));
+  }
+  const result = await writeCategory(formData);
+  if (!result.ok) return result.state;
+  const { row } = result;
+  return {
+    ok: true,
+    message: `Created “${row.name}” (${row.is_active ? "visible on the website" : "hidden"}) and selected it. Save the product to keep the assignment.`,
+    category: { id: row.id, title: row.name, active: row.is_active === true },
+  };
 }
 
 function categoryVisibilityNote(active: boolean): string {

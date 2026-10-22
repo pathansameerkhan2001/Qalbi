@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { Download, Mail } from "lucide-react";
 import { getIngredients } from "@/lib/store/content";
+import { productsWithIngredient } from "@/lib/content/product-description";
 import { images } from "@/data/images";
 import { brandConfig, ingredientsPdfUrl } from "@/data/brand";
 import { getProducts } from "@/lib/shopify";
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 
 export default async function IngredientsPage() {
   const [products, ingredients] = await Promise.all([getProducts("featured", 10).catch(() => []), getIngredients()]);
-  const linkedHandles = new Set(ingredients.flatMap((i) => i.productHandles));
+  const linkedHandles = new Set(ingredients.flatMap((i) => productsWithIngredient(i, products).map((p) => p.handle)));
   const related = linkedHandles.size ? products.filter((p) => linkedHandles.has(p.handle)) : products.slice(0, 5);
 
   return (
