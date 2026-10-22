@@ -89,13 +89,15 @@ function heroFilmSources(): HeroFilmSources | null {
  * Visual on the right (bleeding to the viewport edge), copy on cream on the
  * left, aligned with the page container. Phones show the visual first in a 6:5
  * frame with the copy and buttons below it. The visual is the approved film
- * over its first frame, or the verified product photos (images.hero) — both
- * centre-cropped with object-cover, never stretched.
+ * over its first frame, or the verified product photos (images.hero) — also
+ * whenever the film won't play — centre-cropped with object-cover, never
+ * stretched.
  */
 function EditorialHero() {
   const sources = heroFilmSources();
   const { poster } = images.heroFilm;
-  const visual = sources ? toSlide({ desktop: poster.desktop, mobile: poster.mobile ?? poster.desktop }) : toSlide(images.hero);
+  const photos = toSlide(images.hero);
+  const visual = sources ? toSlide({ desktop: poster.desktop, mobile: poster.mobile ?? poster.desktop }) : photos;
   return (
     <section aria-label="QALBI Naturals" className="border-b border-line/70 bg-cream">
       <div className="grid md:h-[clamp(30rem,calc(100svh-7.5rem),46rem)] md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] xl:grid-cols-[minmax(0,4.6fr)_minmax(0,7.4fr)]">
@@ -106,7 +108,7 @@ function EditorialHero() {
           <HeroActions className="mt-6 flex flex-wrap justify-center gap-3 md:mt-8 md:justify-start" />
         </div>
         {/* The product photos are cropped top-and-bottom only in the 6:5 phone frame: favour the bottle caps. */}
-        <HeroVideo sources={sources} poster={visual} posterPosition={sources ? undefined : "50% 30%"} className="order-first aspect-[6/5] sm:aspect-[16/10] md:order-none md:aspect-auto md:h-full" />
+        <HeroVideo sources={sources} poster={visual} posterPosition={sources ? undefined : "50% 30%"} fallback={sources ? photos : undefined} fallbackPosition="50% 30%" className="order-first aspect-[6/5] sm:aspect-[16/10] md:order-none md:aspect-auto md:h-full" />
       </div>
     </section>
   );

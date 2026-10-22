@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePrefersReducedMotion, type HeroSlide } from "./hero-slider";
@@ -14,6 +14,17 @@ export interface HeroFilmSources {
 /** Phones: the hero frame is 6:5 here, matching the mobile encode. */
 const PHONE = "(max-width: 639px)";
 
+/** Data-saver or slow (2G/3G) connection. */
+function isConstrainedConnection() {
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  return Boolean(connection?.saveData) || /(^|-)(2g|3g)$/.test(connection?.effectiveType ?? "");
+}
+
+/** `isConstrainedConnection`, but `false` during SSR and hydration so server and client markup match. */
+function useConstrainedConnection() {
+  return useSyncExternalStore(() => () => {}, isConstrainedConnection, () => false);
+}
+
 /**
  * Hero visual: an art-directed poster image, with the looping, muted film over
  * it when `sources` is given. The poster is never blank and stays the fallback
@@ -22,18 +33,25 @@ const PHONE = "(max-width: 639px)";
  * slow-connection visitors. Exactly one file is chosen per page view (mobile on
  * phones when available), so resizing never fetches the other. The film fades
  * in once actually playing, pauses while off screen, and has one small pause
- * control (WCAG 2.2.2) instead of browser controls.
+ * control (WCAG 2.2.2) instead of browser controls. When the film won't play,
+ * `fallback` (if given) replaces the poster; for reduced motion it is chosen by
+ * the <picture> itself, so it shows from the first paint.
  */
 export function HeroVideo({
   sources,
   poster,
   posterPosition,
+  fallback,
+  fallbackPosition,
   className,
 }: {
   sources: HeroFilmSources | null;
   poster: Omit<HeroSlide, "content">;
   /** CSS object-position for the poster crop (default centred). */
   posterPosition?: string;
+  /** Still image for visitors who don't get the film (reduced motion, data saver, slow connection, playback failure). */
+  fallback?: Omit<HeroSlide, "content">;
+  fallbackPosition?: string;
   className?: string;
 }) {
   const video = useRef<HTMLVideoElement>(null);
@@ -41,16 +59,17 @@ export function HeroVideo({
   const [failed, setFailed] = useState(false);
   const [paused, setPaused] = useState(false);
   const reduceMotion = usePrefersReducedMotion();
-  const connection = typeof navigator !== "undefined" ? (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection : undefined;
-  // Keep the poster for data-saver and slow (2G/3G) connections.
-  const constrained = Boolean(connection?.saveData) || /(^|-)(2g|3g)$/.test(connection?.effectiveType ?? "");
+  // Keep a still image for data-saver and slow (2G/3G) connections.
+  const constrained = useConstrainedConnection();
   const enabled = Boolean(sources) && !reduceMotion && !constrained && !failed;
+  const still = fallback && sources && !enabled ? fallback : poster;
+  const stillPosition = still === fallback ? fallbackPosition : posterPosition;
 
   useEffect(() => {
     const el = video.current;
     if (!el || !sources) return;
-    // Read the preference directly as well: during hydration the hook still reports the server value (false).
-    if (!enabled || paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    // Read the preferences directly as well: during hydration the hooks still report the server value (false).
+    if (!enabled || paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches || isConstrainedConnection()) {
       el.pause();
       return;
     }
@@ -69,9 +88,15 @@ export function HeroVideo({
   return (
     <div className={cn("relative overflow-hidden bg-[#0b1a10]", className)}>
       <picture className="absolute inset-0 block">
-        <source media="(min-width: 640px)" srcSet={poster.desktopSrcSet} sizes="(min-width: 768px) 62vw, 100vw" />
-        <source srcSet={poster.mobileSrcSet} sizes="100vw" />
-        <img src={poster.src} width={poster.width} height={poster.height} alt={poster.alt} fetchPriority="high" loading="eager" decoding="async" style={{ objectPosition: posterPosition }} className="absolute inset-0 h-full w-full object-cover" />
+        {fallback && sources && (
+          <>
+            <source media="(prefers-reduced-motion: reduce) and (min-width: 640px)" srcSet={fallback.desktopSrcSet} sizes="(min-width: 768px) 62vw, 100vw" />
+            <source media="(prefers-reduced-motion: reduce)" srcSet={fallback.mobileSrcSet} sizes="100vw" />
+          </>
+        )}
+        <source media="(min-width: 640px)" srcSet={still.desktopSrcSet} sizes="(min-width: 768px) 62vw, 100vw" />
+        <source srcSet={still.mobileSrcSet} sizes="100vw" />
+        <img src={still.src} width={still.width} height={still.height} alt={still.alt} fetchPriority="high" loading="eager" decoding="async" style={{ objectPosition: stillPosition }} className="absolute inset-0 h-full w-full object-cover" />
       </picture>
       {sources && (
         <video

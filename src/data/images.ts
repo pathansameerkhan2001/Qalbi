@@ -32,10 +32,13 @@ export const images = {
    * below), never in the repository; posters are their first frames, mirrored
    * locally like every other image.
    *
-   * OFF until approved: the current file (1280×720, 14.8 MB) misprints the
-   * label as "MULTIPURPOSE ROOSTER SERUM". While `approved` is false, or when
-   * Supabase isn't configured, the hero shows the verified product photos in
-   * `images.hero` instead, in the same layout.
+   * ON, temporarily, by the owner's explicit decision (2026-10-23): the
+   * current file (1280×720, 14.8 MB) misprints the label as "MULTIPURPOSE
+   * ROOSTER SERUM" and should be replaced by a corrected film. Its poster is
+   * its own first frame. Visitors who don't get the film (reduced motion, data
+   * saver, slow connection, playback failure) see the verified product photos
+   * in `images.hero` instead, as does everyone while `approved` is false or
+   * Supabase isn't configured.
    *
    * To replace it: run scripts/encode-hero-video.py on the corrected film with
    * a new --version, upload both MP4s under those new names with Cache-Control
@@ -44,7 +47,7 @@ export const images = {
    * `approved: true`. `mobile` is optional (phones then get `desktop`).
    */
   heroFilm: {
-    approved: false,
+    approved: true,
     desktop: "hero/qalbi-naturals-hero.mp4",
     mobile: null as string | null,
     poster: {
