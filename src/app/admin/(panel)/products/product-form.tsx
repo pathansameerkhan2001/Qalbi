@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, Plus, Trash2, Upload } from "lucide-react";
-import { saveProductAction, uploadImageAction } from "@/lib/admin/actions";
+import { addAllSuggestedCategoriesAction, saveProductAction, uploadImageAction } from "@/lib/admin/actions";
 import { ActionMessage, FieldError, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
 import { DescriptionEditor } from "./description-editor";
 import { NewCategoryDialog, type EditorCategory } from "./new-category-dialog";
@@ -35,11 +35,14 @@ const slugify = (v: string) =>
 export function ProductForm({
   initial,
   categories,
+  missingApproved = [],
   mediaBase,
   readOnly,
 }: {
   initial: ProductFormValues;
   categories: EditorCategory[];
+  /** Approved shop categories that are not in the database yet (offered for adding in place). */
+  missingApproved?: string[];
   /** Base URLs used only for previews: [localAssetsBase, supabaseUploadsBase]. */
   mediaBase: { assets: string; uploads: string };
   readOnly: boolean;
@@ -53,6 +56,23 @@ export function ProductForm({
   const [created, setCreated] = useState<EditorCategory[]>([]);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [categoryNotice, setCategoryNotice] = useState("");
+  const [addingApproved, startAddingApproved] = useTransition();
+  const [approvedAdded, setApprovedAdded] = useState(false);
+  const [approvedError, setApprovedError] = useState("");
+  const addApproved = () =>
+    startAddingApproved(async () => {
+      setApprovedError("");
+      try {
+        const r = await addAllSuggestedCategoriesAction();
+        setCreated((l) => [...l, ...(r.categories ?? [])]);
+        if (r.ok) {
+          setApprovedAdded(true);
+          setCategoryNotice(r.message);
+        } else setApprovedError(r.message);
+      } catch {
+        setApprovedError("Could not reach the server, so no category was added. Check your connection and try again.");
+      }
+    });
   const categoryList = [...categories, ...created.filter((c) => !categories.some((x) => x.id === c.id))];
   const selectedCategory = categoryList.find((c) => c.id === categoryId);
 
@@ -256,6 +276,22 @@ export function ProductForm({
             <button type="button" onClick={() => setCreatingCategory(true)} className="inline-flex items-center gap-1.5 text-sm font-medium text-forest underline-offset-2 hover:underline">
               <Plus className="size-4" aria-hidden /> Create new category
             </button>
+          )}
+          {!readOnly && missingApproved.length > 0 && !approvedAdded && (
+            <div className="rounded-[3px] border border-gold/50 bg-gold-pale/40 p-3 text-xs text-ink">
+              <p>
+                {missingApproved.length} of QALBI&apos;s 8 shop categories {missingApproved.length === 1 ? "isn't" : "aren't"} created yet: {missingApproved.join(", ")}.
+              </p>
+              <button type="button" onClick={addApproved} disabled={addingApproved} aria-busy={addingApproved || undefined} className="btn btn-outline btn-sm mt-2 disabled:opacity-50">
+                {addingApproved && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+                {addingApproved ? "Adding…" : `Add ${missingApproved.length === 1 ? "it" : "them"} (hidden)`}
+              </button>
+              {approvedError && (
+                <p role="alert" className="mt-2 text-danger">
+                  {approvedError}
+                </p>
+              )}
+            </div>
           )}
           {categoryNotice && (
             <p role="status" className="text-xs text-botanical">

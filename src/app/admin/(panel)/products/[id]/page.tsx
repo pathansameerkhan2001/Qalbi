@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { deleteProductAction } from "@/lib/admin/actions";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { AdminHeading } from "@/components/admin/ui";
+import { missingSuggestions } from "@/data/category-suggestions";
 import { RowForm } from "@/components/admin/row-form";
 import { getCommerceSource } from "@/lib/shopify";
 import { ProductForm } from "../product-form";
@@ -49,7 +50,7 @@ export default async function EditProductPage({ params, searchParams }: { params
           Product created.
         </p>
       )}
-      <ProductForm initial={toFormValues(product)} categories={categories} mediaBase={mediaBase} readOnly={readOnly} />
+      <ProductForm initial={toFormValues(product)} categories={categories} missingApproved={missingSuggestions(categories).map((s) => s.name)} mediaBase={mediaBase} readOnly={readOnly} />
     </>
   );
 }

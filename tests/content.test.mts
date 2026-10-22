@@ -103,6 +103,41 @@ test("the approved Shop by Category set: same eight names, handles and photos ev
   }
 });
 
+test("approved categories: no duplicates by handle or normalised name; renames are only proposed", async () => {
+  const { missingSuggestions, matchSuggestion, approvedRename } = await import("../src/data/category-suggestions.ts");
+  // The three categories in the live database (created by the product import).
+  const live = [
+    { handle: "serums", title: "Serums" },
+    { handle: "face-creams-moisturisers", title: "Face Creams & Moisturisers" },
+    { handle: "face-wash-cleansers", title: "Face Wash & Cleansers" },
+  ];
+  assert.deepEqual(missingSuggestions(live).map((s) => s.slug), ["scrubs-face-masks", "hair-mask-shampoo", "lip-eye-lash-care", "body-personal-care", "herbal-tea"]);
+  assert.deepEqual(missingSuggestions([]).length, 8);
+  // Same name under another handle, written differently, still counts as existing.
+  assert.equal(matchSuggestion({ handle: "tea", title: "herbal  tea" })?.slug, "herbal-tea");
+  assert.equal(matchSuggestion({ handle: "body", title: "Body and Personal Care" })?.slug, "body-personal-care");
+  assert.equal(matchSuggestion({ handle: "sunscreen", title: "Sunscreen" }), undefined);
+  // Capitalisation, spacing, punctuation and "&" vs "and" never create a duplicate.
+  for (const [title, slug] of [
+    ["FACE  SERUMS", "serums"],
+    ["Face Wash and Cleansers", "face-wash-cleansers"],
+    ["Lip Eye and Lash Care", "lip-eye-lash-care"],
+    ["scrubs & face-masks", "scrubs-face-masks"],
+    [" Hair Mask & Shampoo ", "hair-mask-shampoo"],
+  ]) {
+    assert.equal(matchSuggestion({ handle: "other-handle", title })?.slug, slug, title);
+    assert.equal(missingSuggestions([{ handle: "other-handle", title }]).some((s) => s.slug === slug), false, title);
+  }
+  // Once all eight exist, nothing more is offered.
+  const all = [...live, ...missingSuggestions(live).map((s) => ({ handle: s.slug, title: s.name }))];
+  assert.deepEqual(missingSuggestions(all), []);
+  // Spelling differences are proposed, never applied automatically.
+  assert.equal(approvedRename(live[0]), "Face Serums");
+  assert.equal(approvedRename(live[1]), "Face Creams & Moisturizers");
+  assert.equal(approvedRename(live[2]), null);
+  assert.equal(approvedRename({ handle: "sunscreen", title: "Sunscreen" }), null);
+});
+
 test("the shop-category assignment SQL never deletes and only fills empty product categories", async () => {
   const { readFileSync } = await import("node:fs");
   const code = readFileSync("supabase/scripts/assign_shop_categories.sql", "utf8").replace(/--.*$/gm, "");

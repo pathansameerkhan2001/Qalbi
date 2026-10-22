@@ -9,7 +9,7 @@ import { isSupabaseConfigured, supabaseConfig } from "@/lib/supabase/config";
 import { STORE_TAG } from "@/lib/store/catalog";
 import { settingSchemas, type SettingKey } from "@/lib/store/settings";
 import { homepageSectionIds } from "@/lib/content/homepage";
-import { suggestedCategories } from "@/data/category-suggestions";
+import { approvedRename, matchSuggestion, missingSuggestions, suggestedCategories } from "@/data/category-suggestions";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { headers } from "next/headers";
@@ -447,39 +447,68 @@ export async function addSuggestedCategoryAction(_: ActionState, formData: FormD
 }
 
 /**
- * Adds every proposed category that is not in the database yet (matched by handle
- * or by name), all hidden. Idempotent: existing rows are never changed, and the
- * insert ignores a handle that was added meanwhile (on conflict do nothing).
+ * Adds every approved category that is not in the database yet (matched by handle
+ * or normalised name — see matchSuggestion), all HIDDEN, and puts the approved
+ * categories in the approved order (sort_order 10, 20 … 80; only sort_order of
+ * existing rows changes — never their name, handle, visibility or products).
+ * Idempotent: running it again adds nothing. Returns the new rows so the product
+ * editor can add them to its dropdown without a reload.
  */
-export async function addAllSuggestedCategoriesAction(): Promise<ActionState> {
+export async function addAllSuggestedCategoriesAction(): Promise<ActionState & { categories?: { id: string; title: string; active: boolean }[] }> {
   await requireAdmin();
   const db = await createSessionClient();
-  const existing = await db.from("categories").select("slug, name, sort_order").order("sort_order", { ascending: false });
+  const existing = await db.from("categories").select("id, slug, name, sort_order");
   if (existing.error) return dbError("category", existing.error);
-  const rows = existing.data ?? [];
-  const taken = new Set(rows.flatMap((c) => [c.slug as string, String(c.name).trim().toLowerCase()]));
-  const missing = suggestedCategories.filter((s) => !taken.has(s.slug) && !taken.has(s.name.toLowerCase()));
-  if (missing.length === 0) return { ok: true, message: "Every suggested category is already in the list — nothing was added." };
-  const start = Number(rows[0]?.sort_order) || 0;
-  const { data, error } = await db
-    .from("categories")
-    .upsert(
-      missing.map((s, i) => ({
-        name: s.name,
-        slug: s.slug,
-        description: s.description || null,
-        image_url: s.imagePath,
-        sort_order: start + (i + 1) * 10,
-        is_active: false,
-      })),
-      { onConflict: "slug", ignoreDuplicates: true },
-    )
-    .select("name");
-  if (error) return dbError("category", error);
-  if (!data?.length) return { ok: false, message: "The database did not add any category — this account may not have administrator rights for categories, or they were added meanwhile. Reload the page." };
+  const rows = (existing.data ?? []).map((c) => ({ id: c.id as string, handle: c.slug as string, title: String(c.name), sort: Number(c.sort_order) }));
+  const position = (slug: string) => (suggestedCategories.findIndex((s) => s.slug === slug) + 1) * 10;
+
+  const missing = missingSuggestions(rows);
+  let added: { id: string; title: string; active: boolean }[] = [];
+  if (missing.length) {
+    const { data, error } = await db
+      .from("categories")
+      .upsert(
+        missing.map((s) => ({ name: s.name, slug: s.slug, description: s.description || null, image_url: s.imagePath, sort_order: position(s.slug), is_active: false })),
+        { onConflict: "slug", ignoreDuplicates: true },
+      )
+      .select("id, name, is_active");
+    if (error) return dbError("category", error);
+    if (!data?.length) return { ok: false, message: "The database did not add any category — this account may not have administrator rights for categories, or they were added meanwhile. Reload the page." };
+    added = data.map((c) => ({ id: c.id as string, title: String(c.name), active: c.is_active === true }));
+  }
+
+  const reorder = rows.flatMap((c) => {
+    const s = matchSuggestion(c);
+    return s && c.sort !== position(s.slug) ? [{ id: c.id, sort: position(s.slug) }] : [];
+  });
+  const results = await Promise.all(reorder.map((c) => db.from("categories").update({ sort_order: c.sort }).eq("id", c.id).select("id")));
+  const failed = results.find((r) => r.error || !r.data?.length);
   refreshStore("/admin/categories", "/admin/products");
-  const skipped = missing.length - data.length;
-  return { ok: true, message: `Added ${data.length} categor${data.length === 1 ? "y" : "ies"} as hidden${skipped ? ` (${skipped} already existed)` : ""}. They are now in the product editor's Category list.` };
+  if (failed) {
+    const note = failed.error ? dbError("category", failed.error).message : "this account may not have administrator rights for categories.";
+    return { ok: false, message: `${added.length ? `Added ${added.length} hidden categor${added.length === 1 ? "y" : "ies"}, but ` : ""}the approved order could not be saved: ${note}`, categories: added };
+  }
+  if (!added.length && !reorder.length) return { ok: true, message: "All eight approved categories are already in the list, in the approved order — nothing changed.", categories: [] };
+  const parts = [added.length ? `Added ${added.length} categor${added.length === 1 ? "y" : "ies"} as hidden` : "", reorder.length ? "put the approved categories in the approved order" : ""].filter(Boolean);
+  return { ok: true, message: `${parts.join(" and ").replace(/^./, (c) => c.toUpperCase())}. Show each one in Categories once it's reviewed.`, categories: added };
+}
+
+/** Renames an existing category to its approved name (an explicit, confirmed owner action; the handle stays). */
+export async function applyApprovedCategoryNameAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const id = z.uuid().safeParse(formData.get("id"));
+  if (!id.success) return { ok: false, message: "Unknown category." };
+  const db = await createSessionClient();
+  const current = await db.from("categories").select("id, slug, name").eq("id", id.data).maybeSingle();
+  if (current.error) return dbError("category", current.error);
+  if (!current.data) return { ok: false, message: "Category not found. Reload the page." };
+  const name = approvedRename({ handle: current.data.slug as string, title: String(current.data.name) });
+  if (!name) return { ok: true, message: "This category already has its approved name." };
+  const { data, error } = await db.from("categories").update({ name }).eq("id", id.data).select("name, slug");
+  if (error) return dbError("category", error);
+  if (!data?.length) return { ok: false, message: "The database did not rename this category — this account may not have administrator rights for categories." };
+  refreshStore("/admin/categories", "/admin/products", `/collections/${data[0].slug}`);
+  return { ok: true, message: `Renamed to “${data[0].name}”.` };
 }
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { getCommerceSource } from "@/lib/shopify";
 import type { CategoryRow } from "@/lib/store/catalog";
 import { homeCategories } from "@/data/categories";
-import { suggestedCategories } from "@/data/category-suggestions";
+import { missingSuggestions, suggestedCategories } from "@/data/category-suggestions";
 import { AdminHeading, Card, SetupNotice } from "@/components/admin/ui";
 import { CategoryManager } from "./category-manager";
 
@@ -36,8 +36,7 @@ export default async function AdminCategoriesPage() {
   }
   const active = categories.filter((c) => c.active).length;
   const live = getCommerceSource() === "supabase";
-  const taken = new Set(categories.flatMap((c) => [c.handle, c.title.trim().toLowerCase()]));
-  const suggestions = suggestedCategories.filter((s) => !taken.has(s.slug) && !taken.has(s.name.toLowerCase()));
+  const suggestions = missingSuggestions(categories);
 
   return (
     <>

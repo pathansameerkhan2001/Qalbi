@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ExternalLink, Search } from "lucide-react";
-import { addAllSuggestedCategoriesAction, addSuggestedCategoryAction, deleteCategoryAction, moveCategoryAction, saveCategoryAction, setCategoryActiveAction } from "@/lib/admin/actions";
+import { addAllSuggestedCategoriesAction, addSuggestedCategoryAction, applyApprovedCategoryNameAction, deleteCategoryAction, moveCategoryAction, saveCategoryAction, setCategoryActiveAction } from "@/lib/admin/actions";
 import type { CategoryRow } from "@/lib/store/catalog";
 import { mediaUrl } from "@/lib/assets";
 import { Card } from "@/components/admin/ui";
@@ -10,6 +10,7 @@ import { RowForm } from "@/components/admin/row-form";
 import { MoveButtons } from "@/components/admin/move-buttons";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { cn } from "@/lib/utils";
+import { approvedRename } from "@/data/category-suggestions";
 
 export type ManagedCategory = CategoryRow & { products: { total: number; live: number } };
 type Suggestion = { name: string; slug: string; imagePath: string | null; basis: string };
@@ -38,6 +39,26 @@ export function CategoryManager({ categories, builtInImage, suggestions }: { cat
 
   return (
     <div className="space-y-4">
+      {suggestions.length > 0 && (
+        <Card className="border-gold/50 bg-gold-pale/40 p-4 sm:p-5">
+          <p className="font-medium text-ink">
+            {suggestions.length} of QALBI&apos;s 8 shop categories {suggestions.length === 1 ? "is" : "are"} not in the database yet
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            {suggestions.map((s) => s.name).join(", ")}. Until {suggestions.length === 1 ? "it is" : "they are"} added, {suggestions.length === 1 ? "it" : "they"} can&apos;t be chosen in the product editor or shown on the homepage. Added categories start{" "}
+            <strong className="font-medium text-ink">hidden</strong>, with their photo and introduction; the eight are put in the approved order.
+          </p>
+          <RowForm
+            action={addAllSuggestedCategoriesAction}
+            submitLabel={`Add ${suggestions.length === 1 ? "it" : `all ${suggestions.length}`} as hidden`}
+            pendingLabel="Adding…"
+            confirm={`Add ${suggestions.map((s) => s.name).join(", ")} as hidden categories, and put the eight approved categories in the approved order? Existing names, handles, visibility and products are not changed.`}
+            className="mt-3 flex"
+          >
+            {null}
+          </RowForm>
+        </Card>
+      )}
       {categories.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <label className="relative min-w-[14rem] flex-1">
@@ -91,18 +112,6 @@ export function CategoryManager({ categories, builtInImage, suggestions }: { cat
         <Card className="p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <h2 className="font-serif text-xl">Suggested categories</h2>
-            {suggestions.length > 1 && (
-              <RowForm
-                action={addAllSuggestedCategoriesAction}
-                submitLabel={`Add all ${suggestions.length} as hidden`}
-                pendingLabel="Adding…"
-                variant="quiet"
-                confirm={`Add ${suggestions.length} categories (${suggestions.map((s) => s.name).join(", ")})? They are saved hidden, stay empty until you assign products, and existing categories are not changed.`}
-                className="flex"
-              >
-                {null}
-              </RowForm>
-            )}
           </div>
           <p className="mt-1 text-sm text-muted">
             These are <strong className="font-medium text-ink">not in the database yet</strong>, so they are not in the product editor&apos;s Category list until added. Each is created{" "}
@@ -150,6 +159,18 @@ function CategoryCard({ c, others, first, last, canReorder, suggested }: { c: Ma
             )}
           </p>
         </div>
+        {approvedRename(c) && (
+          <RowForm
+            action={applyApprovedCategoryNameAction}
+            submitLabel={`Rename to “${approvedRename(c)}”`}
+            pendingLabel="Renaming…"
+            variant="quiet"
+            confirm={`Rename “${c.title}” to the approved name “${approvedRename(c)}”? The URL /collections/${c.handle} and its products stay the same.`}
+            className="flex basis-full sm:basis-auto"
+          >
+            <input type="hidden" name="id" value={c.id} />
+          </RowForm>
+        )}
         <div>
           <MoveButtons id={c.id} action={moveCategoryAction} first={first} last={last} disabled={!canReorder} />
         </div>

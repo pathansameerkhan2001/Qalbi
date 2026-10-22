@@ -5,6 +5,7 @@ import { listAdminCategories } from "@/lib/admin/data";
 import { requireAdmin } from "@/lib/admin/auth";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { AdminHeading } from "@/components/admin/ui";
+import { missingSuggestions } from "@/data/category-suggestions";
 import { ProductForm } from "../product-form";
 import { emptyProduct, mediaBase } from "../shared";
 
@@ -19,7 +20,7 @@ export default async function NewProductPage() {
         <ArrowLeft className="size-4" aria-hidden /> All products
       </Link>
       <AdminHeading title="New product" />
-      <ProductForm initial={emptyProduct} categories={categories} mediaBase={mediaBase} readOnly={isShopifyConfigured()} />
+      <ProductForm initial={emptyProduct} categories={categories} missingApproved={missingSuggestions(categories).map((s) => s.name)} mediaBase={mediaBase} readOnly={isShopifyConfigured()} />
     </>
   );
 }
