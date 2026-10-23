@@ -94,12 +94,14 @@ def triptych(panels: list[tuple[int, float, float, float]], out: str, size: tupl
     save(canvas, out, 85)
 
 
-def mosaic(sources: list[int], out: str, size: int = 600, gutter: int = 6) -> None:
-    """2x2 grid of studio product shots (square), e.g. for the combos category."""
+def mosaic(sources: list[int | tuple[int, float, float, float]], out: str, size: int = 600, gutter: int = 6) -> None:
+    """2x2 grid of product shots (square), e.g. for the combos category. Each: a studio
+    shot's number, or (source, fx, fy, zoom) for a photo framed differently."""
     cell = (size - gutter) // 2
     canvas = Image.new("RGB", (size, size), (248, 245, 236))
-    for i, source in enumerate(sources):
-        tile = cut(source, fit_box(source, 1, 0.5, 0.62, 1.35)).resize((cell, cell), Image.LANCZOS)
+    for i, entry in enumerate(sources):
+        source, fx, fy, zoom = entry if isinstance(entry, tuple) else (entry, 0.5, 0.62, 1.35)
+        tile = cut(source, fit_box(source, 1, fx, fy, zoom)).resize((cell, cell), Image.LANCZOS)
         canvas.paste(tile, ((i % 2) * (cell + gutter), (i // 2) * (cell + gutter)))
     save(canvas, out, 85)
 
@@ -155,6 +157,17 @@ def ingredient_crops() -> None:
     make(19, (0, 420, 470, 470), "ingredients/cardamom.webp", 600, 86)
 
 
+def hero_showcase() -> None:
+    """Homepage hero slideshow after the film: one product per square frame from
+    QALBI's own photographs, at their full 1200 px width so the widest desktop
+    frame (~1190 px) needs no upscaling. Each product is kept clear of the edges
+    so any frame from 3:5 to 8:5 (phone 6:5, split-layout desktop) crops only
+    background with object-cover (positions in images.heroShowcase)."""
+    make(22, (0, 200, 1200, 1200), "hero/showcase-radiance.webp", 1200, 85)
+    make(27, (0, 136, 1200, 1200), "hero/showcase-moisturizer.webp", 1200, 85)
+    make(30, (300, 0, 1200, 1200), "hero/showcase-anti-aging.webp", 1200, 85)
+
+
 if __name__ == "__main__":
     logo()
     logo_mask()
@@ -171,10 +184,13 @@ if __name__ == "__main__":
 
     # --- Studio photography ------------------------------------------------
     # Hero slides 2 & 3 — editorial triptychs (desktop) and single portraits (mobile).
-    triptych([(43, 0.5, 0.55, 1.0), (54, 0.5, 0.5, 1.0), (48, 0.5, 0.6, 1.0)], "hero/slide-2-desktop.webp")
+    # client-48 (studio Moisturizer) is never used: it carries a stock-site ("dreamstime")
+    # watermark. Its crops use QALBI's own Moisturizer photograph, client-27.
+    triptych([(43, 0.5, 0.55, 1.0), (54, 0.5, 0.5, 1.0), (27, 0.5, 0.45, 1.0)], "hero/slide-2-desktop.webp")
     triptych([(46, 0.5, 0.55, 1.0), (13, 0.5, 0.45, 1.0), (42, 0.5, 0.6, 1.0)], "hero/slide-3-desktop.webp")
     shot(43, 4 / 5, "hero/slide-2-mobile.webp", 1080, fy=0.55, quality=85)
     shot(54, 4 / 5, "hero/slide-3-mobile.webp", 1080, quality=85)
+    hero_showcase()
     # Product galleries (4:5) — studio shot first, client photos after.
     shot(42, 4 / 5, "products/serum-studio.webp", 960, fy=0.66, zoom=1.35)
     shot(52, 4 / 5, "products/serum-gold.webp", 960, fy=0.55, zoom=1.25)
@@ -186,9 +202,14 @@ if __name__ == "__main__":
     shot(40, 4 / 5, "products/radiance-noir.webp", 960)
     shot(36, 4 / 5, "products/cleanser-studio.webp", 960, fy=0.6, zoom=1.2)
     shot(54, 4 / 5, "products/cleanser-splash.webp", 960)
-    shot(37, 4 / 5, "products/cleanser-coconut.webp", 960, fy=0.55)
+    # client-37 (studio Cleanser with coconut) carries a stock-site ("500px") watermark in
+    # its bottom-left corner: its product and reel crops use QALBI's own Cleanser
+    # photograph, client-26. The old product path is still named in supabase/*.sql, so it
+    # gets the same clean image.
+    make(26, (0, 145, 828, 1035), "products/cleanser-flatlay.webp", 828)
+    make(26, (0, 145, 828, 1035), "products/cleanser-coconut.webp", 828)
     shot(41, 4 / 5, "products/cleanser-roses.webp", 960, fy=0.6)
-    shot(48, 4 / 5, "products/moisturizer-studio.webp", 960, fy=0.68, zoom=1.35)
+    make(27, (40, 95, 1000, 1250), "products/moisturizer-studio.webp", 960)
     shot(44, 4 / 5, "products/moisturizer-sky.webp", 960, fy=0.72, zoom=1.25)
     shot(45, 4 / 5, "products/moisturizer-noir.webp", 960, fy=0.6)
     # Categories (square) — studio replacements.
@@ -211,10 +232,11 @@ if __name__ == "__main__":
     shot(47, 4 / 3, "about/about-forest.webp", 1200, fy=0.55, quality=85)
     make(15, (0, 630, 240, 240), "categories/lip-care-roses.webp", 600)
     make(3, (60, 200, 800, 800), "categories/face-masks-ubtan.webp", 600)
-    mosaic([42, 46, 36, 48], "categories/combos-collection.webp")
+    mosaic([42, 46, 36, (27, 0.5, 0.46, 1.5)], "categories/combos-collection.webp")
     # Instagram moments (9:16 reel format)
     for source, name, fy in [
-        (43, "radiance-garden", 0.55), (54, "cleanser-splash", 0.5), (13, "skin-lightening-touch", 0.45), (37, "cleanser-coconut", 0.55),
+        (43, "radiance-garden", 0.55), (54, "cleanser-splash", 0.5), (13, "skin-lightening-touch", 0.45),
         (44, "moisturizer-sky", 0.55), (11, "skin-lightening-duo", 0.5), (46, "radiance-sand", 0.55), (52, "serum-gold", 0.5),
     ]:
         shot(source, 9 / 16, f"reels/{name}.webp", 540, fy=fy)
+    make(26, (0, 0, 828, 1472), "reels/cleanser-flatlay.webp", 540)

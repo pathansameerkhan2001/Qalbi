@@ -35,10 +35,11 @@ export const images = {
    * ON, temporarily, by the owner's explicit decision (2026-10-23): the
    * current file (1280×720, 14.8 MB) misprints the label as "MULTIPURPOSE
    * ROOSTER SERUM" and should be replaced by a corrected film. Its poster is
-   * its own first frame. Visitors who don't get the film (reduced motion, data
-   * saver, slow connection, playback failure) see the verified product photos
-   * in `images.hero` instead, as does everyone while `approved` is false or
-   * Supabase isn't configured.
+   * its own first frame. The hero opens on the film (autoplaying where allowed,
+   * otherwise its poster and a play button) and moves on to the product photo
+   * slideshow (`images.hero`, then `images.heroShowcase`) when it ends or fails.
+   * While `approved` is false or Supabase isn't configured, the slideshow
+   * starts straight away.
    *
    * To replace it: run scripts/encode-hero-video.py on the corrected film with
    * a new --version, upload both MP4s under those new names with Cache-Control
@@ -55,10 +56,21 @@ export const images = {
       mobile: null as ImageAsset | null,
     },
   },
+  /**
+   * Hero slideshow after the lineup photo: one product per square frame from
+   * QALBI's own photographs at 1200 px, enough for the widest desktop frame
+   * (scripts/process-images.py hero_showcase), with the object-position that
+   * keeps the whole product in any frame from 3:5 to 8:5.
+   */
+  heroShowcase: [
+    { image: photo("hero/showcase-radiance.webp", "QALBI Radiance Glow Cream with saffron, rose petals and a sunflower", 1200, 1200), position: "50% 50%" },
+    { image: photo("hero/showcase-moisturizer.webp", "QALBI Moisturizer with saffron, rose petals and herbs on a wooden table", 1200, 1200), position: "70% 55%" },
+    { image: photo("hero/showcase-anti-aging.webp", "QALBI Anti-Aging cream jar on marble", 1200, 1200), position: "50% 30%" },
+  ],
   /** Additional hero slides: editorial triptychs on desktop, single portraits on phones. */
   heroSlides: [
     {
-      desktop: photo("hero/slide-2-desktop.webp", "QALBI Radiance Glow Cream, Facial Cleanser and Moisturizer in studio settings", 1600, 860),
+      desktop: photo("hero/slide-2-desktop.webp", "QALBI Radiance Glow Cream and Facial Cleanser in studio settings, and the Moisturizer with saffron and rose petals", 1600, 860),
       mobile: photo("hero/slide-2-mobile.webp", "QALBI Radiance Glow Cream on a stone pedestal among white blossoms", 832, 1040),
     },
     {
@@ -114,9 +126,9 @@ export const images = {
     radianceNoir: photo("products/radiance-noir.webp", "QALBI Radiance Glow Cream bottle", 960, 1200),
     cleanserStudio: photo("products/cleanser-studio.webp", "QALBI Facial Cleanser on a stone in soft sunlight", 720, 900),
     cleanserSplash: photo("products/cleanser-splash.webp", "QALBI Facial Cleanser in a water splash", 832, 1040),
-    cleanserCoconut: photo("products/cleanser-coconut.webp", "QALBI Facial Cleanser with fresh coconut", 832, 1040),
+    cleanserFlatlay: photo("products/cleanser-flatlay.webp", "QALBI Facial Cleanser with saffron, rose petals and herbs on a wooden table", 828, 1035),
     cleanserRoses: photo("products/cleanser-roses.webp", "QALBI Facial Cleanser among pink roses", 832, 1040),
-    moisturizerStudio: photo("products/moisturizer-studio.webp", "QALBI Moisturizer on a stone pedestal with blossoms", 616, 770),
+    moisturizerStudio: photo("products/moisturizer-studio.webp", "QALBI Moisturizer with saffron, rose petals and herbs on a wooden table", 960, 1200),
     moisturizerSky: photo("products/moisturizer-sky.webp", "QALBI Moisturizer on stones against a pastel sky", 665, 832),
     moisturizerNoir: photo("products/moisturizer-noir.webp", "QALBI Moisturizer on a wooden slice", 832, 1040),
   },
@@ -131,7 +143,7 @@ export const images = {
     { id: "radiance-garden", title: "Radiance Glow Cream", ...photo("reels/radiance-garden.webp", "QALBI Radiance Glow Cream among white blossoms", 540, 961) },
     { id: "cleanser-splash", title: "Facial Cleanser", ...photo("reels/cleanser-splash.webp", "QALBI Facial Cleanser in a water splash", 540, 961) },
     { id: "skin-lightening-touch", title: "Skin Lightening Cream", ...photo("reels/skin-lightening-touch.webp", "Hands holding an open jar of QALBI Skin Lightening Cream", 540, 961) },
-    { id: "cleanser-coconut", title: "Fresh & Clean", ...photo("reels/cleanser-coconut.webp", "QALBI Facial Cleanser with fresh coconut", 540, 961) },
+    { id: "cleanser-flatlay", title: "Fresh & Clean", ...photo("reels/cleanser-flatlay.webp", "QALBI Facial Cleanser with saffron, rose petals and herbs on a wooden table", 540, 960) },
     { id: "moisturizer-sky", title: "Moisturizer", ...photo("reels/moisturizer-sky.webp", "QALBI Moisturizer on stones against a pastel sky", 540, 961) },
     { id: "skin-lightening-duo", title: "Glow Duo", ...photo("reels/skin-lightening-duo.webp", "Two jars of QALBI Skin Lightening Cream held up in hands", 540, 961) },
     { id: "radiance-sand", title: "Your Daily Ritual", ...photo("reels/radiance-sand.webp", "QALBI Radiance Glow Cream on a stone pedestal over sand", 540, 961) },

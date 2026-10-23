@@ -60,7 +60,7 @@ const inputs: PreviewInput[] = [
     gallery: [
       images.products.cleanserStudio,
       images.products.cleanserSplash,
-      images.products.cleanserCoconut,
+      images.products.cleanserFlatlay,
       images.products.cleanserRoses,
       images.products.cleanser,
     ],

@@ -8,7 +8,7 @@ import { getActiveHeroSlides } from "@/lib/store/cms";
 import type { ImageAsset } from "@/types/content";
 import { SprigOrnament } from "@/components/ui/botanical-icons";
 import { HeroSlider, type HeroSlide } from "./hero-slider";
-import { HeroVideo, type HeroFilmSources } from "./hero-video";
+import { HeroMedia, type HeroFilmSources, type HeroStill } from "./hero-video";
 import { hasHeroContent, type HeroContent } from "./hero-overlay";
 
 type SlideImage = Pick<ImageAsset, "src" | "alt" | "width" | "height">;
@@ -35,8 +35,8 @@ function toSlide({ desktop, mobile }: { desktop: SlideImage; mobile: SlideImage 
 /**
  * Homepage hero. Active slides from /admin/hero always take priority (photo
  * slideshow with their own heading, subtitle and button). Otherwise the
- * editorial split hero is shown, with QALBI's film once approved
- * (images.heroFilm) and the verified product photos until then.
+ * editorial split hero is shown: QALBI's film once approved (images.heroFilm),
+ * then a slideshow of the verified product photos.
  *
  * The slideshow container reserves the aspect ratio for each breakpoint so the
  * page never shifts while images load.
@@ -89,15 +89,18 @@ function heroFilmSources(): HeroFilmSources | null {
  * Visual on the right (bleeding to the viewport edge), copy on cream on the
  * left, aligned with the page container. Phones show the visual first in a 6:5
  * frame with the copy and buttons below it. The visual is the approved film
- * over its first frame, or the verified product photos (images.hero) — also
- * whenever the film won't play — centre-cropped with object-cover, never
- * stretched.
+ * (over its first frame), followed by a slideshow of the real product photos:
+ * the lineup (images.hero), then single products (images.heroShowcase). All
+ * are cropped with object-cover, never stretched.
  */
 function EditorialHero() {
-  const sources = heroFilmSources();
+  const film = heroFilmSources();
   const { poster } = images.heroFilm;
-  const photos = toSlide(images.hero);
-  const visual = sources ? toSlide({ desktop: poster.desktop, mobile: poster.mobile ?? poster.desktop }) : photos;
+  const photos: HeroStill[] = [
+    // The lineup is cropped top-and-bottom only in the 6:5 phone frame: favour the bottle caps.
+    { ...toSlide(images.hero), position: "50% 30%" },
+    ...images.heroShowcase.map(({ image, position }) => ({ ...toSlide({ desktop: image, mobile: image }), position })),
+  ];
   return (
     <section aria-label="QALBI Naturals" className="border-b border-line/70 bg-cream">
       <div className="grid md:h-[clamp(30rem,calc(100svh-7.5rem),46rem)] md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] xl:grid-cols-[minmax(0,4.6fr)_minmax(0,7.4fr)]">
@@ -107,8 +110,7 @@ function EditorialHero() {
           <p className="mt-3 max-w-sm text-[0.95rem] leading-relaxed text-muted md:mt-5 lg:max-w-md lg:text-base">{brandConfig.description}</p>
           <HeroActions className="mt-6 flex flex-wrap justify-center gap-3 md:mt-8 md:justify-start" />
         </div>
-        {/* The product photos are cropped top-and-bottom only in the 6:5 phone frame: favour the bottle caps. */}
-        <HeroVideo sources={sources} poster={visual} posterPosition={sources ? undefined : "50% 30%"} fallback={sources ? photos : undefined} fallbackPosition="50% 30%" className="order-first aspect-[6/5] sm:aspect-[16/10] md:order-none md:aspect-auto md:h-full" />
+        <HeroMedia film={film} poster={toSlide({ desktop: poster.desktop, mobile: poster.mobile ?? poster.desktop })} photos={photos} className="order-first aspect-[6/5] sm:aspect-[16/10] md:order-none md:aspect-auto md:h-full" />
       </div>
     </section>
   );
