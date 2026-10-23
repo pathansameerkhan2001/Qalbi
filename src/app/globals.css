@@ -280,6 +280,43 @@
   .kenburns {
     animation: kenburns 9s ease-out both;
   }
+  /* Full-width hero (components/home/hero-video.tsx). The frame is a size
+     container, so each photo fills it (cover) where that keeps the product
+     whole, and otherwise shows in full (contain) over a soft, blurred copy of
+     itself: square product shots in wide desktop frames, the wide lineup in
+     tall ones. Without container-query support everything stays cover. */
+  .hero-frame {
+    container: hero / size;
+  }
+  .hero-still-main {
+    object-fit: cover;
+  }
+  .hero-still-backdrop {
+    display: none;
+    object-fit: cover;
+    filter: blur(28px) saturate(1.05) brightness(0.82);
+    transform: scale(1.15);
+  }
+  @container hero (min-aspect-ratio: 3/2) or (max-aspect-ratio: 7/10) {
+    .hero-still[data-fit="square"] .hero-still-main {
+      object-fit: contain;
+    }
+    .hero-still[data-fit="square"] .hero-still-backdrop {
+      display: block;
+    }
+  }
+  /* The wide lineup file (1.86:1, bottles down to its lower edge) is only used
+     from 640 px; phones get a 4:5 crop. */
+  @media (min-width: 640px) {
+    @container hero (max-aspect-ratio: 7/4) or (min-aspect-ratio: 39/20) {
+      .hero-still[data-fit="wide"] .hero-still-main {
+        object-fit: contain;
+      }
+      .hero-still[data-fit="wide"] .hero-still-backdrop {
+        display: block;
+      }
+    }
+  }
 
   /* Scroll reveal (components/ui/reveal.tsx). Hidden only when scripts run, so
      content is never lost without JavaScript. */

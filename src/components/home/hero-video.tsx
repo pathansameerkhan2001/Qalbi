@@ -11,10 +11,14 @@ export interface HeroFilmSources {
   mobile: string | null;
 }
 
-/** A hero image with the CSS object-position that keeps its product in frame (default centred). */
-export type HeroStill = Omit<HeroSlide, "content"> & { position?: string };
+/**
+ * A hero image with the CSS object-position that keeps its product in frame
+ * (default centred). `fit` lets it show in full over a blurred copy of itself
+ * where the frame is too wide or tall to crop it (globals.css, .hero-still).
+ */
+export type HeroStill = Omit<HeroSlide, "content"> & { position?: string; fit?: "square" | "wide" };
 
-/** Phones: the hero frame is 6:5 here, matching the mobile encode. */
+/** Phones: the hero frame is 4:5 here, matching the mobile encode. */
 const PHONE = "(max-width: 639px)";
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const PHOTO_INTERVAL = 6000;
@@ -43,22 +47,29 @@ function playFilm(el: HTMLVideoElement, film: HeroFilmSources, onBlocked: () => 
 }
 
 function Still({ still, priority = false, imgClassName }: { still: HeroStill; priority?: boolean; imgClassName?: string }) {
-  return (
+  // Both layers use the same srcset and sizes, so the browser fetches the file once.
+  const layer = (className: string, alt: string, eager: boolean) => (
     <picture className="absolute inset-0 block">
-      <source media="(min-width: 640px)" srcSet={still.desktopSrcSet} sizes="(min-width: 768px) 62vw, 100vw" />
+      <source media="(min-width: 640px)" srcSet={still.desktopSrcSet} sizes="100vw" />
       <source srcSet={still.mobileSrcSet} sizes="100vw" />
       <img
         src={still.src}
         width={still.width}
         height={still.height}
-        alt={still.alt}
-        fetchPriority={priority ? "high" : "low"}
-        loading={priority ? "eager" : "lazy"}
+        alt={alt}
+        fetchPriority={eager ? "high" : "low"}
+        loading={eager ? "eager" : "lazy"}
         decoding="async"
         style={{ objectPosition: still.position }}
-        className={cn("absolute inset-0 h-full w-full object-cover", imgClassName)}
+        className={cn("absolute inset-0 h-full w-full", className)}
       />
     </picture>
+  );
+  return (
+    <div className="hero-still absolute inset-0 overflow-hidden" data-fit={still.fit}>
+      {still.fit && <div aria-hidden>{layer("hero-still-backdrop", "", false)}</div>}
+      {layer(cn("hero-still-main", imgClassName), still.alt, priority)}
+    </div>
   );
 }
 
@@ -189,7 +200,7 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
   return (
     <div
       ref={box}
-      className={cn("relative overflow-hidden bg-[#0b1a10]", className)}
+      className={cn("hero-frame relative overflow-hidden bg-[#0b1a10]", className)}
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
       // Keyboard focus only: a mouse click leaves focus on the button, which must not hold the slideshow for good.
@@ -257,7 +268,7 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
       )}
 
       {/* Phones: film control bottom-left, photo controls bottom-right, both clear of the centred product. md+: together bottom-left, away from the WhatsApp button. */}
-      <div className="absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-2 sm:inset-x-5 sm:bottom-5 md:right-auto md:justify-start">
+      <div className="absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-2 sm:inset-x-5 sm:bottom-5 md:right-auto md:justify-start lg:bottom-8 lg:left-8">
         {film && (
           <button type="button" onClick={toggleFilm} aria-label={filmLabel} className={cn("group flex items-center rounded-full focus-visible:outline-ivory", glass, wantFilm ? "p-1" : "p-1 sm:pr-5")}>
             <span className="flex size-11 items-center justify-center rounded-full bg-ivory/15 ring-1 ring-ivory/50 transition group-hover:bg-ivory/30 sm:size-12">

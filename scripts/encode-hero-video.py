@@ -8,7 +8,7 @@ be 16:9 (the current film is 1280×720) with the product centred.
 
 Writes (nothing is uploaded):
   <out>/qalbi-naturals-hero-<version>-desktop.mp4   1280×720, ~2.5–3 MB
-  <out>/qalbi-naturals-hero-<version>-mobile.mp4    864×720 (6:5 centre crop, the phone hero frame), ~2 MB
+  <out>/qalbi-naturals-hero-<version>-mobile.mp4    576×720 (4:5 centre crop, the phone hero frame), ~1.5 MB
   public/assets/hero/qalbi-naturals-hero-<version>-poster-desktop.webp   first frame
   public/assets/hero/qalbi-naturals-hero-<version>-poster-mobile.webp    first frame, same crop
 
@@ -34,8 +34,8 @@ POSTERS = ROOT / "public" / "assets" / "hero"
 X264 = ["-an", "-c:v", "libx264", "-preset", "slow", "-profile:v", "high", "-level:v", "4.0", "-pix_fmt", "yuv420p", "-g", "48", "-movflags", "+faststart"]
 VARIANTS = {
     "desktop": {"filter": "scale=1280:-2:flags=lanczos", "crf": "22", "maxrate": "6M", "bufsize": "12M"},
-    # 6:5 matches the phone hero frame exactly, so the browser crops nothing further.
-    "mobile": {"filter": "crop=ih*6/5:ih,scale=-2:720:flags=lanczos", "crf": "23", "maxrate": "4M", "bufsize": "8M"},
+    # 4:5 matches the phone hero frame exactly, so the browser crops nothing further.
+    "mobile": {"filter": "crop=ih*4/5:ih,scale=-2:720:flags=lanczos", "crf": "23", "maxrate": "4M", "bufsize": "8M"},
 }
 
 
