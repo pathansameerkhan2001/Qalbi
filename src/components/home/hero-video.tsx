@@ -98,6 +98,10 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
   // The visitor's play / pause choice; null = autoplay rules decide.
   const [choice, setChoice] = useState<"play" | "pause" | null>(null);
   const [failed, setFailed] = useState(false);
+  // The browser refused muted autoplay (e.g. iOS Low Power Mode): the poster and Play stay up.
+  const [blocked, setBlocked] = useState(false);
+  // Frames are actually being shown (from the video's own events, not from what was asked for).
+  const [playing, setPlaying] = useState(false);
   const [shown, setShown] = useState(false);
   const [visible, setVisible] = useState(true);
   const [active, setActive] = useState(0);
@@ -113,6 +117,26 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
   const onPhotos = phase === "photos" || failed;
   const wantFilm = Boolean(film) && !onPhotos && (choice ? choice === "play" : !reduceMotion && !constrained);
   const autoAdvance = onPhotos && photos.length > 1 && !stopped && !reduceMotion;
+  // Asked to play but no frames yet: the control shows Play with a loading ring, never a premature Pause.
+  const starting = wantFilm && !playing;
+  // Why the film is (not) playing, for checking a real device in DevTools: <div data-film="…">.
+  const filmState = !film
+    ? "off"
+    : failed
+      ? "failed"
+      : onPhotos
+        ? "photos"
+        : playing
+          ? "playing"
+          : choice === "pause"
+            ? blocked
+              ? "autoplay-blocked"
+              : "paused"
+            : choice === null && reduceMotion
+              ? "reduced-motion"
+              : choice === null && constrained
+                ? "data-saver-or-slow-connection"
+                : "starting";
 
   useEffect(() => {
     const el = box.current;
@@ -134,7 +158,10 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
     playFilm(
       el,
       film,
-      () => setChoice("pause"),
+      () => {
+        setChoice("pause");
+        setBlocked(true);
+      },
       () => {
         setFailed(true);
         setMounted((n) => Math.max(n, 2));
@@ -173,7 +200,7 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
   function toggleFilm() {
     const el = video.current;
     if (!el || !film) return;
-    if (!onPhotos && wantFilm) {
+    if (!onPhotos && playing) {
       setChoice("pause");
       el.pause();
       setStatus("Video paused");
@@ -189,17 +216,27 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
     }
     setPhase("film");
     setChoice("play");
+    setBlocked(false);
     setStatus("Video playing");
     // Start inside the click as well: some browsers only allow playback during the gesture.
-    playFilm(el, film, () => setChoice("pause"), () => setFailed(true));
+    playFilm(
+      el,
+      film,
+      () => {
+        setChoice("pause");
+        setBlocked(true);
+      },
+      () => setFailed(true),
+    );
   }
 
-  const filmLabel = onPhotos ? (failed ? "Retry the QALBI Naturals hero video" : "Watch the QALBI Naturals hero video") : wantFilm ? "Pause QALBI Naturals hero video" : "Play QALBI Naturals hero video";
+  const filmLabel = onPhotos ? (failed ? "Retry the QALBI Naturals hero video" : "Watch the QALBI Naturals hero video") : playing ? "Pause QALBI Naturals hero video" : "Play QALBI Naturals hero video";
   const count = Math.min(photos.length, mounted);
 
   return (
     <div
       ref={box}
+      data-film={filmState}
       className={cn("hero-frame relative overflow-hidden bg-[#0b1a10]", className)}
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
@@ -220,11 +257,15 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
             aria-hidden
             tabIndex={-1}
             onPlaying={() => {
+              setPlaying(true);
               setShown(true);
               // The first photo comes next: fetch it while the film plays.
               setMounted((n) => Math.max(n, 1));
             }}
+            onPause={() => setPlaying(false)}
+            onEmptied={() => setPlaying(false)}
             onEnded={() => {
+              setPlaying(false);
               setPhase("photos");
               setChoice(null);
               setStopped(false);
@@ -234,6 +275,7 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
             }}
             onError={(e) => {
               if (!e.currentTarget.getAttribute("src")) return;
+              setPlaying(false);
               setFailed(true);
               setMounted((n) => Math.max(n, 2));
             }}
@@ -270,11 +312,12 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
       {/* Phones: film control bottom-left, photo controls bottom-right, both clear of the centred product. md+: together bottom-left, away from the WhatsApp button. */}
       <div className="absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-2 sm:inset-x-5 sm:bottom-5 md:right-auto md:justify-start lg:bottom-8 lg:left-8">
         {film && (
-          <button type="button" onClick={toggleFilm} aria-label={filmLabel} className={cn("group flex items-center rounded-full focus-visible:outline-ivory", glass, wantFilm ? "p-1" : "p-1 sm:pr-5")}>
-            <span className="flex size-11 items-center justify-center rounded-full bg-ivory/15 ring-1 ring-ivory/50 transition group-hover:bg-ivory/30 sm:size-12">
-              {wantFilm ? <Pause className="size-4" fill="currentColor" aria-hidden /> : <Play className="size-4 translate-x-px" fill="currentColor" aria-hidden />}
+          <button type="button" onClick={toggleFilm} aria-label={filmLabel} aria-busy={starting || undefined} className={cn("group flex items-center rounded-full focus-visible:outline-ivory", glass, playing || starting ? "p-1" : "p-1 sm:pr-5")}>
+            <span className="relative flex size-11 items-center justify-center rounded-full bg-ivory/15 ring-1 ring-ivory/50 transition group-hover:bg-ivory/30 sm:size-12">
+              {playing ? <Pause className="size-4" fill="currentColor" aria-hidden /> : <Play className="size-4 translate-x-px" fill="currentColor" aria-hidden />}
+              {starting && <span className="absolute size-11 rounded-full border-2 border-transparent border-t-ivory/80 motion-safe:animate-spin sm:size-12" aria-hidden />}
             </span>
-            {!wantFilm && <span className="ml-3 hidden text-[0.7rem] font-medium uppercase tracking-[0.2em] sm:inline">{onPhotos ? (failed ? "Retry film" : "Watch film") : "Play film"}</span>}
+            {!playing && !starting && <span className="ml-3 hidden text-[0.7rem] font-medium uppercase tracking-[0.2em] sm:inline">{onPhotos ? (failed ? "Retry film" : "Watch film") : "Play film"}</span>}
           </button>
         )}
 
