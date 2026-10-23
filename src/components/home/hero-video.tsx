@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePrefersReducedMotion, type HeroSlide } from "./hero-slider";
 
-/** Bucket URLs of the hero film; `mobile` (6:5, lighter) is optional. */
+/** Bucket URLs of the hero film; `mobile` (4:5, lighter) is optional. */
 export interface HeroFilmSources {
   desktop: string;
   mobile: string | null;
@@ -81,24 +81,24 @@ const iconButton = "flex size-11 items-center justify-center rounded-full transi
  * product photos — never both at once. Without a film the slideshow starts
  * straight away.
  *
- * The film autoplays muted where allowed and goes to the photos when it ends
- * or fails (with a button to watch / retry it). Its poster is the first paint
- * and stays up, with a play button, when autoplay is blocked or not wanted:
- * the <video> has no src until it may play, so reduced-motion, data-saver and
- * slow-connection visitors download nothing unless they press play. Film and
- * slideshow pause while off screen; the slideshow also holds on hover or
- * keyboard focus, stops for good once a visitor navigates or pauses it, and never
- * advances (or zooms) for reduced-motion visitors. Each photo is fetched only
- * when it is next, one ahead of the one on screen.
+ * The film autoplays muted and inline where the browser allows it; there is no
+ * play/pause button. "Photos" stops it and shows the photos (the WCAG 2.2.2
+ * stop mechanism), as does its end. Its poster is the first paint; when the
+ * film does not play on its own — reduced motion, data saver or a slow
+ * connection, autoplay refused by the browser, or a playback error — the
+ * poster crossfades to the photos instead. The <video> has no src until it may
+ * play, so those visitors download no video. Film and slideshow pause while
+ * off screen; the slideshow also holds on hover or keyboard focus, stops for
+ * good once a visitor navigates or pauses it, and never advances (or zooms)
+ * for reduced-motion visitors. Each photo is fetched only when it is next, one
+ * ahead of the one on screen.
  */
 export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmSources | null; poster: HeroStill; photos: HeroStill[]; className?: string }) {
   const box = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [phase, setPhase] = useState<"film" | "photos">(film ? "film" : "photos");
-  // The visitor's play / pause choice; null = autoplay rules decide.
-  const [choice, setChoice] = useState<"play" | "pause" | null>(null);
   const [failed, setFailed] = useState(false);
-  // The browser refused muted autoplay (e.g. iOS Low Power Mode): the poster and Play stay up.
+  // The browser refused muted autoplay (e.g. iOS Low Power Mode).
   const [blocked, setBlocked] = useState(false);
   // Frames are actually being shown (from the video's own events, not from what was asked for).
   const [playing, setPlaying] = useState(false);
@@ -106,37 +106,20 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
   const [visible, setVisible] = useState(true);
   const [active, setActive] = useState(0);
   const [previous, setPrevious] = useState<number | null>(null);
-  // How many photos are mounted (and so fetched); only grows.
-  const [mounted, setMounted] = useState(film ? 0 : 2);
+  // Photos mounted (and so fetched) ahead of need; only grows.
+  const [mounted, setMounted] = useState(0);
   const [stopped, setStopped] = useState(false);
   const [held, setHeld] = useState(false);
   const [status, setStatus] = useState("");
   const reduceMotion = usePrefersReducedMotion();
   const constrained = useConstrainedConnection();
 
-  const onPhotos = phase === "photos" || failed;
-  const wantFilm = Boolean(film) && !onPhotos && (choice ? choice === "play" : !reduceMotion && !constrained);
+  // Why the film will not play on its own; any reason sends the hero to the photos.
+  const fallback = failed ? "failed" : blocked ? "autoplay-blocked" : reduceMotion ? "reduced-motion" : constrained ? "data-saver-or-slow-connection" : null;
+  const onPhotos = !film || phase === "photos" || fallback !== null;
   const autoAdvance = onPhotos && photos.length > 1 && !stopped && !reduceMotion;
-  // Asked to play but no frames yet: the control shows Play with a loading ring, never a premature Pause.
-  const starting = wantFilm && !playing;
-  // Why the film is (not) playing, for checking a real device in DevTools: <div data-film="…">.
-  const filmState = !film
-    ? "off"
-    : failed
-      ? "failed"
-      : onPhotos
-        ? "photos"
-        : playing
-          ? "playing"
-          : choice === "pause"
-            ? blocked
-              ? "autoplay-blocked"
-              : "paused"
-            : choice === null && reduceMotion
-              ? "reduced-motion"
-              : choice === null && constrained
-                ? "data-saver-or-slow-connection"
-                : "starting";
+  // For checking a real device in DevTools: <div data-film="…">.
+  const filmState = !film ? "off" : (fallback ?? (phase === "photos" ? "photos" : playing ? "playing" : visible ? "starting" : "paused-off-screen"));
 
   useEffect(() => {
     const el = box.current;
@@ -150,24 +133,18 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
     const el = video.current;
     if (!el || !film) return;
     // Read the preferences directly as well: during hydration the hooks still report the server value (false).
-    const unwanted = choice === null && (window.matchMedia(REDUCED_MOTION).matches || isConstrainedConnection());
-    if (!wantFilm || !visible || unwanted) {
+    const unwanted = window.matchMedia(REDUCED_MOTION).matches || isConstrainedConnection();
+    if (onPhotos || !visible || unwanted) {
       el.pause();
       return;
     }
     playFilm(
       el,
       film,
-      () => {
-        setChoice("pause");
-        setBlocked(true);
-      },
-      () => {
-        setFailed(true);
-        setMounted((n) => Math.max(n, 2));
-      },
+      () => setBlocked(true),
+      () => setFailed(true),
     );
-  }, [film, wantFilm, visible, choice]);
+  }, [film, onPhotos, visible]);
 
   useEffect(() => {
     if (!autoAdvance || held || !visible) return;
@@ -191,47 +168,12 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
   }
 
   function toPhotos() {
-    setChoice("pause");
     setPhase("photos");
-    setMounted((n) => Math.max(n, 2));
-    setStatus("Showing QALBI product photos");
+    setStatus("Video stopped. Showing QALBI product photos");
   }
 
-  function toggleFilm() {
-    const el = video.current;
-    if (!el || !film) return;
-    if (!onPhotos && playing) {
-      setChoice("pause");
-      el.pause();
-      setStatus("Video paused");
-      return;
-    }
-    if (failed) {
-      // Retry: drop the failed source so playFilm loads it afresh.
-      el.removeAttribute("src");
-      el.load();
-      setFailed(false);
-    } else if (onPhotos || el.ended) {
-      el.currentTime = 0;
-    }
-    setPhase("film");
-    setChoice("play");
-    setBlocked(false);
-    setStatus("Video playing");
-    // Start inside the click as well: some browsers only allow playback during the gesture.
-    playFilm(
-      el,
-      film,
-      () => {
-        setChoice("pause");
-        setBlocked(true);
-      },
-      () => setFailed(true),
-    );
-  }
-
-  const filmLabel = onPhotos ? (failed ? "Retry the QALBI Naturals hero video" : "Watch the QALBI Naturals hero video") : playing ? "Pause QALBI Naturals hero video" : "Play QALBI Naturals hero video";
-  const count = Math.min(photos.length, mounted);
+  // On the photos: the one on screen and the next. While the film plays: the first.
+  const count = Math.min(photos.length, Math.max(mounted, onPhotos ? active + 2 : 0));
 
   return (
     <div
@@ -267,17 +209,13 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
             onEnded={() => {
               setPlaying(false);
               setPhase("photos");
-              setChoice(null);
-              setStopped(false);
               setPrevious(null);
               setActive(0);
-              setMounted((n) => Math.max(n, 2));
             }}
             onError={(e) => {
               if (!e.currentTarget.getAttribute("src")) return;
               setPlaying(false);
               setFailed(true);
-              setMounted((n) => Math.max(n, 2));
             }}
             className={cn("absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out", shown && !failed ? "opacity-100" : "opacity-0")}
           />
@@ -309,20 +247,10 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
         </div>
       )}
 
-      {/* Phones: film control bottom-left, photo controls bottom-right, both clear of the centred product. md+: together bottom-left, away from the WhatsApp button. */}
-      <div className="absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-2 sm:inset-x-5 sm:bottom-5 md:right-auto md:justify-start lg:bottom-8 lg:left-8">
-        {film && (
-          <button type="button" onClick={toggleFilm} aria-label={filmLabel} aria-busy={starting || undefined} className={cn("group flex items-center rounded-full focus-visible:outline-ivory", glass, playing || starting ? "p-1" : "p-1 sm:pr-5")}>
-            <span className="relative flex size-11 items-center justify-center rounded-full bg-ivory/15 ring-1 ring-ivory/50 transition group-hover:bg-ivory/30 sm:size-12">
-              {playing ? <Pause className="size-4" fill="currentColor" aria-hidden /> : <Play className="size-4 translate-x-px" fill="currentColor" aria-hidden />}
-              {starting && <span className="absolute size-11 rounded-full border-2 border-transparent border-t-ivory/80 motion-safe:animate-spin sm:size-12" aria-hidden />}
-            </span>
-            {!playing && !starting && <span className="ml-3 hidden text-[0.7rem] font-medium uppercase tracking-[0.2em] sm:inline">{onPhotos ? (failed ? "Retry film" : "Watch film") : "Play film"}</span>}
-          </button>
-        )}
-
+      {/* Bottom-left, clear of the centred product and of the WhatsApp button. */}
+      <div className="absolute bottom-3 left-3 z-10 flex items-end gap-2 sm:bottom-5 sm:left-5 lg:bottom-8 lg:left-8">
         {film && !onPhotos && photos.length > 0 && (
-          <button type="button" onClick={toPhotos} aria-label="Show QALBI product photos" className={cn("flex items-center gap-1 rounded-full py-1 pl-4 pr-2 text-[0.7rem] font-medium uppercase tracking-[0.2em] focus-visible:outline-ivory", glass)}>
+          <button type="button" onClick={toPhotos} aria-label="Stop the video and show QALBI product photos" className={cn("flex items-center gap-1 rounded-full py-1 pl-4 pr-2 text-[0.7rem] font-medium uppercase tracking-[0.2em] focus-visible:outline-ivory", glass)}>
             <span className="hidden sm:inline">Photos</span>
             <span className="flex size-9 items-center justify-center sm:size-8">
               <ChevronRight className="size-4" aria-hidden />
@@ -341,7 +269,7 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
             <button type="button" onClick={() => showPhoto((active + 1) % photos.length)} aria-label="Next photo" className={iconButton}>
               <ChevronRight className="size-4" aria-hidden />
             </button>
-            {/* Pause only (WCAG 2.2.2): once stopped, the photos stay put and the film button is the one play control. */}
+            {/* Pause only (WCAG 2.2.2): once stopped, the photos stay put. */}
             {autoAdvance && (
               <button
                 type="button"
