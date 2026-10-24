@@ -83,7 +83,8 @@ export const images = {
   ],
   about: photo("about/about-forest.webp", "QALBI Radiance Glow Cream on a mossy log among wildflowers", 832, 624),
   ingredients: photo("ingredients/ingredients-hero-saffron.webp", "QALBI Skin Lightening Cream resting on a bed of saffron threads", 704, 600),
-  customised: photo("miscellaneous/customised-skincare-studio.webp", "QALBI Skin Lightening Cream on silk with roses by a sunlit window", 704, 850),
+  /** Customised skincare section (home + /customised-skincare): owner-supplied consultation scene, 4:3. The earlier jar photo (miscellaneous/customised-skincare-studio.webp) is kept in the repo. */
+  customised: photo("miscellaneous/customised-skincare-consultation.webp", "A QALBI skincare consultant in a cream hijab shows a customer a personalised routine on a tablet, with a QALBI cream jar on a gold tray", 1448, 1086),
   categories: {
     serums: photo("categories/serums-studio.webp", "QALBI Multipurpose Booster Serum on a wooden pedestal", 554, 554),
     faceCreams: photo("categories/face-creams-studio.webp", "QALBI Skin Lightening Cream jar", 600, 600),
