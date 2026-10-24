@@ -1,4 +1,4 @@
-import type { InstagramReel, JournalArticle, Review } from "@/types/content";
+import type { InstagramReel, JournalArticle } from "@/types/content";
 
 /**
  * Manually curated Instagram Reels from https://www.instagram.com/qalbinaturals/
@@ -24,11 +24,7 @@ export const manualReels: InstagramReel[] = [];
  */
 export const journalArticles: JournalArticle[] = [];
 
-/**
- * Genuine customer feedback only — with the customer's permission. Never add
- * invented names, quotes or ratings. `verifiedPurchase` must reflect store data.
- */
-export const reviews: Review[] = [];
+// Customer feedback lives in src/data/reviews.ts (approval status per review).
 
 /**
  * About page copy, taken from the approved reference design.

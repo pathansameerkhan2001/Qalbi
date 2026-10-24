@@ -161,3 +161,24 @@ test("the add-suggested-categories SQL matches the suggestion list and only inse
   assert.match(code, /\bfalse\s*\nfrom proposed/);
   assert.doesNotMatch(code, /\b(update|delete|drop|truncate)\b/i);
 });
+
+test("customer reviews: only approved wording is published; drafts carry no rating or verified badge", async () => {
+  const { reviews, publishedReviews } = await import("../src/data/reviews.ts");
+  const ids = new Set<string>();
+  for (const r of reviews) {
+    assert.equal(ids.has(r.id), false, `duplicate ${r.id}`);
+    ids.add(r.id);
+    assert.ok(["pending-approval", "approved"].includes(r.status), `${r.id}: unknown status`);
+    assert.ok(r.name.trim() && r.quote.trim(), `${r.id}: name and quote are required`);
+    if (r.rating !== null) assert.ok(Number.isInteger(r.rating) && r.rating >= 1 && r.rating <= 5, `${r.id}: rating must be 1–5`);
+    if (r.status !== "approved") {
+      assert.equal(r.rating, null, `${r.id}: a draft must not carry a rating`);
+      assert.equal(r.verifiedPurchase, false, `${r.id}: a draft must not be marked verified`);
+    }
+  }
+  assert.deepEqual(
+    publishedReviews.map((r) => r.id),
+    reviews.filter((r) => r.status === "approved").map((r) => r.id),
+  );
+  assert.ok(publishedReviews.every((r) => r.status === "approved"));
+});

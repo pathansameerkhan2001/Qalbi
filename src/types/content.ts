@@ -95,7 +95,13 @@ export interface Review {
   id: string;
   name: string;
   quote: string;
-  rating: number;
+  /**
+   * "approved" only once the customer has confirmed this exact wording and its
+   * publication. Anything else is never shown on the website.
+   */
+  status: "pending-approval" | "approved";
+  /** 1–5, only when the customer actually gave it; null shows no stars. */
+  rating: number | null;
   /** Only set when the purchase was genuinely verified by the store. */
   verifiedPurchase: boolean;
   productHandle: string | null;
