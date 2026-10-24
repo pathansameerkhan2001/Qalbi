@@ -2,6 +2,7 @@ import Image from "next/image";
 import { images } from "@/data/images";
 import { Container } from "@/components/ui/container";
 import { CustomEnquiryForm } from "@/components/forms/custom-enquiry-form";
+import { enquiriesOnline } from "@/lib/server/record-enquiry";
 
 export function CustomSkincareSection({ as: Heading = "h2" }: { as?: "h1" | "h2" }) {
   return (
@@ -24,7 +25,7 @@ export function CustomSkincareSection({ as: Heading = "h2" }: { as?: "h1" | "h2"
             </div>
           </div>
           <div className="border-t border-line bg-ivory p-5 sm:p-8 lg:border-l lg:border-t-0 lg:p-10">
-            <CustomEnquiryForm idPrefix={Heading === "h1" ? "custom-page" : "custom-home"} />
+            <CustomEnquiryForm idPrefix={Heading === "h1" ? "custom-page" : "custom-home"} online={enquiriesOnline()} />
           </div>
         </div>
       </Container>

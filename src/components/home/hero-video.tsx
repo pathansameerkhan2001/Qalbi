@@ -34,9 +34,10 @@ function useConstrainedConnection() {
   return useSyncExternalStore(() => () => {}, isConstrainedConnection, () => false);
 }
 
-/** Starts the film, choosing its file on first use: exactly one per page view (mobile on phones when available), so resizing never fetches the other. */
-function playFilm(el: HTMLVideoElement, film: HeroFilmSources, onBlocked: () => void, onFailed: () => void) {
-  if (!el.getAttribute("src")) el.src = film.mobile && window.matchMedia(PHONE).matches ? film.mobile : film.desktop;
+/** Longest the poster waits for the film to buffer before the hero moves on to the photos. */
+const BUFFER_TIMEOUT_MS = 15_000;
+
+function playFilm(el: HTMLVideoElement, onBlocked: () => void, onFailed: () => void) {
   // React does not reflect `muted` reliably; autoplay policies require it.
   el.muted = true;
   el.play().catch((error: DOMException) => {
@@ -44,6 +45,46 @@ function playFilm(el: HTMLVideoElement, film: HeroFilmSources, onBlocked: () => 
     // AbortError: a pause() or new src interrupted this play() — not a failure.
     else if (error.name !== "AbortError") onFailed();
   });
+}
+
+/**
+ * Loads the film — choosing its file on first use, exactly one per page view
+ * (mobile on phones when available), so resizing never fetches the other — and
+ * calls `onReady` once enough is buffered to reach the end without stalling at
+ * the measured download rate (or it is fully buffered). The films are about
+ * 12 Mbit/s: started at their first frame they stalled and dropped frames on
+ * any slower connection (measured in Chrome), which read as stutter. Calls
+ * `onTooSlow` instead after BUFFER_TIMEOUT_MS. Returns a cleanup.
+ */
+function bufferFilm(el: HTMLVideoElement, film: HeroFilmSources, loadStart: { current: number }, onReady: () => void, onTooSlow: () => void): () => void {
+  if (!el.getAttribute("src")) {
+    el.src = film.mobile && window.matchMedia(PHONE).matches ? film.mobile : film.desktop;
+    el.preload = "auto";
+    el.load();
+    loadStart.current = performance.now();
+  }
+  const enough = () => {
+    const duration = el.duration;
+    if (!Number.isFinite(duration) || duration <= 0 || el.buffered.length === 0 || el.buffered.start(0) > 0.1) return false;
+    const buffered = el.buffered.end(0);
+    // Seconds of film arriving per second; at or above 1 the download outpaces playback.
+    const rate = buffered / Math.max(0.001, (performance.now() - loadStart.current) / 1000);
+    return buffered >= duration - 0.1 || (el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA && buffered >= duration * (1 - Math.min(rate, 1)) + 1);
+  };
+  if (enough()) {
+    onReady();
+    return () => {};
+  }
+  const id = window.setInterval(() => {
+    if (enough()) {
+      window.clearInterval(id);
+      onReady();
+    } else if (performance.now() - loadStart.current > BUFFER_TIMEOUT_MS) {
+      window.clearInterval(id);
+      onTooSlow();
+    }
+  }, 200);
+  return () => window.clearInterval(id);
 }
 
 function Still({ still, priority = false, imgClassName }: { still: HeroStill; priority?: boolean; imgClassName?: string }) {
@@ -83,10 +124,11 @@ const iconButton = "flex size-11 items-center justify-center rounded-full transi
  *
  * The film autoplays muted and inline where the browser allows it; there is no
  * play/pause button. "Photos" stops it and shows the photos (the WCAG 2.2.2
- * stop mechanism), as does its end. Its poster is the first paint; when the
- * film does not play on its own — reduced motion, data saver or a slow
- * connection, autoplay refused by the browser, or a playback error — the
- * poster crossfades to the photos instead. The <video> has no src until it may
+ * stop mechanism), as does its end. Its poster is the first paint and stays
+ * up while the film buffers enough to play through without stalling
+ * (bufferFilm). When the film does not play on its own — reduced motion, data
+ * saver or a slow connection, too slow to buffer, autoplay refused by the
+ * browser, or a playback error — the poster crossfades to the photos instead. The <video> has no src until it may
  * play, so those visitors download no video. Film and slideshow pause while
  * off screen; the slideshow also holds on hover or keyboard focus, stops for
  * good once a visitor navigates or pauses it, and never advances (or zooms)
@@ -100,6 +142,11 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
   const [failed, setFailed] = useState(false);
   // The browser refused muted autoplay (e.g. iOS Low Power Mode).
   const [blocked, setBlocked] = useState(false);
+  // The film could not buffer enough within BUFFER_TIMEOUT_MS: the photos are shown instead.
+  const [tooSlow, setTooSlow] = useState(false);
+  // Enough of the film is buffered to play through; and when its download began.
+  const ready = useRef(false);
+  const loadStart = useRef(0);
   // Frames are actually being shown (from the video's own events, not from what was asked for).
   const [playing, setPlaying] = useState(false);
   const [shown, setShown] = useState(false);
@@ -115,11 +162,11 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
   const constrained = useConstrainedConnection();
 
   // Why the film will not play on its own; any reason sends the hero to the photos.
-  const fallback = failed ? "failed" : blocked ? "autoplay-blocked" : reduceMotion ? "reduced-motion" : constrained ? "data-saver-or-slow-connection" : null;
+  const fallback = failed ? "failed" : blocked ? "autoplay-blocked" : tooSlow ? "too-slow-to-buffer" : reduceMotion ? "reduced-motion" : constrained ? "data-saver-or-slow-connection" : null;
   const onPhotos = !film || phase === "photos" || fallback !== null;
   const autoAdvance = onPhotos && photos.length > 1 && !stopped && !reduceMotion;
   // For checking a real device in DevTools: <div data-film="…">.
-  const filmState = !film ? "off" : (fallback ?? (phase === "photos" ? "photos" : playing ? "playing" : visible ? "starting" : "paused-off-screen"));
+  const filmState = !film ? "off" : (fallback ?? (phase === "photos" ? "photos" : playing ? "playing" : !visible ? "paused-off-screen" : shown ? "starting" : "buffering"));
 
   useEffect(() => {
     const el = box.current;
@@ -138,11 +185,25 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
       el.pause();
       return;
     }
-    playFilm(
+    const play = () => playFilm(el, () => setBlocked(true), () => setFailed(true));
+    if (ready.current) {
+      play();
+      return;
+    }
+    return bufferFilm(
       el,
       film,
-      () => setBlocked(true),
-      () => setFailed(true),
+      loadStart,
+      () => {
+        ready.current = true;
+        play();
+      },
+      () => {
+        // Stop the download as well: the photos take over.
+        el.removeAttribute("src");
+        el.load();
+        setTooSlow(true);
+      },
     );
   }, [film, onPhotos, visible]);
 

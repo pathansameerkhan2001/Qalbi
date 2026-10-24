@@ -1,5 +1,15 @@
 import "server-only";
 import { clientKey, createServerWriteClient, isServerWriteConfigured } from "@/lib/supabase/server";
+import { deliveryStatus } from "@/lib/server/delivery";
+
+/**
+ * True when POST /api/enquiries can genuinely receive an enquiry: it is
+ * stored in Supabase (server key) or delivered by email / webhook. Otherwise
+ * the enquiry form hands the visitor over to email, WhatsApp or a call.
+ */
+export function enquiriesOnline(): boolean {
+  return isServerWriteConfigured() || deliveryStatus.enquiries;
+}
 
 /**
  * Stores a copy of a validated form submission via record_enquiry_checked()

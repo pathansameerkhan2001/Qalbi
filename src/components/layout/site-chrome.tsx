@@ -1,6 +1,7 @@
 import { AnnouncementBar } from "./announcement-bar";
 import { Header } from "./header";
 import { Footer } from "./footer";
+import { DeveloperCredit } from "./developer-credit";
 import { WhatsAppButton } from "./whatsapp-button";
 import { FloatingBotanicals } from "./floating-botanicals";
 import { AnalyticsConsent } from "./analytics-consent";
@@ -18,6 +19,7 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
       <main id="main" className="flex-1">
         {children}
       </main>
+      <DeveloperCredit />
       <Footer />
       <FloatingBotanicals />
       <WhatsAppButton />

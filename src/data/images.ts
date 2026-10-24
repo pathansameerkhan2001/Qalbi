@@ -35,11 +35,14 @@ export const images = {
    * ON, temporarily, by the owner's explicit decision (2026-10-23): the
    * current file (1280×720, 14.8 MB) misprints the label as "MULTIPURPOSE
    * ROOSTER SERUM" and should be replaced by a corrected film. Its poster is
-   * its own first frame. The hero opens on the film (autoplaying where allowed,
-   * otherwise its poster and a play button) and moves on to the product photo
-   * slideshow (`images.hero`, then `images.heroShowcase`) when it ends or fails.
-   * While `approved` is false or Supabase isn't configured, the slideshow
-   * starts straight away.
+   * its own first frame. Phones (< 640 px) get the owner's portrait cut,
+   * hero/Mobile_Version.mp4 (720×1280, 14.6 MB, added 2026-10-24; its label
+   * also reads garbled, "MULTIMURIGSE BOOTER SEEAM"), with its own first frame
+   * as the poster. The hero opens on the film (autoplaying where allowed) and
+   * moves on to the product photo slideshow (`images.hero`, then
+   * `images.heroShowcase`) when it ends, or straight from the poster when it
+   * can't play. While `approved` is false or Supabase isn't configured, the
+   * slideshow starts straight away.
    *
    * To replace it: run scripts/encode-hero-video.py on the corrected film with
    * a new --version, upload both MP4s under those new names with Cache-Control
@@ -50,10 +53,10 @@ export const images = {
   heroFilm: {
     approved: true,
     desktop: "hero/qalbi-naturals-hero.mp4",
-    mobile: null as string | null,
+    mobile: "hero/Mobile_Version.mp4" as string | null,
     poster: {
       desktop: photo("hero/hero-video-poster.webp", "QALBI Multipurpose Booster Serum under a soft spotlight on deep green", 1280, 720),
-      mobile: null as ImageAsset | null,
+      mobile: photo("hero/mobile-version-poster.webp", "QALBI Multipurpose Booster Serum on a stone pedestal among green leaves", 720, 1280) as ImageAsset | null,
     },
   },
   /**

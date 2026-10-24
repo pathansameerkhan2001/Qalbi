@@ -26,14 +26,15 @@ export function Field({ id, label, error, hint, optional, className, children }:
   );
 }
 
-export function FormStatus({ status }: { status: { ok: boolean; message: string } | null }) {
+/** `info`: a neutral next step (e.g. "press Send in WhatsApp"), neither a success nor an error. */
+export function FormStatus({ status }: { status: { ok: boolean; message: string; info?: boolean } | null }) {
   if (!status) return null;
   return (
     <div
-      role={status.ok ? "status" : "alert"}
+      role={status.ok || status.info ? "status" : "alert"}
       className={cn(
         "rounded-[3px] border px-4 py-3 text-sm",
-        status.ok ? "border-botanical/30 bg-botanical/10 text-forest" : "border-danger/30 bg-danger/5 text-danger",
+        status.info ? "border-gold-soft/50 bg-sand text-ink" : status.ok ? "border-botanical/30 bg-botanical/10 text-forest" : "border-danger/30 bg-danger/5 text-danger",
       )}
     >
       {status.message}
