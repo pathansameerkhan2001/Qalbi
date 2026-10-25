@@ -73,6 +73,8 @@ Then set `COMMERCE_SOURCE=supabase` to sell the products managed in `/admin` (ig
 
 **WhatsApp after an on-site order:** after an order, the confirmation page offers *Confirm Order on WhatsApp*, which opens WhatsApp with the order number, items, total and product image links pre-filled for the customer to send. Automatic business-sent WhatsApp messages would need the WhatsApp Business Platform (not configured).
 
+**Homepage hero (`/admin/hero`):** one rule (`src/lib/content/hero.ts`) for the homepage and the admin preview: the film first (over its poster while it loads), then the shown slides in their saved order; the built-in product photos only while no slide is shown. The Hero film form switches the film off or replaces the desktop video, mobile video and their posters (store setting `hero`, no migration needed); each video path is checked in the bucket before it is saved. Videos are uploaded with `scripts/upload-hero-videos.mjs` (encode first with `scripts/encode-hero-video.py`), never through the admin.
+
 **Ingredients (homepage carousel and /ingredients):** run `supabase/migrations/20261021000000_ingredients.sql` once in Supabase → SQL Editor (after the two earlier migrations). Then manage ingredients in `/admin/ingredients` — photos upload to `uploads/ingredients/` in the media bucket. Until one ingredient is published, the website shows the built-in confirmed list in `src/data/ingredients.ts` (Aloe Vera, Turmeric and Neem have no real photograph yet and show a line icon). Local test: `supabase/tests/ingredients_test.sql`.
 
 **Tests:** `npm test` (checkout validation, WhatsApp message, content rules, product rules and storefront mapping, breadcrumb structured data). Database tests: `supabase/tests/*_test.sql` (see above).

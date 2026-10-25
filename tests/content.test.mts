@@ -4,6 +4,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { planHero, type HeroFilmSettings } from "../src/lib/content/hero.ts";
 import { fromIstInput, isMediaPath, isSafeSiteLink, isSlug, normalizeReelUrl, parseBlogBody, readingMinutes, slugify, toIstInput, truncate } from "../src/lib/content/rules.ts";
 
 test("media paths: storage paths only", () => {
@@ -181,4 +182,65 @@ test("customer reviews: only approved wording is published; drafts carry no rati
     reviews.filter((r) => r.status === "approved").map((r) => r.id),
   );
   assert.ok(publishedReviews.every((r) => r.status === "approved"));
+});
+
+// ---------------------------------------------------------------------------
+// Homepage hero order (src/lib/content/hero.ts)
+// ---------------------------------------------------------------------------
+
+const img = (src: string, width = 1600, height = 860) => ({ src, alt: src, width, height });
+const heroDefaults = {
+  film: { enabled: true, desktop: "hero/film.mp4", mobile: "hero/film-mobile.mp4", poster: { desktop: img("/assets/hero/poster.webp"), mobile: img("/assets/hero/poster-m.webp") } },
+  slides: [{ key: "built-in-1", desktop: img("/assets/hero/a.webp"), mobile: img("/assets/hero/a-m.webp"), alt: "a", content: null }],
+};
+const videoUrl = (path: string) => `https://cdn.example/${path}`;
+const slide = (id: string, over: Partial<{ heading: string | null }> = {}) => ({
+  id,
+  heading: null,
+  subtitle: null,
+  buttonLabel: null,
+  buttonHref: null,
+  desktopImagePath: `uploads/hero/${id}-d.webp`,
+  mobileImagePath: `uploads/hero/${id}-m.webp`,
+  alt: `slide ${id}`,
+  ...over,
+});
+const filmSettings = (over: Partial<HeroFilmSettings> = {}): HeroFilmSettings => ({ filmEnabled: true, desktopVideoPath: null, mobileVideoPath: null, posterDesktopPath: null, posterMobilePath: null, ...over });
+
+test("hero: without admin slides, the film then the built-in photos", () => {
+  const plan = planHero({ slides: [], settings: null, defaults: heroDefaults, videoUrl });
+  assert.equal(plan.film?.desktop, "https://cdn.example/hero/film.mp4");
+  assert.equal(plan.film?.mobile, "https://cdn.example/hero/film-mobile.mp4");
+  assert.equal(plan.posterSource, "built-in");
+  assert.equal(plan.poster.mobile.src, "/assets/hero/poster-m.webp");
+  assert.equal(plan.slidesSource, "built-in");
+  assert.deepEqual(plan.slides.map((s) => s.key), ["built-in-1"]);
+});
+
+test("hero: active admin slides replace the built-in photos, in the given order, after the film", () => {
+  const plan = planHero({ slides: [slide("b"), slide("a", { heading: "Hello" })], settings: null, defaults: heroDefaults, videoUrl });
+  assert.ok(plan.film, "image slides never switch the film off");
+  assert.equal(plan.slidesSource, "admin");
+  assert.deepEqual(plan.slides.map((s) => s.key), ["b", "a"]);
+  assert.equal(plan.slides[0].content, null);
+  assert.equal(plan.slides[1].content?.heading, "Hello");
+  assert.ok(plan.slides.every((s) => !s.key.startsWith("built-in")), "never mixed with built-in photos");
+  assert.equal(plan.poster.desktop.src, "/assets/hero/poster.webp", "a slide is not used as the poster");
+});
+
+test("hero: the film setting switches it off, or replaces each file and poster on its own", () => {
+  assert.equal(planHero({ slides: [], settings: filmSettings({ filmEnabled: false }), defaults: heroDefaults, videoUrl }).film, null);
+  const plan = planHero({ slides: [], settings: filmSettings({ desktopVideoPath: "hero/v2-desktop.mp4", posterMobilePath: "uploads/hero/p.webp" }), defaults: heroDefaults, videoUrl });
+  assert.equal(plan.film?.desktop, "https://cdn.example/hero/v2-desktop.mp4");
+  assert.equal(plan.film?.mobile, "https://cdn.example/hero/film-mobile.mp4");
+  assert.equal(plan.posterSource, "admin");
+  assert.equal(plan.poster.desktop.src, "/assets/hero/poster.webp");
+  assert.match(plan.poster.mobile.src, /uploads\/hero\/p\.webp$/);
+});
+
+test("hero: no film while it is unapproved or storage is not configured", () => {
+  assert.equal(planHero({ slides: [], settings: null, defaults: { ...heroDefaults, film: { ...heroDefaults.film, enabled: false } }, videoUrl }).film, null);
+  const plan = planHero({ slides: [slide("a")], settings: null, defaults: heroDefaults, videoUrl: () => null });
+  assert.equal(plan.film, null);
+  assert.deepEqual(plan.slides.map((s) => s.key), ["a"]);
 });

@@ -39,16 +39,19 @@ export const images = {
    * hero/Mobile_Version.mp4 (720×1280, 14.6 MB, added 2026-10-24; its label
    * also reads garbled, "MULTIMURIGSE BOOTER SEEAM"), with its own first frame
    * as the poster. The hero opens on the film (autoplaying where allowed) and
-   * moves on to the product photo slideshow (`images.hero`, then
-   * `images.heroShowcase`) when it ends, or straight from the poster when it
-   * can't play. While `approved` is false or Supabase isn't configured, the
-   * slideshow starts straight away.
+   * moves on to the slideshow when it ends, or straight from the poster when it
+   * can't play (order rule: src/lib/content/hero.ts). While `approved` is false
+   * or Supabase isn't configured, the slideshow starts straight away.
+   *
+   * These are defaults: /admin/hero → Hero film (store setting `hero`) can
+   * switch the film off and replace each video path and poster without a deploy.
    *
    * To replace it: run scripts/encode-hero-video.py on the corrected film with
-   * a new --version, upload both MP4s under those new names with Cache-Control
-   * max-age=31536000 (never overwrite a published name: browsers and the CDN
-   * keep it for a year), point the paths and posters here at them and set
-   * `approved: true`. `mobile` is optional (phones then get `desktop`).
+   * a new --version (and --mobile-source for a portrait cut), upload both MP4s
+   * with scripts/upload-hero-videos.mjs under those new names (Cache-Control
+   * max-age=31536000; never overwrite a published name: browsers and the CDN
+   * keep it for a year), then paste the paths in /admin/hero (or point the
+   * paths and posters here at them). `mobile` is optional (phones then get `desktop`).
    */
   heroFilm: {
     approved: true,
@@ -60,7 +63,8 @@ export const images = {
     },
   },
   /**
-   * Hero slideshow after the lineup photo: one product per square frame from
+   * Built-in hero slideshow (only while no /admin/hero slide is shown), after
+   * the lineup photo: one product per square frame from
    * QALBI's own photographs at 1200 px, enough for the widest desktop frame
    * (scripts/process-images.py hero_showcase), with the object-position that
    * keeps the whole product in any frame from 3:5 to 8:5.
@@ -70,7 +74,7 @@ export const images = {
     { image: photo("hero/showcase-moisturizer.webp", "QALBI Moisturizer with saffron, rose petals and herbs on a wooden table", 1200, 1200), position: "70% 55%" },
     { image: photo("hero/showcase-anti-aging.webp", "QALBI Anti-Aging cream jar on marble", 1200, 1200), position: "50% 30%" },
   ],
-  /** Additional hero slides: editorial triptychs on desktop, single portraits on phones. */
+  /** Editorial triptychs on desktop, single portraits on phones. Not shown anywhere at present; kept for reuse. */
   heroSlides: [
     {
       desktop: photo("hero/slide-2-desktop.webp", "QALBI Radiance Glow Cream and Facial Cleanser in studio settings, and the Moisturizer with saffron and rose petals", 1600, 860),

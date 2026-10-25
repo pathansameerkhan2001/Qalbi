@@ -2,7 +2,7 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { z } from "zod";
 import { brandConfig } from "@/data/brand";
-import { isSafeSiteLink } from "@/lib/content/rules";
+import { isMediaPath, isSafeSiteLink } from "@/lib/content/rules";
 import { homepageSectionIds } from "@/lib/content/homepage";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicClient } from "@/lib/supabase/server";
@@ -47,6 +47,26 @@ export const homepageSectionsSchema = z.object({
   sections: z.array(z.object({ id: z.enum(homepageSectionIds), visible: z.boolean() })).max(homepageSectionIds.length).default([]),
 });
 
+/** Bucket path of a hero video (MP4 or WebM). */
+const videoPath = z
+  .string()
+  .trim()
+  .refine((v) => isMediaPath(v) && /\.(mp4|webm)$/.test(v), "video paths look like hero/qalbi-naturals-hero-v2-desktop.mp4");
+const imagePath = z.string().trim().refine(isMediaPath, "image paths look like uploads/hero/poster.webp");
+
+/**
+ * Homepage hero film (/admin/hero → Hero film). Empty paths use the built-in
+ * files in src/data/images.ts (heroFilm); without this setting the film is on
+ * exactly when heroFilm.approved is. Visitors may read the 'hero' key (store_settings policy).
+ */
+export const heroSettingsSchema = z.object({
+  filmEnabled: z.boolean().default(true),
+  desktopVideoPath: videoPath.nullable().default(null),
+  mobileVideoPath: videoPath.nullable().default(null),
+  posterDesktopPath: imagePath.nullable().default(null),
+  posterMobilePath: imagePath.nullable().default(null),
+});
+
 export const trustBadgeSettingsSchema = z.record(z.string(), z.boolean());
 
 export const featuredSettingsSchema = z.object({ collectionHandle: z.string().max(80).default("bestsellers") });
@@ -62,6 +82,7 @@ export const settingSchemas = {
   brand_claims: brandClaimsSchema,
   offer_bar: offerBarSchema,
   homepage_sections: homepageSectionsSchema,
+  hero: heroSettingsSchema,
 } as const;
 
 export type SettingKey = keyof typeof settingSchemas;

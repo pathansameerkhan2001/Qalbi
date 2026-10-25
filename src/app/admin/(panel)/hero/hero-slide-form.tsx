@@ -81,7 +81,9 @@ export function HeroSlideForm({ initial, onAddAnother }: { initial: HeroSlideVal
           </div>
         </div>
         <div>
-          <label htmlFor={fid("alt")} className="label">Image description (alt text)</label>
+          <label htmlFor={fid("alt")} className="label">
+            Image description <span className="font-normal text-muted">(alt text; also the slide&apos;s name in the list)</span>
+          </label>
           <input id={fid("alt")} name="alt_text" value={values.alt} onChange={set("alt")} required maxLength={200} placeholder="What the photograph shows" className="field" />
           {err("alt_text")}
         </div>

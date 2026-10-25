@@ -84,6 +84,42 @@ export async function deleteHeroSlideAction(_: ActionState, formData: FormData):
   return { ok: true, message: "Slide deleted. Its images stay in the Media library." };
 }
 
+/** Shows or hides a slide without opening its editor. */
+export async function setHeroSlideActiveAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const parsed = z.object({ id: z.uuid(), active: z.enum(["true", "false"]) }).safeParse({ id: formData.get("id"), active: formData.get("active") });
+  if (!parsed.success) return { ok: false, message: "Unknown slide." };
+  const active = parsed.data.active === "true";
+  const db = await createSessionClient();
+  const { data, error } = await db.from("hero_slides").update({ is_active: active }).eq("id", parsed.data.id).select("is_active");
+  if (error) return dbError("hero slide", error);
+  if (!data?.length) return noRows("slide");
+  refreshStore("/admin/hero", "/");
+  return { ok: true, message: active ? "Slide shown on the homepage." : "Slide hidden from the homepage." };
+}
+
+/** Swaps a slide with its neighbour and renumbers the order 10, 20, 30… (ties keep their creation order, as on the homepage). */
+export async function moveHeroSlideAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const parsed = z.object({ id: z.uuid(), direction: z.enum(["up", "down"]) }).safeParse({ id: formData.get("id"), direction: formData.get("direction") });
+  if (!parsed.success) return { ok: false, message: "Unknown slide." };
+  const db = await createSessionClient();
+  const { data, error } = await db.from("hero_slides").select("id, sort_order").order("sort_order").order("created_at");
+  if (error) return dbError("hero slide", error);
+  const list = data ?? [];
+  const from = list.findIndex((s) => s.id === parsed.data.id);
+  const to = from + (parsed.data.direction === "up" ? -1 : 1);
+  if (from < 0) return { ok: false, message: "Slide not found. Reload the page." };
+  if (to < 0 || to >= list.length) return { ok: true, message: "" };
+  [list[from], list[to]] = [list[to], list[from]];
+  const changes = list.map((s, i) => ({ id: s.id as string, sort: (i + 1) * 10, before: s.sort_order as number })).filter((s) => s.sort !== s.before);
+  const results = await Promise.all(changes.map((s) => db.from("hero_slides").update({ sort_order: s.sort }).eq("id", s.id).select("id")));
+  const failed = results.find((r) => r.error || !r.data?.length);
+  if (failed) return failed.error ? dbError("hero slide", failed.error) : noRows("slide order");
+  refreshStore("/admin/hero", "/");
+  return { ok: true, message: "" };
+}
+
 // ---------------------------------------------------------------------------
 // Ingredients (homepage carousel and /ingredients)
 // ---------------------------------------------------------------------------

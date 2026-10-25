@@ -7,7 +7,7 @@ import { createPublicClient, createSessionClient } from "@/lib/supabase/server";
 import { getCommerceSource } from "@/lib/shopify";
 import { isSupabaseConfigured, supabaseConfig } from "@/lib/supabase/config";
 import { STORE_TAG } from "@/lib/store/catalog";
-import { settingSchemas, type SettingKey } from "@/lib/store/settings";
+import { settingSchemas, type SettingKey, type SettingValue } from "@/lib/store/settings";
 import { homepageSectionIds } from "@/lib/content/homepage";
 import { approvedRename, matchSuggestion, missingSuggestions, suggestedCategories } from "@/data/category-suggestions";
 import { isShopifyConfigured } from "@/lib/shopify/config";
@@ -17,6 +17,7 @@ import { requireAdmin } from "./auth";
 import { orderStatuses, paymentStatuses } from "./data";
 import { checkbox, dbError, invalid, refreshStore, type ActionState } from "./action-helpers";
 import { storeImage } from "./media";
+import { probeVideo } from "./hero-media";
 import { imagePath, productSchema, publishBlockers } from "./product-rules";
 import { codBlockers, getCheckoutReadiness, verifyQrImage } from "./checkout-readiness";
 
@@ -567,6 +568,14 @@ function settingFromForm(key: SettingKey, f: FormData): unknown {
           .sort((a, b) => a.order - b.order)
           .map(({ id, visible }) => ({ id, visible })),
       };
+    case "hero":
+      return {
+        filmEnabled: on("filmEnabled"),
+        desktopVideoPath: s("desktopVideoPath") || null,
+        mobileVideoPath: s("mobileVideoPath") || null,
+        posterDesktopPath: s("posterDesktopPath") || null,
+        posterMobilePath: s("posterMobilePath") || null,
+      };
   }
 }
 
@@ -579,7 +588,7 @@ function jsonField(value: string): unknown {
   }
 }
 
-const settingPages: Partial<Record<SettingKey, string>> = { offer_bar: "/admin/offer-bar", homepage_sections: "/admin/homepage" };
+const settingPages: Partial<Record<SettingKey, string>> = { offer_bar: "/admin/offer-bar", homepage_sections: "/admin/homepage", hero: "/admin/hero" };
 
 export async function saveSettingAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
@@ -605,6 +614,17 @@ export async function saveSettingAction(_: ActionState, formData: FormData): Pro
     if (checkout.phoneEnabled) {
       const qr = await verifyQrImage(checkout.qrImagePath);
       if (!qr.ok) return { ok: false, message: qr.message };
+    }
+  }
+  if (key === "hero") {
+    // A path the bucket can't serve would leave visitors on the poster: refuse it before the homepage changes.
+    const hero = parsed.data as SettingValue<"hero">;
+    for (const [label, path] of [
+      ["Desktop video", hero.desktopVideoPath],
+      ["Mobile video", hero.mobileVideoPath],
+    ] as const) {
+      const problem = path ? (await probeVideo(path)).problem : null;
+      if (problem) return { ok: false, message: `${label} (${path}): ${problem}. Nothing was saved.` };
     }
   }
   const db = await createSessionClient();
@@ -673,8 +693,12 @@ async function mediaReferences(db: Awaited<ReturnType<typeof createSessionClient
       if (!error && count) found.push(`${label}${count > 1 ? ` (${count})` : ""}`);
     }),
   );
-  const { data } = await db.from("store_settings").select("setting_value").eq("setting_key", "checkout").maybeSingle();
-  if ((data?.setting_value as { qrImagePath?: string } | undefined)?.qrImagePath === path) found.push("the payment QR setting");
+  const { data } = await db.from("store_settings").select("setting_key, setting_value").in("setting_key", ["checkout", "hero"]);
+  for (const row of data ?? []) {
+    const value = (row.setting_value ?? {}) as Record<string, unknown>;
+    if (row.setting_key === "checkout" && value.qrImagePath === path) found.push("the payment QR setting");
+    if (row.setting_key === "hero" && (value.posterDesktopPath === path || value.posterMobilePath === path)) found.push("the hero film poster");
+  }
   return found;
 }
 

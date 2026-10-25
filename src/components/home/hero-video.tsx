@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronLeft, ChevronRight, Pause } from "lucide-react";
+import type { HeroContent } from "@/lib/content/hero";
 import { cn } from "@/lib/utils";
-import { usePrefersReducedMotion, type HeroSlide } from "./hero-slider";
+import { HeroOverlay } from "./hero-overlay";
 
 /** Bucket URLs of the hero film; `mobile` (4:5, lighter) is optional. */
 export interface HeroFilmSources {
@@ -12,16 +13,42 @@ export interface HeroFilmSources {
 }
 
 /**
- * A hero image with the CSS object-position that keeps its product in frame
- * (default centred). `fit` lets it show in full over a blurred copy of itself
- * where the frame is too wide or tall to crop it (globals.css, .hero-still).
+ * A hero image (desktop sources from 640 px, mobile below) with the CSS
+ * object-position that keeps its product in frame (default centred). `fit`
+ * lets it show in full over a blurred copy of itself where the frame is too
+ * wide or tall to crop it (globals.css, .hero-still). `content` is an admin
+ * slide's optional heading / subtitle / button.
  */
-export type HeroStill = Omit<HeroSlide, "content"> & { position?: string; fit?: "square" | "wide" };
+export interface HeroStill {
+  key: string;
+  desktopSrcSet: string;
+  mobileSrcSet: string;
+  src: string;
+  width: number;
+  height: number;
+  alt: string;
+  content: HeroContent | null;
+  position?: string;
+  fit?: "square" | "wide";
+}
 
 /** Phones: the hero frame is 4:5 here, matching the mobile encode. */
 const PHONE = "(max-width: 639px)";
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const PHOTO_INTERVAL = 6000;
+
+/** Reduced-motion preference; `false` during SSR and hydration so server and client markup match. */
+export function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia(REDUCED_MOTION);
+      query.addEventListener("change", onChange);
+      return () => query.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
+}
 
 /** Data-saver or slow (2G/3G) connection. */
 function isConstrainedConnection() {
@@ -294,7 +321,7 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
         >
           {photos.slice(0, count).map((photo, i) => (
             <div
-              key={photo.src}
+              key={photo.key}
               role="group"
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${photos.length}`}
@@ -303,6 +330,12 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
               className={cn("absolute inset-0", i === active ? "z-[2] opacity-100 transition-opacity duration-[1200ms] ease-out motion-reduce:duration-300" : i === previous ? "z-[1] opacity-100" : "opacity-0")}
             >
               <Still still={photo} priority={!film && i === 0} imgClassName={cn(!reduceMotion && (i === active || i === previous) && "kenburns")} />
+              {/* Hidden slides are inert so their buttons are never focusable. */}
+              {photo.content && (
+                <div inert={i !== active || !onPhotos}>
+                  <HeroOverlay content={photo.content} headingLevel="h2" />
+                </div>
+              )}
             </div>
           ))}
         </div>
