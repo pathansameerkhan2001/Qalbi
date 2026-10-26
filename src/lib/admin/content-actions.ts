@@ -9,6 +9,8 @@ import { ingredientIcons } from "@/types/content";
 import { mediaUrl } from "@/lib/assets";
 import { HERO_VIDEO_TYPES, heroVideoFileProblem, heroVideoMaxBytes } from "@/lib/content/hero";
 import { supabaseConfig } from "@/lib/supabase/config";
+import { heroSettingsSchema } from "@/lib/store/settings";
+import { builtInHeroFiles } from "@/lib/store/hero";
 import { requireAdmin } from "./auth";
 import { probeVideo } from "./hero-media";
 import { mediaReferences } from "./media-references";
@@ -477,4 +479,87 @@ export async function deleteBlogPostAction(formData: FormData) {
   }
   refreshStore("/admin/blog", "/journal", "/");
   redirect("/admin/blog?deleted=1");
+}
+
+// ---------------------------------------------------------------------------
+// Built-in hero media (src/data/images.ts) — /admin/hero → Built-in media
+// ---------------------------------------------------------------------------
+
+type SessionClient = Awaited<ReturnType<typeof createSessionClient>>;
+
+/** Reads, changes and saves the list of built-in files taken off the homepage (store setting `hero`). */
+async function updateRemovedBuiltIn(db: SessionClient, change: (list: Set<string>) => void): Promise<ActionState | null> {
+  const existing = await db.from("store_settings").select("id, setting_value").eq("setting_key", "hero").limit(1).maybeSingle();
+  if (existing.error) return dbError("settings", existing.error);
+  const current = heroSettingsSchema.safeParse(existing.data?.setting_value ?? {});
+  const list = new Set(current.success ? current.data.removedBuiltIn : []);
+  change(list);
+  const value = { removedBuiltIn: [...list] };
+  const { data, error } = existing.data
+    ? await db.from("store_settings").update({ setting_value: value }).eq("id", existing.data.id).select("id")
+    : await db.from("store_settings").insert({ setting_key: "hero", setting_value: value }).select("id");
+  if (error) return dbError("settings", error);
+  if (!data?.length) return noRows("homepage setting");
+  return null;
+}
+
+const builtInFile = (path: unknown) => (typeof path === "string" ? builtInHeroFiles().find((f) => f.path === path) : undefined);
+
+/**
+ * Takes a built-in hero file off the homepage, or puts it back. The file
+ * itself is not touched; the homepage simply stops (or starts) using it.
+ * A bucket file that has been deleted cannot be put back.
+ */
+export async function setBuiltInHeroMediaAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const file = builtInFile(formData.get("path"));
+  if (!file) return { ok: false, message: "Unknown built-in file." };
+  const show = formData.get("show") === "true";
+  if (show && file.location === "bucket" && (await probeVideo(file.path)).missing) {
+    return { ok: false, message: `${file.path} is no longer in the media bucket, so it can't be shown again. Add a video slide with a new file instead.` };
+  }
+  const db = await createSessionClient();
+  const failed = await updateRemovedBuiltIn(db, (list) => (show ? list.delete(file.path) : list.add(file.path)));
+  if (failed) return failed;
+  refreshStore("/admin/hero", "/");
+  return { ok: true, message: show ? `${file.path} is back on the homepage.` : `${file.path} is no longer used on the homepage. The file itself was not deleted.` };
+}
+
+/**
+ * Permanently deletes a built-in hero file that lives in the media bucket:
+ * first the homepage stops using it (so nothing ever points at a missing
+ * file), then exactly that one object is removed with the administrator's own
+ * session (admin-only storage policy). Success is reported only when Storage
+ * confirms the removal. Files that are part of the website itself
+ * (public/assets) are refused: they ship with every deploy and can't be
+ * deleted from a running website.
+ */
+export async function deleteBuiltInHeroMediaAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const file = builtInFile(formData.get("path"));
+  if (!file) return { ok: false, message: "Unknown built-in file." };
+  if (file.location !== "bucket") {
+    return {
+      ok: false,
+      message: `${file.path} is one of the website's own files (public/assets), deployed with the site, so it can't be deleted from the admin panel. Use “Remove from homepage” instead; to delete the file itself, remove it from the project and redeploy.`,
+    };
+  }
+  const db = await createSessionClient();
+  const usedBy = await mediaReferences(db, file.path);
+  if (usedBy.length) return { ok: false, message: `${file.path} is also used by ${usedBy.join(", ")}. Change that first; nothing was deleted.` };
+
+  const failed = await updateRemovedBuiltIn(db, (list) => list.add(file.path));
+  if (failed) return { ...failed, message: `Nothing was deleted: ${failed.message}` };
+  refreshStore("/admin/hero", "/");
+  revalidatePath("/admin/media");
+
+  const { data, error } = await db.storage.from(supabaseConfig.mediaBucket).remove([file.path]);
+  if (error) {
+    console.error("[admin] delete built-in hero file:", error.message);
+    return { ok: false, message: `${file.path} is no longer used on the homepage, but the media bucket refused to delete the file (${error.message}). Check that you are signed in as an administrator, then try again.` };
+  }
+  if (!data?.length) {
+    return { ok: true, message: `${file.path} was not in the media bucket (already deleted). The homepage no longer refers to it.` };
+  }
+  return { ok: true, message: `Deleted ${file.path} from the media bucket and removed it from the homepage. Browsers and the CDN may still hold a cached copy for up to an hour.` };
 }

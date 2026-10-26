@@ -63,7 +63,7 @@ export interface HeroSlideSource extends HeroContent {
 
 /** Code defaults (src/data/images.ts), shown only while no admin slide is. */
 export interface HeroDefaults {
-  film: { enabled: boolean; desktop: string; mobile: string | null; poster: { desktop: HeroImage; mobile: HeroImage | null } };
+  film: { enabled: boolean; desktop: string; mobile: string | null; poster: { desktop: HeroImage | null; mobile: HeroImage | null } };
   slides: HeroPlanSlide[];
 }
 
@@ -113,13 +113,16 @@ export function planHero({ slides, defaults, videoUrl }: { slides: HeroSlideSour
 
   const { film } = defaults;
   const desktop = film.enabled ? videoUrl(film.desktop) : null;
+  // Either poster stands in for the other; without both the film plays with no poster (and is skipped where it can't play).
+  const posterDesktop = film.poster.desktop ?? film.poster.mobile;
+  const posterMobile = film.poster.mobile ?? film.poster.desktop;
   const builtInFilm: HeroPlanSlide[] = desktop
     ? [
         {
           key: "built-in-film",
           video: { desktop, mobile: film.mobile ? videoUrl(film.mobile) : null },
-          still: { desktop: film.poster.desktop, mobile: film.poster.mobile ?? film.poster.desktop },
-          alt: film.poster.desktop.alt,
+          still: posterDesktop && posterMobile ? { desktop: posterDesktop, mobile: posterMobile } : null,
+          alt: (posterDesktop ?? posterMobile)?.alt ?? "QALBI Naturals film",
           content: null,
         },
       ]

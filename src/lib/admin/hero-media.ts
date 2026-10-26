@@ -8,6 +8,8 @@ export interface VideoProbe {
   url: string | null;
   bytes: number | null;
   problem: string | null;
+  /** The bucket has no object at this path (as opposed to a network or type problem). */
+  missing?: boolean;
 }
 
 /** Above this a hero video starts late on mobile data (the optimised encodes are 2–3 MB). */
@@ -25,7 +27,8 @@ export async function probeVideo(path: string): Promise<VideoProbe> {
     const res = await fetch(url, { headers: { Range: "bytes=0-31" }, cache: "no-store", signal: AbortSignal.timeout(8000) });
     if (res.status !== 206 && res.status !== 200) {
       await res.body?.cancel();
-      return { path, url, bytes: null, problem: res.status === 400 || res.status === 404 ? "there is no file at this path in the media bucket" : `the media bucket answered ${res.status}` };
+      const missing = res.status === 400 || res.status === 404;
+      return { path, url, bytes: null, problem: missing ? "there is no file at this path in the media bucket" : `the media bucket answered ${res.status}`, missing };
     }
     const head = new Uint8Array(await res.arrayBuffer()).slice(0, 32);
     const total = Number(/\/(\d+)$/.exec(res.headers.get("content-range") ?? "")?.[1] ?? res.headers.get("content-length"));

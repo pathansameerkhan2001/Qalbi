@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Film, ImageIcon } from "lucide-react";
-import { heroVideoMigrationApplied, listHeroSlides } from "@/lib/admin/data";
+import { getAllSettings, heroVideoMigrationApplied, listHeroSlides, listMedia, type MediaItem } from "@/lib/admin/data";
+import { probeVideo } from "@/lib/admin/hero-media";
 import { requireAdmin } from "@/lib/admin/auth";
 import { deleteHeroSlideAction, moveHeroSlideAction, setHeroSlideActiveAction } from "@/lib/admin/content-actions";
 import { mediaUrl, storageUrl } from "@/lib/assets";
 import type { HeroPlan } from "@/lib/content/hero";
 import type { HeroSlideRow } from "@/lib/store/cms";
-import { builtInHero, heroPlanFor } from "@/lib/store/hero";
+import { builtInHeroFiles, heroPlanFor } from "@/lib/store/hero";
+import { heroSettingsSchema } from "@/lib/store/settings";
 import { toSlideView } from "@/components/home/hero";
 import { AdminHeading, Card, SetupNotice } from "@/components/admin/ui";
 import { MoveButtons } from "@/components/admin/move-buttons";
@@ -14,6 +16,7 @@ import { RowForm } from "@/components/admin/row-form";
 import { cn } from "@/lib/utils";
 import { HeroSlideForm, NewHeroSlide, type HeroSlideValues } from "./hero-slide-form";
 import { HeroSequence, type SequenceView } from "./hero-sequence";
+import { BuiltInMediaCard, UploadedMediaCard, type BuiltInRow } from "./media-sections";
 
 export const metadata: Metadata = { title: "Hero section" };
 
@@ -56,8 +59,9 @@ export default async function AdminHeroPage() {
   await requireAdmin();
   let slides: HeroSlideRow[];
   let videoReady: boolean;
+  let settings: Record<string, unknown>;
   try {
-    [slides, videoReady] = await Promise.all([listHeroSlides(), heroVideoMigrationApplied()]);
+    [slides, videoReady, settings] = await Promise.all([listHeroSlides(), heroVideoMigrationApplied(), getAllSettings()]);
   } catch (error) {
     return (
       <>
@@ -67,8 +71,26 @@ export default async function AdminHeroPage() {
     );
   }
   const shownSlides = slides.filter((s) => s.active);
-  const live = heroPlanFor(shownSlides);
-  const withHidden = heroPlanFor(slides);
+
+  // Built-in media: what was removed from the homepage, and which bucket files are actually there.
+  const removed = new Set(heroSettingsSchema.safeParse(settings.hero ?? {}).data?.removedBuiltIn ?? []);
+  const builtIn: BuiltInRow[] = await Promise.all(
+    builtInHeroFiles().map(async (f) => ({ ...f, removed: removed.has(f.path), missing: f.location === "bucket" ? (await probeVideo(f.path)).missing === true : false })),
+  );
+  // The homepage leaves out removed files and bucket files that are gone (lib/store/hero.ts getHeroPlan).
+  const unavailable = new Set(builtIn.filter((f) => f.removed || f.missing).map((f) => f.path));
+  const live = heroPlanFor(shownSlides, unavailable);
+  const withHidden = heroPlanFor(slides, unavailable);
+
+  // Uploaded media: the slide uploads in the bucket.
+  let uploaded: MediaItem[] = [];
+  let uploadedError: string | null = null;
+  try {
+    const lists = await Promise.all([listMedia("uploads/hero"), listMedia("uploads/hero/videos")]);
+    uploaded = lists.flat().filter((f) => !f.isFolder);
+  } catch {
+    uploadedError = "The uploaded files could not be listed. Reload the page to try again.";
+  }
   const position = new Map(shownSlides.map((s, i) => [s.id, i + 1]));
   const videos = shownSlides.filter((s) => s.mediaType === "video").length;
 
@@ -79,7 +101,9 @@ export default async function AdminHeroPage() {
         description={
           shownSlides.length
             ? `${shownSlides.length} slide${shownSlides.length === 1 ? "" : "s"} on the homepage${videos ? ` (${videos} video${videos === 1 ? "" : "s"})` : ""}, in the order below.`
-            : "No slide is shown yet, so the homepage plays the built-in film and product photos."
+            : live.slides.length
+              ? "No slide of yours is shown yet, so the homepage uses the built-in media (see Built-in media below)."
+              : "Nothing is shown in the hero: no slide of yours is shown and all built-in media has been removed. Add a slide below."
         }
       />
       <div className="space-y-6">
@@ -100,7 +124,7 @@ export default async function AdminHeroPage() {
         </Card>
 
         <Card className="p-5">
-          <h2 className="font-serif text-xl">Slides</h2>
+          <h2 className="font-serif text-xl">Your slides</h2>
           <p className="mt-1 text-sm text-muted">Top to bottom is the homepage order. Hide a slide to take it off the homepage without deleting it.</p>
           <ul className="mt-4 space-y-3">
             {slides.length === 0 && <li className="text-sm text-muted">No slides yet. Add the first one below.</li>}
@@ -176,30 +200,11 @@ export default async function AdminHeroPage() {
               );
             })}
           </ul>
-          {shownSlides.length === 0 && (
-            <div className="mt-4 rounded-[3px] bg-sand/60 p-3">
-              <p className="text-xs font-medium text-ink">Built-in hero now on the homepage</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {heroPlanFor([]).slides.map((s) =>
-                  s.still ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- admin thumbnail
-                    <img key={s.key} src={s.still.desktop.src} alt={s.alt} title={s.video ? `Film: ${s.alt}` : s.alt} className="h-12 w-[5.6rem] rounded-[2px] bg-sand object-cover" />
-                  ) : null,
-                )}
-              </div>
-              <p className="mt-2 text-xs text-muted">
-                Film: <span className="font-mono">{builtInHero.film.desktop}</span>
-                {builtInHero.film.mobile && (
-                  <>
-                    {" "}
-                    (phones: <span className="font-mono">{builtInHero.film.mobile}</span>)
-                  </>
-                )}
-                .
-              </p>
-            </div>
-          )}
         </Card>
+
+        <UploadedMediaCard files={uploaded} slides={slides} error={uploadedError} />
+
+        <BuiltInMediaCard files={builtIn} slidesShown={shownSlides.length > 0} />
 
         <Card className="border-dashed p-5">
           <h2 className="mb-1 font-serif text-xl">Add a slide</h2>

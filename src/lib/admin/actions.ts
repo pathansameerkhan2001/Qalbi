@@ -707,5 +707,6 @@ export async function deleteMediaAction(_: ActionState, formData: FormData): Pro
   }
   if (!data?.length) return { ok: false, message: "The file was not found or could not be deleted." };
   revalidatePath("/admin/media");
+  revalidatePath("/admin/hero");
   return { ok: true, message: "File deleted." };
 }

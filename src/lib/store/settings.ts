@@ -47,6 +47,16 @@ export const homepageSectionsSchema = z.object({
   sections: z.array(z.object({ id: z.enum(homepageSectionIds), visible: z.boolean() })).max(homepageSectionIds.length).default([]),
 });
 
+/**
+ * Homepage hero (/admin/hero → Built-in media): the built-in hero files
+ * (src/data/images.ts) an administrator has taken off the homepage — and, for
+ * files in the media bucket, possibly deleted. The homepage never references
+ * them again. Visitors may read the 'hero' key (store_settings policy).
+ */
+export const heroSettingsSchema = z.object({
+  removedBuiltIn: z.array(z.string().max(300)).max(50).default([]),
+});
+
 export const trustBadgeSettingsSchema = z.record(z.string(), z.boolean());
 
 export const featuredSettingsSchema = z.object({ collectionHandle: z.string().max(80).default("bestsellers") });
@@ -62,6 +72,7 @@ export const settingSchemas = {
   brand_claims: brandClaimsSchema,
   offer_bar: offerBarSchema,
   homepage_sections: homepageSectionsSchema,
+  hero: heroSettingsSchema,
 } as const;
 
 export type SettingKey = keyof typeof settingSchemas;
