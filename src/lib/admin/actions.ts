@@ -7,7 +7,7 @@ import { createPublicClient, createSessionClient } from "@/lib/supabase/server";
 import { getCommerceSource } from "@/lib/shopify";
 import { isSupabaseConfigured, supabaseConfig } from "@/lib/supabase/config";
 import { STORE_TAG } from "@/lib/store/catalog";
-import { settingSchemas, type SettingKey, type SettingValue } from "@/lib/store/settings";
+import { settingSchemas, type SettingKey } from "@/lib/store/settings";
 import { homepageSectionIds } from "@/lib/content/homepage";
 import { approvedRename, matchSuggestion, missingSuggestions, suggestedCategories } from "@/data/category-suggestions";
 import { isShopifyConfigured } from "@/lib/shopify/config";
@@ -17,7 +17,8 @@ import { requireAdmin } from "./auth";
 import { orderStatuses, paymentStatuses } from "./data";
 import { checkbox, dbError, invalid, refreshStore, type ActionState } from "./action-helpers";
 import { storeImage } from "./media";
-import { probeVideo } from "./hero-media";
+import { mediaReferences } from "./media-references";
+import { moveInOrder } from "./ordering";
 import { imagePath, productSchema, publishBlockers } from "./product-rules";
 import { codBlockers, getCheckoutReadiness, verifyQrImage } from "./checkout-readiness";
 
@@ -135,6 +136,7 @@ export async function saveProductAction(_: ActionState, formData: FormData): Pro
     : await db.from("products").insert(fields).select("id").single();
   if (saved.error) return dbError("product", saved.error);
   const productId = saved.data.id as string;
+  if (!id) await placeProductLast(db, productId);
 
   // Replace the image list. PostgREST has no multi-statement transaction, so the
   // previous rows are restored if inserting the new list fails.
@@ -166,6 +168,44 @@ export async function saveProductAction(_: ActionState, formData: FormData): Pro
   refreshStore("/admin/products", "/", "/products");
   if (!id) redirect(`/admin/products/${productId}?saved=1`);
   return { ok: true, message: "Product saved." };
+}
+
+/** A new product goes to the end of the manual order (the column defaults to 0, which would put it first). No-op before that migration. */
+async function placeProductLast(db: Awaited<ReturnType<typeof createSessionClient>>, productId: string) {
+  const last = await db.from("products").select("sort_order").neq("id", productId).order("sort_order", { ascending: false }).limit(1).maybeSingle();
+  if (last.error) return;
+  const { error } = await db.from("products").update({ sort_order: Number(last.data?.sort_order ?? 0) + 10 }).eq("id", productId);
+  if (error) console.error("[admin] product order:", error.code);
+}
+
+/**
+ * Moves a product one place up or down in the single, global manual order —
+ * the storefront's default "Featured" sort and every category page follow it.
+ * The whole list is read and renumbered 10, 20, 30… (so equal or missing
+ * numbers are resolved), and only rows whose number changes are written; no
+ * other product field is touched.
+ */
+export async function moveProductAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  if (isShopifyConfigured()) return { ok: false, message: "Products are managed in Shopify while the store is connected." };
+  const parsed = z.object({ id: z.uuid(), direction: z.enum(["up", "down"]) }).safeParse({ id: formData.get("id"), direction: formData.get("direction") });
+  if (!parsed.success) return { ok: false, message: "Unknown product." };
+  const db = await createSessionClient();
+  const { data, error } = await db.from("products").select("id, sort_order").order("sort_order").order("name");
+  if (error) {
+    if (error.code === "42703" || error.code === "PGRST204") {
+      return { ok: false, message: "Product order needs the database update supabase/migrations/20261026000000_hero_video_and_product_order.sql. Run it once in Supabase → SQL Editor." };
+    }
+    return dbError("product", error);
+  }
+  const changes = moveInOrder((data ?? []).map((p) => ({ id: p.id as string, sort: p.sort_order as number | null })), parsed.data.id, parsed.data.direction);
+  if (!changes) return { ok: false, message: "Product not found. Reload the page." };
+  if (!changes.length) return { ok: true, message: "" };
+  const results = await Promise.all(changes.map((p) => db.from("products").update({ sort_order: p.sort }).eq("id", p.id).select("id")));
+  const failed = results.find((r) => r.error || !r.data?.length);
+  if (failed) return failed.error ? dbError("product", failed.error) : { ok: false, message: "The database did not save the new order — this account may not have administrator rights for products." };
+  refreshStore("/admin/products", "/", "/products");
+  return { ok: true, message: "Order saved" };
 }
 
 /**
@@ -408,13 +448,9 @@ export async function moveCategoryAction(_: ActionState, formData: FormData): Pr
   const db = await createSessionClient();
   const { data, error } = await db.from("categories").select("id, sort_order").order("sort_order").order("name");
   if (error) return dbError("category", error);
-  const list = data ?? [];
-  const from = list.findIndex((c) => c.id === parsed.data.id);
-  const to = from + (parsed.data.direction === "up" ? -1 : 1);
-  if (from < 0) return { ok: false, message: "Category not found. Reload the page." };
-  if (to < 0 || to >= list.length) return { ok: true, message: "" };
-  [list[from], list[to]] = [list[to], list[from]];
-  const changes = list.map((c, i) => ({ id: c.id as string, sort: (i + 1) * 10, before: c.sort_order as number })).filter((c) => c.sort !== c.before);
+  const changes = moveInOrder((data ?? []).map((c) => ({ id: c.id as string, sort: c.sort_order as number | null })), parsed.data.id, parsed.data.direction);
+  if (!changes) return { ok: false, message: "Category not found. Reload the page." };
+  if (!changes.length) return { ok: true, message: "" };
   const results = await Promise.all(changes.map((c) => db.from("categories").update({ sort_order: c.sort }).eq("id", c.id).select("id")));
   const failed = results.find((r) => r.error || !r.data?.length);
   if (failed) return failed.error ? dbError("category", failed.error) : { ok: false, message: "The database did not save the new order — this account may not have administrator rights for categories." };
@@ -568,14 +604,6 @@ function settingFromForm(key: SettingKey, f: FormData): unknown {
           .sort((a, b) => a.order - b.order)
           .map(({ id, visible }) => ({ id, visible })),
       };
-    case "hero":
-      return {
-        filmEnabled: on("filmEnabled"),
-        desktopVideoPath: s("desktopVideoPath") || null,
-        mobileVideoPath: s("mobileVideoPath") || null,
-        posterDesktopPath: s("posterDesktopPath") || null,
-        posterMobilePath: s("posterMobilePath") || null,
-      };
   }
 }
 
@@ -588,7 +616,7 @@ function jsonField(value: string): unknown {
   }
 }
 
-const settingPages: Partial<Record<SettingKey, string>> = { offer_bar: "/admin/offer-bar", homepage_sections: "/admin/homepage", hero: "/admin/hero" };
+const settingPages: Partial<Record<SettingKey, string>> = { offer_bar: "/admin/offer-bar", homepage_sections: "/admin/homepage" };
 
 export async function saveSettingAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
@@ -614,17 +642,6 @@ export async function saveSettingAction(_: ActionState, formData: FormData): Pro
     if (checkout.phoneEnabled) {
       const qr = await verifyQrImage(checkout.qrImagePath);
       if (!qr.ok) return { ok: false, message: qr.message };
-    }
-  }
-  if (key === "hero") {
-    // A path the bucket can't serve would leave visitors on the poster: refuse it before the homepage changes.
-    const hero = parsed.data as SettingValue<"hero">;
-    for (const [label, path] of [
-      ["Desktop video", hero.desktopVideoPath],
-      ["Mobile video", hero.mobileVideoPath],
-    ] as const) {
-      const problem = path ? (await probeVideo(path)).problem : null;
-      if (problem) return { ok: false, message: `${label} (${path}): ${problem}. Nothing was saved.` };
     }
   }
   const db = await createSessionClient();
@@ -674,32 +691,6 @@ export async function uploadImageAction(_: ActionState, formData: FormData): Pro
   if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/admin/media");
   return { ok: true, message: "Image uploaded.", path: result.path };
-}
-
-/** Where a media path is still used (so deleting it would break the website). Missing tables are ignored. */
-async function mediaReferences(db: Awaited<ReturnType<typeof createSessionClient>>, path: string): Promise<string[]> {
-  const checks: [string, string, string[]][] = [
-    ["product_images", "a product photo", ["image_url"]],
-    ["categories", "a category", ["image_url"]],
-    ["hero_slides", "a hero slide", ["desktop_image_path", "mobile_image_path"]],
-    ["instagram_reels", "an Instagram Reel", ["thumbnail_path"]],
-    ["blog_posts", "a blog post", ["cover_image_path"]],
-    ["ingredients", "an ingredient", ["image_path"]],
-  ];
-  const found: string[] = [];
-  await Promise.all(
-    checks.map(async ([table, label, columns]) => {
-      const { count, error } = await db.from(table).select("id", { count: "exact", head: true }).or(columns.map((c) => `${c}.eq.${path}`).join(","));
-      if (!error && count) found.push(`${label}${count > 1 ? ` (${count})` : ""}`);
-    }),
-  );
-  const { data } = await db.from("store_settings").select("setting_key, setting_value").in("setting_key", ["checkout", "hero"]);
-  for (const row of data ?? []) {
-    const value = (row.setting_value ?? {}) as Record<string, unknown>;
-    if (row.setting_key === "checkout" && value.qrImagePath === path) found.push("the payment QR setting");
-    if (row.setting_key === "hero" && (value.posterDesktopPath === path || value.posterMobilePath === path)) found.push("the hero film poster");
-  }
-  return found;
 }
 
 export async function deleteMediaAction(_: ActionState, formData: FormData): Promise<ActionState> {

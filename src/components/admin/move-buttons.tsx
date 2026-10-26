@@ -27,9 +27,9 @@ function MoveButton({ id, action, direction, disabled }: { id: string; action: M
       <button type="submit" disabled={disabled || pending} aria-label={`Move ${direction}`} title={`Move ${direction}`} className="rounded p-1.5 text-forest hover:bg-sand disabled:opacity-30">
         <Icon className={cn("size-4", pending && "animate-pulse")} aria-hidden />
       </button>
-      {!state.ok && state.message && (
-        <span className="w-full">
-          <ActionMessage state={state} />
+      {state.message && !pending && (
+        <span className="w-full" role={state.ok ? "status" : undefined}>
+          {state.ok ? <span className="text-[0.7rem] text-forest">{state.message}</span> : <ActionMessage state={state} />}
         </span>
       )}
     </form>

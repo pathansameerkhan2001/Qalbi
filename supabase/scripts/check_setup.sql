@@ -21,7 +21,11 @@ checks (step, migration, applied) as (
         and exists (select 1 from information_schema.columns
                      where table_schema = 'public' and table_name = 'products' and column_name = 'seo_title')),
     (3, '20261021000000_ingredients.sql',
-        (select count(*) = 1 from tables where relname = 'ingredients'))
+        (select count(*) = 1 from tables where relname = 'ingredients')),
+    (4, '20261026000000_hero_video_and_product_order.sql',
+        (select count(*) = 2 from information_schema.columns
+          where table_schema = 'public'
+            and ((table_name = 'hero_slides' and column_name = 'media_type') or (table_name = 'products' and column_name = 'sort_order'))))
 )
 select step, migration,
        case when applied then 'applied' else 'MISSING — run supabase/migrations/' || migration end as status

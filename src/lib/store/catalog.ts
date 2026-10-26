@@ -32,6 +32,8 @@ export function isSupabaseCommerce(shopifyConfigured: boolean): boolean {
 const PRODUCT_COLUMNS = "id, category_id, name, slug, description, price, compare_at_price, stock_quantity, sku, is_featured, is_best_seller, is_published, created_at";
 /** SEO columns added by migrations/20261019000000_content_management.sql. */
 const PRODUCT_SEO_COLUMNS = `${PRODUCT_COLUMNS}, seo_title, seo_description`;
+/** Manual product order added by migrations/20261026000000_hero_video_and_product_order.sql. */
+const PRODUCT_ORDERED_COLUMNS = `${PRODUCT_SEO_COLUMNS}, sort_order`;
 /** Postgres / PostgREST codes for "column does not exist" (SEO migration not applied yet). */
 const MISSING_COLUMN = new Set(["42703", "PGRST204"]);
 const IMAGE_COLUMNS = "id, product_id, image_url, alt_text, sort_order, is_primary";
@@ -146,15 +148,18 @@ export class StoreQueryError extends Error {
  * administrators: everything).
  */
 export async function queryProducts(db: SupabaseClient, filter?: { id: string }, loadedCategories?: Promise<CategoryRow[]>): Promise<ProductRow[]> {
-  const productQuery = (columns: string) => {
-    const query = db.from("products").select(columns).order("is_featured", { ascending: false }).order("name");
-    return filter ? query.eq("id", filter.id) : query;
+  // The administrator's manual order (/admin/products arrows); before that migration, featured first, then by name.
+  const productQuery = (columns: string, manualOrder: boolean) => {
+    const query = db.from("products").select(columns);
+    const ordered = manualOrder ? query.order("sort_order").order("name") : query.order("is_featured", { ascending: false }).order("name");
+    return filter ? ordered.eq("id", filter.id) : ordered;
   };
   // Callers that already load the categories pass them in, so the table is read once per request.
-  const [withSeo, categories] = await Promise.all([productQuery(PRODUCT_SEO_COLUMNS), loadedCategories ?? queryCategories(db)]);
-  let products = withSeo;
-  // Before the SEO migration is applied the extra columns don't exist: read without them.
-  if (products.error?.code && MISSING_COLUMN.has(products.error.code)) products = await productQuery(PRODUCT_COLUMNS);
+  const [newest, categories] = await Promise.all([productQuery(PRODUCT_ORDERED_COLUMNS, true), loadedCategories ?? queryCategories(db)]);
+  let products = newest;
+  // Migrations not applied yet: read without the columns they add (product order, then SEO).
+  if (products.error?.code && MISSING_COLUMN.has(products.error.code)) products = await productQuery(PRODUCT_SEO_COLUMNS, false);
+  if (products.error?.code && MISSING_COLUMN.has(products.error.code)) products = await productQuery(PRODUCT_COLUMNS, false);
   if (products.error) throw new StoreQueryError("products", products.error);
   const rows = (products.data ?? []) as unknown as DbProduct[];
   if (rows.length === 0) return [];

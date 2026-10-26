@@ -1,12 +1,18 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createSessionClient } from "@/lib/supabase/server";
 import { fromIstInput, isMediaPath, isSafeSiteLink, isSlug, normalizeReelUrl, slugify } from "@/lib/content/rules";
 import { ingredientIcons } from "@/types/content";
 import { mediaUrl } from "@/lib/assets";
+import { HERO_VIDEO_TYPES, heroVideoFileProblem, heroVideoMaxBytes } from "@/lib/content/hero";
+import { supabaseConfig } from "@/lib/supabase/config";
 import { requireAdmin } from "./auth";
+import { probeVideo } from "./hero-media";
+import { mediaReferences } from "./media-references";
+import { moveInOrder } from "./ordering";
 import { checkbox, dbError, invalid, refreshStore, type ActionState } from "./action-helpers";
 
 /**
@@ -33,43 +39,133 @@ const noRows = (scope: string): ActionState => ({ ok: false, message: `The datab
 // Hero slides
 // ---------------------------------------------------------------------------
 
-const heroSchema = z
+const heroText = {
+  heading: optionalText(90),
+  subtitle: optionalText(200),
+  button_label: optionalText(40),
+  button_href: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || isSafeSiteLink(v), "Use a website path such as /products or a full https:// link")
+    .transform((v) => v || null),
+  alt_text: z.string().trim().min(1, "Describe the image or video for screen readers").max(200),
+  sort_order: sortOrder,
+  is_active: checkbox,
+};
+const optionalMediaPath = (message: string) =>
+  z
+    .string()
+    .trim()
+    .refine((v) => v === "" || isMediaPath(v), message)
+    .transform((v) => v || null);
+const videoPath = (message: string) => z.string().trim().refine((v) => isMediaPath(v) && /\.(mp4|webm)$/.test(v), message);
+const hasButtonPair = (v: { button_label: string | null; button_href: string | null }) => (v.button_label === null) === (v.button_href === null);
+const buttonPairError = { path: ["button_href"], message: "A button needs both a label and a destination" };
+
+/** Image slide: both images required. Video slide: the desktop video required; mobile video and both posters optional. */
+const imageSlideSchema = z
   .object({
     id,
-    heading: optionalText(90),
-    subtitle: optionalText(200),
-    button_label: optionalText(40),
-    button_href: z
-      .string()
-      .trim()
-      .refine((v) => v === "" || isSafeSiteLink(v), "Use a website path such as /products or a full https:// link")
-      .transform((v) => v || null),
+    media_type: z.literal("image"),
+    ...heroText,
     desktop_image_path: mediaPath("Upload a desktop image"),
     mobile_image_path: mediaPath("Upload a mobile image"),
-    alt_text: z.string().trim().min(1, "Describe the image for screen readers").max(200),
-    sort_order: sortOrder,
-    is_active: checkbox,
   })
-  .refine((v) => (v.button_label === null) === (v.button_href === null), {
-    path: ["button_href"],
-    message: "A button needs both a label and a destination",
-  });
+  .refine(hasButtonPair, buttonPairError);
+const videoSlideSchema = z
+  .object({
+    id,
+    media_type: z.literal("video"),
+    ...heroText,
+    desktop_video_path: videoPath("Upload a desktop video (MP4)"),
+    mobile_video_path: z.union([z.literal("").transform(() => null), videoPath("Upload an MP4, or leave the mobile video empty")]),
+    desktop_image_path: optionalMediaPath("Upload a desktop poster, or leave it empty"),
+    mobile_image_path: optionalMediaPath("Upload a mobile poster, or leave it empty"),
+  })
+  .refine(hasButtonPair, buttonPairError)
+  .refine((v) => !v.mobile_image_path || v.desktop_image_path, { path: ["desktop_image_path"], message: "Add a desktop poster as well (it is also used on tablets)" });
+
+const HERO_FIELDS = ["id", "heading", "subtitle", "button_label", "button_href", "desktop_image_path", "mobile_image_path", "desktop_video_path", "mobile_video_path", "alt_text", "sort_order", "is_active"];
+const missingColumn = (error: { code?: string } | null) => error?.code === "42703" || error?.code === "PGRST204";
+const HERO_VIDEO_MIGRATION = "Video slides need the database update supabase/migrations/20261026000000_hero_video_and_product_order.sql. Run it once in Supabase → SQL Editor, then save again.";
 
 export async function saveHeroSlideAction(_: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
-  const parsed = heroSchema.safeParse(
-    Object.fromEntries(
-      ["id", "heading", "subtitle", "button_label", "button_href", "desktop_image_path", "mobile_image_path", "alt_text", "sort_order", "is_active"].map((k) => [k, field(formData, k)]),
-    ),
-  );
+  const input = { ...Object.fromEntries(HERO_FIELDS.map((k) => [k, field(formData, k)])), media_type: formData.get("media_type") === "video" ? "video" : "image" };
+  const parsed = input.media_type === "video" ? videoSlideSchema.safeParse(input) : imageSlideSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error);
   const { id: slideId, ...fields } = parsed.data;
+  if (fields.media_type === "video") {
+    // A path the bucket can't serve would leave visitors on the poster (or skip the slide): refuse it before saving.
+    for (const [name, label, path] of [
+      ["desktop_video_path", "Desktop video", fields.desktop_video_path],
+      ["mobile_video_path", "Mobile video", fields.mobile_video_path],
+    ] as const) {
+      const problem = path ? (await probeVideo(path)).problem : null;
+      if (problem) return { ok: false, message: `${label}: ${problem}. Nothing was saved.`, fieldErrors: { [name]: `${problem} (${path})` } };
+    }
+  }
+  const row: Record<string, unknown> = fields.media_type === "video" ? fields : { ...fields, desktop_video_path: null, mobile_video_path: null };
   const db = await createSessionClient();
-  const { data, error } = slideId ? await db.from("hero_slides").update(fields).eq("id", slideId).select("id") : await db.from("hero_slides").insert(fields).select("id");
+  const write = (values: Record<string, unknown>) => (slideId ? db.from("hero_slides").update(values).eq("id", slideId).select("id") : db.from("hero_slides").insert(values).select("id"));
+  let { data, error } = await write(row);
+  if (missingColumn(error)) {
+    if (fields.media_type === "video") return { ok: false, message: HERO_VIDEO_MIGRATION };
+    // Before the video migration, image slides are saved with the original columns.
+    const imageOnly = Object.fromEntries(Object.entries(row).filter(([k]) => !["media_type", "desktop_video_path", "mobile_video_path"].includes(k)));
+    ({ data, error } = await write(imageOnly));
+  }
   if (error) return dbError("hero slide", error);
   if (!data?.length) return noRows("slide");
   refreshStore("/admin/hero", "/");
-  return { ok: true, message: slideId ? "Slide saved." : fields.is_active ? "Slide added and published." : "Slide added as hidden. Tick “Show on the website” to publish it." };
+  const kind = fields.media_type === "video" ? "Video slide" : "Slide";
+  return { ok: true, message: slideId ? `${kind} saved.` : fields.is_active ? `${kind} added and shown on the homepage.` : `${kind} added as hidden. Tick “Show on the website” to publish it.` };
+}
+
+/** Folder for admin-uploaded hero videos. */
+const HERO_VIDEO_FOLDER = "uploads/hero/videos/";
+
+export type VideoUploadTicket = { ok: true; path: string; uploadUrl: string } | { ok: false; message: string };
+
+/**
+ * Step 1 of a hero video upload: checks the file's declared type and size and
+ * returns a one-time signed upload URL for a new object (never an existing
+ * one). The browser then sends the file straight to Supabase Storage — videos
+ * are too large for a server action — and the admin-only storage policies
+ * apply, because the URL is created with the administrator's own session.
+ */
+export async function startHeroVideoUploadAction(file: { name: string; type: string; size: number }): Promise<VideoUploadTicket> {
+  await requireAdmin();
+  const problem = heroVideoFileProblem({ type: String(file?.type ?? ""), size: Number(file?.size ?? 0) });
+  if (problem) return { ok: false, message: problem };
+  const base = slugify(String(file.name ?? "").replace(/\.[^.]+$/, "")).slice(0, 60) || "hero-video";
+  const path = `${HERO_VIDEO_FOLDER}${base}-${crypto.randomUUID().slice(0, 8)}.${HERO_VIDEO_TYPES[file.type]}`;
+  const db = await createSessionClient();
+  const { data, error } = await db.storage.from(supabaseConfig.mediaBucket).createSignedUploadUrl(path);
+  if (error || !data) {
+    console.error("[admin] video upload url:", error?.message);
+    return { ok: false, message: "The media bucket refused the upload. Check that you are signed in as an administrator." };
+  }
+  return { ok: true, path, uploadUrl: data.signedUrl };
+}
+
+/**
+ * Step 2: verifies the uploaded object on the server — it exists, is a real
+ * MP4/WebM (its first bytes, not the browser's claim) and within the size
+ * limit. A file that fails is deleted again.
+ */
+export async function finishHeroVideoUploadAction(path: string): Promise<ActionState> {
+  await requireAdmin();
+  if (typeof path !== "string" || !path.startsWith(HERO_VIDEO_FOLDER) || !isMediaPath(path)) return { ok: false, message: "Unknown upload." };
+  const probe = await probeVideo(path);
+  const max = heroVideoMaxBytes();
+  const problem = probe.problem ?? (probe.bytes !== null && probe.bytes > max ? `the file is larger than ${(max / 1048576).toFixed(0)} MB` : null);
+  if (problem) {
+    const db = await createSessionClient();
+    await db.storage.from(supabaseConfig.mediaBucket).remove([path]);
+    return { ok: false, message: `Upload rejected: ${problem}.` };
+  }
+  return { ok: true, message: `Video uploaded (${((probe.bytes ?? 0) / 1048576).toFixed(1)} MB). Save the slide to use it.`, path };
 }
 
 export async function deleteHeroSlideAction(_: ActionState, formData: FormData): Promise<ActionState> {
@@ -77,11 +173,31 @@ export async function deleteHeroSlideAction(_: ActionState, formData: FormData):
   const slideId = z.uuid().safeParse(formData.get("id"));
   if (!slideId.success) return { ok: false, message: "Unknown slide." };
   const db = await createSessionClient();
-  const { data, error } = await db.from("hero_slides").delete().eq("id", slideId.data).select("id");
+  const { data, error } = await db.from("hero_slides").delete().eq("id", slideId.data).select("*");
   if (error) return dbError("hero slide", error);
   if (!data?.length) return noRows("slide");
   refreshStore("/admin/hero", "/");
-  return { ok: true, message: "Slide deleted. Its images stay in the Media library." };
+
+  // Clean up the slide's own uploads: only files under uploads/ (never the built-in website assets) that nothing else still uses.
+  const row = data[0] as Record<string, unknown>;
+  const paths = [
+    ...new Set(["desktop_image_path", "mobile_image_path", "desktop_video_path", "mobile_video_path"].map((k) => row[k]).filter((p): p is string => typeof p === "string" && p.startsWith("uploads/"))),
+  ];
+  const unused: string[] = [];
+  for (const path of paths) if ((await mediaReferences(db, path)).length === 0) unused.push(path);
+  const kept = paths.length - unused.length;
+  let removed = 0;
+  if (unused.length) {
+    const result = await db.storage.from(supabaseConfig.mediaBucket).remove(unused);
+    if (result.error) console.error("[admin] hero clean-up:", result.error.message);
+    else removed = result.data?.length ?? 0;
+  }
+  revalidatePath("/admin/media");
+  const notes = [
+    removed ? `${removed} unused file${removed === 1 ? "" : "s"} removed from the Media library` : "",
+    kept ? `${kept} file${kept === 1 ? " is" : "s are"} kept because ${kept === 1 ? "it is" : "they are"} used elsewhere` : "",
+  ].filter(Boolean);
+  return { ok: true, message: `Slide deleted.${notes.length ? ` ${notes.join("; ")}.` : ""}` };
 }
 
 /** Shows or hides a slide without opening its editor. */
@@ -106,13 +222,9 @@ export async function moveHeroSlideAction(_: ActionState, formData: FormData): P
   const db = await createSessionClient();
   const { data, error } = await db.from("hero_slides").select("id, sort_order").order("sort_order").order("created_at");
   if (error) return dbError("hero slide", error);
-  const list = data ?? [];
-  const from = list.findIndex((s) => s.id === parsed.data.id);
-  const to = from + (parsed.data.direction === "up" ? -1 : 1);
-  if (from < 0) return { ok: false, message: "Slide not found. Reload the page." };
-  if (to < 0 || to >= list.length) return { ok: true, message: "" };
-  [list[from], list[to]] = [list[to], list[from]];
-  const changes = list.map((s, i) => ({ id: s.id as string, sort: (i + 1) * 10, before: s.sort_order as number })).filter((s) => s.sort !== s.before);
+  const changes = moveInOrder((data ?? []).map((s) => ({ id: s.id as string, sort: s.sort_order as number | null })), parsed.data.id, parsed.data.direction);
+  if (!changes) return { ok: false, message: "Slide not found. Reload the page." };
+  if (!changes.length) return { ok: true, message: "" };
   const results = await Promise.all(changes.map((s) => db.from("hero_slides").update({ sort_order: s.sort }).eq("id", s.id).select("id")));
   const failed = results.find((r) => r.error || !r.data?.length);
   if (failed) return failed.error ? dbError("hero slide", failed.error) : noRows("slide order");

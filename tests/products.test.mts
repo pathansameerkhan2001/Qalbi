@@ -8,6 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { productSchema, productVisibility, publishBlockers } from "../src/lib/admin/product-rules.ts";
 import { rowToProduct, type ProductRow } from "../src/lib/store/product-mapping.ts";
+import { moveInOrder } from "../src/lib/admin/ordering.ts";
 
 const form = (over: Record<string, unknown> = {}) => ({
   id: "",
@@ -125,4 +126,40 @@ test("publish toggle: stored drafts at ₹0 or without photos cannot be publishe
   assert.deepEqual(publishBlockers({ name: "Serum", price: 897, imageCount: 0 }), ["add at least one photo"]);
   assert.deepEqual(publishBlockers({ name: " ", price: Number.NaN, imageCount: 0 }), ["add a name", "set the real price", "add at least one photo"]);
   assert.deepEqual(publishBlockers({ name: "Radiance Glow Cream", price: 399, imageCount: 4 }), []);
+});
+
+test("manual order: swaps with the neighbour and renumbers the whole list, writing only changed rows", () => {
+  const list = [
+    { id: "a", sort: 10 },
+    { id: "b", sort: 20 },
+    { id: "c", sort: 30 },
+  ];
+  assert.deepEqual(moveInOrder(list, "c", "up"), [
+    { id: "c", sort: 20 },
+    { id: "b", sort: 30 },
+  ]);
+  assert.deepEqual(moveInOrder(list, "a", "down"), [
+    { id: "b", sort: 10 },
+    { id: "a", sort: 20 },
+  ]);
+  assert.deepEqual(moveInOrder(list, "a", "up"), [], "already first: nothing to write");
+  assert.deepEqual(moveInOrder(list, "c", "down"), []);
+  assert.equal(moveInOrder(list, "zzz", "up"), null);
+});
+
+test("manual order: equal or missing numbers (e.g. new rows at 0) are resolved by the renumbering", () => {
+  const changes = moveInOrder(
+    [
+      { id: "a", sort: 0 },
+      { id: "b", sort: 0 },
+      { id: "c", sort: null },
+    ],
+    "b",
+    "down",
+  );
+  assert.deepEqual(changes, [
+    { id: "a", sort: 10 },
+    { id: "c", sort: 20 },
+    { id: "b", sort: 30 },
+  ]);
 });

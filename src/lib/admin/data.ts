@@ -3,7 +3,7 @@ import { cache } from "react";
 import { createSessionClient } from "@/lib/supabase/server";
 import { supabaseConfig } from "@/lib/supabase/config";
 import { queryCategories, queryProducts, StoreQueryError, type CategoryRow, type ProductRow } from "@/lib/store/catalog";
-import { queryBlogPosts, queryHeroSlides, queryIngredients, queryReels, type BlogPostRow, type HeroSlideRow, type IngredientRow, type ReelRow } from "@/lib/store/cms";
+import { queryBlogPosts, queryHeroSlides, heroVideoReady, queryIngredients, queryReels, type BlogPostRow, type HeroSlideRow, type IngredientRow, type ReelRow } from "@/lib/store/cms";
 import { requireAdmin } from "./auth";
 
 /**
@@ -144,6 +144,11 @@ export async function categoryProductCounts(): Promise<Map<string, { total: numb
 export async function listHeroSlides(): Promise<HeroSlideRow[]> {
   const db = await adminClient();
   return loadCatalog(() => queryHeroSlides(db));
+}
+
+/** Whether video slides can be saved yet (supabase/migrations/20261026000000_hero_video_and_product_order.sql). */
+export async function heroVideoMigrationApplied(): Promise<boolean> {
+  return heroVideoReady(await adminClient());
 }
 
 export async function listReels(): Promise<ReelRow[]> {

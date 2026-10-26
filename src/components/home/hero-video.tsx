@@ -1,32 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ChevronLeft, ChevronRight, Pause } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import type { HeroContent } from "@/lib/content/hero";
 import { cn } from "@/lib/utils";
 import { HeroOverlay } from "./hero-overlay";
 
-/** Bucket URLs of the hero film; `mobile` (4:5, lighter) is optional. */
-export interface HeroFilmSources {
-  desktop: string;
-  mobile: string | null;
-}
-
 /**
- * A hero image (desktop sources from 640 px, mobile below) with the CSS
- * object-position that keeps its product in frame (default centred). `fit`
- * lets it show in full over a blurred copy of itself where the frame is too
- * wide or tall to crop it (globals.css, .hero-still). `content` is an admin
- * slide's optional heading / subtitle / button.
+ * One hero slide as the browser receives it. `still` is the image (image
+ * slides) or the poster (video slides; null when none) with desktop sources
+ * from 640 px and mobile below; `position` keeps its product in frame and
+ * `fit` lets it show in full over a blurred copy of itself where the frame is
+ * too wide or tall to crop it (globals.css, .hero-still). `video` holds the
+ * bucket URLs (`mobile` optional). `content` is an optional heading /
+ * subtitle / button.
  */
-export interface HeroStill {
+export interface HeroSlideView {
   key: string;
-  desktopSrcSet: string;
-  mobileSrcSet: string;
-  src: string;
-  width: number;
-  height: number;
   alt: string;
+  still: { desktopSrcSet: string; mobileSrcSet: string; src: string; width: number; height: number } | null;
+  video: { desktop: string; mobile: string | null } | null;
   content: HeroContent | null;
   position?: string;
   fit?: "square" | "wide";
@@ -36,6 +29,8 @@ export interface HeroStill {
 const PHONE = "(max-width: 639px)";
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const PHOTO_INTERVAL = 6000;
+/** Longest a video slide waits on its poster for enough of the file to play through. */
+const BUFFER_TIMEOUT_MS = 15_000;
 
 /** Reduced-motion preference; `false` during SSR and hydration so server and client markup match. */
 export function usePrefersReducedMotion() {
@@ -61,31 +56,17 @@ function useConstrainedConnection() {
   return useSyncExternalStore(() => () => {}, isConstrainedConnection, () => false);
 }
 
-/** Longest the poster waits for the film to buffer before the hero moves on to the photos. */
-const BUFFER_TIMEOUT_MS = 15_000;
-
-function playFilm(el: HTMLVideoElement, onBlocked: () => void, onFailed: () => void) {
-  // React does not reflect `muted` reliably; autoplay policies require it.
-  el.muted = true;
-  el.play().catch((error: DOMException) => {
-    if (error.name === "NotAllowedError") onBlocked();
-    // AbortError: a pause() or new src interrupted this play() — not a failure.
-    else if (error.name !== "AbortError") onFailed();
-  });
-}
-
 /**
- * Loads the film — choosing its file on first use, exactly one per page view
- * (mobile on phones when available), so resizing never fetches the other — and
- * calls `onReady` once enough is buffered to reach the end without stalling at
- * the measured download rate (or it is fully buffered). The films are about
- * 12 Mbit/s: started at their first frame they stalled and dropped frames on
- * any slower connection (measured in Chrome), which read as stutter. Calls
- * `onTooSlow` instead after BUFFER_TIMEOUT_MS. Returns a cleanup.
+ * Loads a video — choosing its file on first use, exactly one per page view
+ * (mobile on phones when there is one), so resizing never fetches the other —
+ * and calls `onReady` once enough is buffered to reach the end without
+ * stalling at the measured download rate (or it is fully buffered): started
+ * at their first frame, heavy files stalled on slower connections, which read
+ * as stutter. Calls `onTooSlow` instead after BUFFER_TIMEOUT_MS. Returns a cleanup.
  */
-function bufferFilm(el: HTMLVideoElement, film: HeroFilmSources, loadStart: { current: number }, onReady: () => void, onTooSlow: () => void): () => void {
+function bufferVideo(el: HTMLVideoElement, video: NonNullable<HeroSlideView["video"]>, loadStart: { current: number }, onReady: () => void, onTooSlow: () => void): () => void {
   if (!el.getAttribute("src")) {
-    el.src = film.mobile && window.matchMedia(PHONE).matches ? film.mobile : film.desktop;
+    el.src = video.mobile && window.matchMedia(PHONE).matches ? video.mobile : video.desktop;
     el.preload = "auto";
     el.load();
     loadStart.current = performance.now();
@@ -94,7 +75,7 @@ function bufferFilm(el: HTMLVideoElement, film: HeroFilmSources, loadStart: { cu
     const duration = el.duration;
     if (!Number.isFinite(duration) || duration <= 0 || el.buffered.length === 0 || el.buffered.start(0) > 0.1) return false;
     const buffered = el.buffered.end(0);
-    // Seconds of film arriving per second; at or above 1 the download outpaces playback.
+    // Seconds of video arriving per second; at or above 1 the download outpaces playback.
     const rate = buffered / Math.max(0.001, (performance.now() - loadStart.current) / 1000);
     return buffered >= duration - 0.1 || (el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA && buffered >= duration * (1 - Math.min(rate, 1)) + 1);
   };
@@ -114,7 +95,97 @@ function bufferFilm(el: HTMLVideoElement, film: HeroFilmSources, loadStart: { cu
   return () => window.clearInterval(id);
 }
 
-function Still({ still, priority = false, imgClassName }: { still: HeroStill; priority?: boolean; imgClassName?: string }) {
+type VideoCallbacks = { onPlaying: () => void; onEnded: () => void; onUnavailable: (reason: string) => void };
+
+/**
+ * A video slide's player. It has no src until `load` (on screen, or next in
+ * line), and plays only while `active` and not `paused`; returning to the
+ * slide replays it from the start without downloading it again.
+ */
+function SlideVideo({ video, load, active, paused, loop, callbacks }: { video: NonNullable<HeroSlideView["video"]>; load: boolean; active: boolean; paused: boolean; loop: boolean; callbacks: VideoCallbacks }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const loadStart = useRef(0);
+  const latest = useRef(callbacks);
+  const [ready, setReady] = useState(false);
+  const [shown, setShown] = useState(false);
+  const [gone, setGone] = useState(false);
+
+  useEffect(() => {
+    latest.current = callbacks;
+  });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !load || ready) return;
+    // Read the preferences directly as well: during hydration the hooks still report the server value (false).
+    if (window.matchMedia(REDUCED_MOTION).matches || isConstrainedConnection()) return;
+    return bufferVideo(
+      el,
+      video,
+      loadStart,
+      () => setReady(true),
+      () => {
+        // Stop the download as well: the poster (or the next slide) takes over.
+        el.removeAttribute("src");
+        el.load();
+        setGone(true);
+        latest.current.onUnavailable("too-slow-to-buffer");
+      },
+    );
+  }, [load, ready, video]);
+
+  // Coming back to this slide replays it from the start.
+  useEffect(() => {
+    const el = ref.current;
+    if (el && active && ready && el.currentTime > 0) el.currentTime = 0;
+  }, [active, ready]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !ready) return;
+    if (!active || paused) {
+      el.pause();
+      return;
+    }
+    // React does not reflect `muted` reliably; autoplay policies require it.
+    el.muted = true;
+    el.play().catch((error: DOMException) => {
+      // AbortError: a pause() interrupted this play() — not a failure.
+      if (error.name === "AbortError") return;
+      setGone(true);
+      latest.current.onUnavailable(error.name === "NotAllowedError" ? "autoplay-blocked" : "failed");
+    });
+  }, [active, paused, ready]);
+
+  return (
+    <video
+      ref={ref}
+      muted
+      playsInline
+      loop={loop}
+      preload="none"
+      disablePictureInPicture
+      disableRemotePlayback
+      aria-hidden
+      tabIndex={-1}
+      onPlaying={() => {
+        setShown(true);
+        latest.current.onPlaying();
+      }}
+      onEnded={() => latest.current.onEnded()}
+      onError={(e) => {
+        if (!e.currentTarget.getAttribute("src")) return;
+        setGone(true);
+        latest.current.onUnavailable("failed");
+      }}
+      className={cn("absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out", shown && !gone ? "opacity-100" : "opacity-0")}
+    />
+  );
+}
+
+function Still({ slide, priority = false, imgClassName }: { slide: HeroSlideView; priority?: boolean; imgClassName?: string }) {
+  const still = slide.still;
+  if (!still) return null;
   // Both layers use the same srcset and sizes, so the browser fetches the file once.
   const layer = (className: string, alt: string, eager: boolean) => (
     <picture className="absolute inset-0 block">
@@ -128,15 +199,15 @@ function Still({ still, priority = false, imgClassName }: { still: HeroStill; pr
         fetchPriority={eager ? "high" : "low"}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
-        style={{ objectPosition: still.position }}
+        style={{ objectPosition: slide.position }}
         className={cn("absolute inset-0 h-full w-full", className)}
       />
     </picture>
   );
   return (
-    <div className="hero-still absolute inset-0 overflow-hidden" data-fit={still.fit}>
-      {still.fit && <div aria-hidden>{layer("hero-still-backdrop", "", false)}</div>}
-      {layer(cn("hero-still-main", imgClassName), still.alt, priority)}
+    <div className="hero-still absolute inset-0 overflow-hidden" data-fit={slide.fit}>
+      {slide.fit && <div aria-hidden>{layer("hero-still-backdrop", "", false)}</div>}
+      {layer(cn("hero-still-main", imgClassName), slide.alt, priority)}
     </div>
   );
 }
@@ -145,55 +216,62 @@ const glass = "border border-ivory/40 bg-ink/45 text-ivory shadow-[0_6px_24px_rg
 const iconButton = "flex size-11 items-center justify-center rounded-full transition hover:bg-ivory/15 focus-visible:outline-ivory";
 
 /**
- * Hero visual: QALBI's film first, then a crossfading slideshow of the real
- * product photos — never both at once. Without a film the slideshow starts
- * straight away.
+ * Hero slideshow of images and videos in the given order, crossfading from
+ * one to the next. Images stay PHOTO_INTERVAL; a video plays once (muted,
+ * inline, autoplaying where the browser allows) and the slideshow moves on
+ * when it ends — a lone video loops. Its poster is shown at once and stays up
+ * while the video buffers enough to play through without stalling. When a
+ * video does not play on its own — reduced motion, data saver or a slow
+ * connection, too slow to buffer, autoplay refused, or a playback error — its
+ * poster stands in for it, or the slide is skipped if it has none.
  *
- * The film autoplays muted and inline where the browser allows it; there is no
- * play/pause button. "Photos" stops it and shows the photos (the WCAG 2.2.2
- * stop mechanism), as does its end. Its poster is the first paint and stays
- * up while the film buffers enough to play through without stalling
- * (bufferFilm). When the film does not play on its own — reduced motion, data
- * saver or a slow connection, too slow to buffer, autoplay refused by the
- * browser, or a playback error — the poster crossfades to the photos instead. The <video> has no src until it may
- * play, so those visitors download no video. Film and slideshow pause while
- * off screen; the slideshow also holds on hover or keyboard focus, stops for
- * good once a visitor navigates or pauses it, and never advances (or zooms)
- * for reduced-motion visitors. Each photo is fetched only when it is next, one
- * ahead of the one on screen.
+ * Downloads: each image only when it is on screen or next; each video only
+ * when it is on screen or next, never for visitors who can't play it, one file
+ * per page view (phone or desktop). Everything pauses while off screen; the
+ * slideshow holds on hover or keyboard focus, stops advancing once a visitor
+ * navigates, and Pause stops it all (WCAG 2.2.2). Reduced-motion visitors get
+ * no autoplay, zoom or auto-advance.
  */
-export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmSources | null; poster: HeroStill; photos: HeroStill[]; className?: string }) {
+export function HeroMedia({ slides, className }: { slides: HeroSlideView[]; className?: string }) {
   const box = useRef<HTMLDivElement>(null);
-  const video = useRef<HTMLVideoElement>(null);
-  const [phase, setPhase] = useState<"film" | "photos">(film ? "film" : "photos");
-  const [failed, setFailed] = useState(false);
-  // The browser refused muted autoplay (e.g. iOS Low Power Mode).
-  const [blocked, setBlocked] = useState(false);
-  // The film could not buffer enough within BUFFER_TIMEOUT_MS: the photos are shown instead.
-  const [tooSlow, setTooSlow] = useState(false);
-  // Enough of the film is buffered to play through; and when its download began.
-  const ready = useRef(false);
-  const loadStart = useRef(0);
-  // Frames are actually being shown (from the video's own events, not from what was asked for).
-  const [playing, setPlaying] = useState(false);
-  const [shown, setShown] = useState(false);
   const [visible, setVisible] = useState(true);
   const [active, setActive] = useState(0);
   const [previous, setPrevious] = useState<number | null>(null);
-  // Photos mounted (and so fetched) ahead of need; only grows.
+  // Slides mounted (and so fetched) ahead of need; only grows.
   const [mounted, setMounted] = useState(0);
+  // Visitor navigated: no more auto-advance. Paused: nothing moves (videos too).
   const [stopped, setStopped] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [held, setHeld] = useState(false);
+  // Video slides that won't play on their own, with the reason; and the video now on screen / finished.
+  const [unavailable, setUnavailable] = useState<Record<string, string>>({});
+  const [playingKey, setPlayingKey] = useState<string | null>(null);
+  const [endedKey, setEndedKey] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const reduceMotion = usePrefersReducedMotion();
   const constrained = useConstrainedConnection();
 
-  // Why the film will not play on its own; any reason sends the hero to the photos.
-  const fallback = failed ? "failed" : blocked ? "autoplay-blocked" : tooSlow ? "too-slow-to-buffer" : reduceMotion ? "reduced-motion" : constrained ? "data-saver-or-slow-connection" : null;
-  const onPhotos = !film || phase === "photos" || fallback !== null;
-  const autoAdvance = onPhotos && photos.length > 1 && !stopped && !reduceMotion;
+  const videoOff = reduceMotion ? "reduced-motion" : constrained ? "data-saver-or-slow-connection" : null;
+  const canPlay = (s: HeroSlideView) => Boolean(s.video) && !videoOff && !unavailable[s.key];
+  const showable = (s: HeroSlideView) => !s.video || s.still !== null || canPlay(s);
+  const count = slides.length;
+  const step = (from: number, dir: 1 | -1) => {
+    for (let k = 1; k <= count; k++) {
+      const j = (((from + dir * k) % count) + count) % count;
+      if (showable(slides[j])) return j;
+    }
+    return from;
+  };
+  // A video slide that can't play and has no poster is passed over.
+  const current = count === 0 || showable(slides[active]) ? active : step(active, 1);
+  const next = count > 1 ? step(current, 1) : current;
+  const showableCount = slides.filter(showable).length;
+  const slide: HeroSlideView | undefined = slides[current];
+  const videoOnScreen = slide ? canPlay(slide) && endedKey !== slide.key : false;
+  const autoAdvance = showableCount > 1 && !stopped && !paused && !reduceMotion;
+
   // For checking a real device in DevTools: <div data-film="…">.
-  const filmState = !film ? "off" : (fallback ?? (phase === "photos" ? "photos" : playing ? "playing" : !visible ? "paused-off-screen" : shown ? "starting" : "buffering"));
+  const filmState = !slide?.video ? "photos" : (videoOff ?? unavailable[slide.key] ?? (paused ? "paused" : !visible ? "paused-off-screen" : playingKey === slide.key ? "playing" : endedKey === slide.key ? "ended" : "buffering"));
 
   useEffect(() => {
     const el = box.current;
@@ -203,70 +281,34 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const el = video.current;
-    if (!el || !film) return;
-    // Read the preferences directly as well: during hydration the hooks still report the server value (false).
-    const unwanted = window.matchMedia(REDUCED_MOTION).matches || isConstrainedConnection();
-    if (onPhotos || !visible || unwanted) {
-      el.pause();
-      return;
-    }
-    const play = () => playFilm(el, () => setBlocked(true), () => setFailed(true));
-    if (ready.current) {
-      play();
-      return;
-    }
-    return bufferFilm(
-      el,
-      film,
-      loadStart,
-      () => {
-        ready.current = true;
-        play();
-      },
-      () => {
-        // Stop the download as well: the photos take over.
-        el.removeAttribute("src");
-        el.load();
-        setTooSlow(true);
-      },
-    );
-  }, [film, onPhotos, visible]);
-
-  useEffect(() => {
-    if (!autoAdvance || held || !visible) return;
-    const id = window.setTimeout(() => {
-      const next = (active + 1) % photos.length;
-      setPrevious(active);
-      setActive(next);
-      setMounted((n) => Math.max(n, next + 2));
-    }, PHOTO_INTERVAL);
-    return () => window.clearTimeout(id);
-  }, [active, autoAdvance, held, visible, photos.length]);
-
-  function showPhoto(i: number) {
-    if (i !== active) {
-      setPrevious(active);
+  function go(i: number, byVisitor = false) {
+    if (i !== current) {
+      setPrevious(current);
       setActive(i);
     }
+    setEndedKey(null);
     setMounted((n) => Math.max(n, i + 2));
-    setStopped(true);
-    setStatus(`Photo ${i + 1} of ${photos.length}: ${photos[i].alt}`);
+    if (byVisitor) {
+      setStopped(true);
+      setStatus(`Slide ${i + 1} of ${count}: ${slides[i].alt}`);
+    }
   }
 
-  function toPhotos() {
-    setPhase("photos");
-    setStatus("Video stopped. Showing QALBI product photos");
-  }
+  // Images (and posters standing in for videos) advance on a timer; a playing video advances when it ends.
+  useEffect(() => {
+    if (!autoAdvance || held || !visible || videoOnScreen) return;
+    const id = window.setTimeout(() => go(next), endedKey === slide?.key ? 400 : PHOTO_INTERVAL);
+    return () => window.clearTimeout(id);
+  });
 
-  // On the photos: the one on screen and the next. While the film plays: the first.
-  const count = Math.min(photos.length, Math.max(mounted, onPhotos ? active + 2 : 0));
+  // The one on screen and the next; never the whole list at once.
+  const rendered = (i: number) => i < Math.max(mounted, current + 2) || i === next || i === current;
 
   return (
     <div
       ref={box}
       data-film={filmState}
+      data-slide={current + 1}
       className={cn("hero-frame relative overflow-hidden bg-[#0b1a10]", className)}
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
@@ -274,112 +316,88 @@ export function HeroMedia({ film, poster, photos, className }: { film: HeroFilmS
       onFocus={(e) => setHeld(e.target.matches(":focus-visible"))}
       onBlur={() => setHeld(false)}
     >
-      {film && (
-        <>
-          <Still still={poster} priority />
-          <video
-            ref={video}
-            muted
-            playsInline
-            preload="none"
-            disablePictureInPicture
-            disableRemotePlayback
-            aria-hidden
-            tabIndex={-1}
-            onPlaying={() => {
-              setPlaying(true);
-              setShown(true);
-              // The first photo comes next: fetch it while the film plays.
-              setMounted((n) => Math.max(n, 1));
-            }}
-            onPause={() => setPlaying(false)}
-            onEmptied={() => setPlaying(false)}
-            onEnded={() => {
-              setPlaying(false);
-              setPhase("photos");
-              setPrevious(null);
-              setActive(0);
-            }}
-            onError={(e) => {
-              if (!e.currentTarget.getAttribute("src")) return;
-              setPlaying(false);
-              setFailed(true);
-            }}
-            className={cn("absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out", shown && !failed ? "opacity-100" : "opacity-0")}
-          />
-        </>
-      )}
-
-      {photos.length > 0 && (
-        <div
-          role="group"
-          aria-roledescription="carousel"
-          aria-label="QALBI Naturals product photos"
-          aria-hidden={!onPhotos}
-          // The slow zoom waits while the photos are hidden (and never snaps back: its class stays on).
-          className={cn("absolute inset-0 transition-opacity duration-1000 ease-out motion-reduce:duration-300", onPhotos ? "opacity-100" : "pointer-events-none opacity-0 [&_.kenburns]:[animation-play-state:paused]")}
-        >
-          {photos.slice(0, count).map((photo, i) => (
+      <div role="group" aria-roledescription="carousel" aria-label="QALBI Naturals" className="absolute inset-0">
+        {slides.map((s, i) =>
+          !rendered(i) ? null : (
             <div
-              key={photo.key}
+              key={s.key}
               role="group"
               aria-roledescription="slide"
-              aria-label={`${i + 1} of ${photos.length}`}
-              aria-hidden={i !== active}
-              // The incoming photo fades in over the outgoing one, which stays opaque underneath: no blank frames.
-              className={cn("absolute inset-0", i === active ? "z-[2] opacity-100 transition-opacity duration-[1200ms] ease-out motion-reduce:duration-300" : i === previous ? "z-[1] opacity-100" : "opacity-0")}
+              aria-label={`${i + 1} of ${count}`}
+              aria-hidden={i !== current}
+              // The incoming slide fades in over the outgoing one, which stays opaque underneath: no blank frames.
+              className={cn("absolute inset-0", i === current ? "z-[2] opacity-100 transition-opacity duration-[1200ms] ease-out motion-reduce:duration-300" : i === previous ? "z-[1] opacity-100" : "opacity-0")}
             >
-              <Still still={photo} priority={!film && i === 0} imgClassName={cn(!reduceMotion && (i === active || i === previous) && "kenburns")} />
+              <Still slide={s} priority={i === 0} imgClassName={cn(!s.video && !reduceMotion && (i === current || i === previous) && "kenburns")} />
+              {s.video && !videoOff && (
+                <SlideVideo
+                  video={s.video}
+                  load={!unavailable[s.key] && (i === current || i === next)}
+                  active={i === current}
+                  paused={paused || !visible}
+                  loop={showableCount === 1}
+                  callbacks={{
+                    onPlaying: () => {
+                      setPlayingKey(s.key);
+                      // The next slide comes after this video: fetch its image or poster meanwhile.
+                      setMounted((n) => Math.max(n, i + 2));
+                    },
+                    onEnded: () => {
+                      setPlayingKey(null);
+                      setEndedKey(s.key);
+                    },
+                    onUnavailable: (reason) => {
+                      setPlayingKey(null);
+                      setUnavailable((u) => ({ ...u, [s.key]: reason }));
+                    },
+                  }}
+                />
+              )}
               {/* Hidden slides are inert so their buttons are never focusable. */}
-              {photo.content && (
-                <div inert={i !== active || !onPhotos}>
-                  <HeroOverlay content={photo.content} headingLevel="h2" />
+              {s.content && (
+                <div inert={i !== current}>
+                  <HeroOverlay content={s.content} headingLevel="h2" />
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      )}
+          ),
+        )}
+      </div>
 
       {/* Bottom-left, clear of the centred product and of the WhatsApp button. */}
-      <div className="absolute bottom-3 left-3 z-10 flex items-end gap-2 sm:bottom-5 sm:left-5 lg:bottom-8 lg:left-8">
-        {film && !onPhotos && photos.length > 0 && (
-          <button type="button" onClick={toPhotos} aria-label="Stop the video and show QALBI product photos" className={cn("flex items-center gap-1 rounded-full py-1 pl-4 pr-2 text-[0.7rem] font-medium uppercase tracking-[0.2em] focus-visible:outline-ivory", glass)}>
-            <span className="hidden sm:inline">Photos</span>
-            <span className="flex size-9 items-center justify-center sm:size-8">
-              <ChevronRight className="size-4" aria-hidden />
-            </span>
-          </button>
-        )}
-
-        {onPhotos && photos.length > 1 && (
+      {(showableCount > 1 || videoOnScreen) && (
+        <div className="absolute bottom-3 left-3 z-10 sm:bottom-5 sm:left-5 lg:bottom-8 lg:left-8">
           <div className={cn("flex items-center rounded-full p-0.5", glass)}>
-            <button type="button" onClick={() => showPhoto((active - 1 + photos.length) % photos.length)} aria-label="Previous photo" className={iconButton}>
-              <ChevronLeft className="size-4" aria-hidden />
-            </button>
-            <span className="hidden min-w-10 text-center text-xs tabular-nums text-ivory/90 sm:inline" aria-hidden>
-              {active + 1} / {photos.length}
-            </span>
-            <button type="button" onClick={() => showPhoto((active + 1) % photos.length)} aria-label="Next photo" className={iconButton}>
-              <ChevronRight className="size-4" aria-hidden />
-            </button>
-            {/* Pause only (WCAG 2.2.2): once stopped, the photos stay put. */}
-            {autoAdvance && (
+            {showableCount > 1 && (
+              <>
+                <button type="button" onClick={() => go(step(current, -1), true)} aria-label="Previous slide" className={iconButton}>
+                  <ChevronLeft className="size-4" aria-hidden />
+                </button>
+                <span className="hidden min-w-10 text-center text-xs tabular-nums text-ivory/90 sm:inline" aria-hidden>
+                  {current + 1} / {count}
+                </span>
+                <button type="button" onClick={() => go(step(current, 1), true)} aria-label="Next slide" className={iconButton}>
+                  <ChevronRight className="size-4" aria-hidden />
+                </button>
+              </>
+            )}
+            {/* WCAG 2.2.2: anything that moves can be paused. */}
+            {(paused || autoAdvance || videoOnScreen) && (
               <button
                 type="button"
                 onClick={() => {
-                  setStopped(true);
-                  setStatus("Slideshow paused");
+                  setPaused((p) => !p);
+                  setStatus(paused ? "Slideshow playing" : "Slideshow paused");
                 }}
-                aria-label="Pause slideshow"
+                aria-label={paused ? "Play slideshow" : "Pause slideshow"}
                 className={iconButton}
               >
-                <Pause className="size-3.5" aria-hidden />
+                {paused ? <Play className="size-3.5" aria-hidden /> : <Pause className="size-3.5" aria-hidden />}
               </button>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <p className="sr-only" aria-live="polite">
         {status}

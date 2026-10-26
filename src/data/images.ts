@@ -43,15 +43,15 @@ export const images = {
    * can't play (order rule: src/lib/content/hero.ts). While `approved` is false
    * or Supabase isn't configured, the slideshow starts straight away.
    *
-   * These are defaults: /admin/hero → Hero film (store setting `hero`) can
-   * switch the film off and replace each video path and poster without a deploy.
+   * Built-in only: shown while no /admin/hero slide is (video slides there
+   * replace it without a deploy).
    *
    * To replace it: run scripts/encode-hero-video.py on the corrected film with
    * a new --version (and --mobile-source for a portrait cut), upload both MP4s
    * with scripts/upload-hero-videos.mjs under those new names (Cache-Control
    * max-age=31536000; never overwrite a published name: browsers and the CDN
-   * keep it for a year), then paste the paths in /admin/hero (or point the
-   * paths and posters here at them). `mobile` is optional (phones then get `desktop`).
+   * keep it for a year), then add them as a video slide in /admin/hero (paste
+   * the paths) or point the paths and posters here at them. `mobile` is optional (phones then get `desktop`).
    */
   heroFilm: {
     approved: true,

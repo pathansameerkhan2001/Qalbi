@@ -2,30 +2,28 @@
 
 import { useState } from "react";
 import { Film, Monitor, Play, Smartphone, X } from "lucide-react";
-import { HeroMedia, type HeroStill } from "@/components/home/hero-video";
+import { HeroMedia, type HeroSlideView } from "@/components/home/hero-video";
 import { cn } from "@/lib/utils";
 
 export interface SequenceTile {
   key: string;
-  kind: "film" | "slide";
+  kind: "image" | "video";
   label: string;
   note: string;
-  desktopSrc: string;
-  mobileSrc: string;
+  desktopSrc: string | null;
+  mobileSrc: string | null;
   hasText: boolean;
 }
 
 export interface SequenceView {
   tiles: SequenceTile[];
-  film: { desktop: string; mobile: string | null } | null;
-  poster: HeroStill;
-  photos: HeroStill[];
+  slides: HeroSlideView[];
 }
 
 /**
  * The homepage hero in order, built by the same rule as the homepage
  * (lib/content/hero.ts). "Play preview" mounts the real hero component, so
- * the film, poster and slideshow behave exactly as visitors see them; it is
+ * images, videos and posters behave exactly as visitors see them; it is
  * mounted only on request, so opening this page downloads no video.
  */
 export function HeroSequence({ live, withHidden, hiddenCount }: { live: SequenceView; withHidden: SequenceView; hiddenCount: number }) {
@@ -62,35 +60,40 @@ export function HeroSequence({ live, withHidden, hiddenCount }: { live: Sequence
       </div>
 
       <ol className="flex gap-3 overflow-x-auto pb-2">
-        {view.tiles.map((t, i) => (
-          <li key={t.key} className={cn("shrink-0", device === "desktop" ? "w-44" : "w-24")}>
-            <div className={cn("relative overflow-hidden rounded-[3px] bg-sand ring-1 ring-line", device === "desktop" ? "aspect-[16/9]" : "aspect-[4/5]")}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- admin thumbnail */}
-              <img src={device === "desktop" ? t.desktopSrc : t.mobileSrc} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
-              <span className="absolute left-1 top-1 rounded-full bg-ink/70 px-1.5 text-[0.65rem] font-medium tabular-nums text-ivory">{i + 1}</span>
-              {t.kind === "film" && (
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="flex size-8 items-center justify-center rounded-full bg-ink/60 text-ivory">
-                    <Film className="size-4" aria-hidden />
+        {view.tiles.map((t, i) => {
+          const src = device === "desktop" ? (t.desktopSrc ?? t.mobileSrc) : (t.mobileSrc ?? t.desktopSrc);
+          return (
+            <li key={t.key} className={cn("shrink-0", device === "desktop" ? "w-44" : "w-24")}>
+              <div className={cn("relative overflow-hidden rounded-[3px] bg-[#0b1a10] ring-1 ring-line", device === "desktop" ? "aspect-[16/9]" : "aspect-[4/5]")}>
+                {src && (
+                  // eslint-disable-next-line @next/next/no-img-element -- admin thumbnail
+                  <img src={src} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+                )}
+                <span className="absolute left-1 top-1 rounded-full bg-ink/70 px-1.5 text-[0.65rem] font-medium tabular-nums text-ivory">{i + 1}</span>
+                {t.kind === "video" && (
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <span className="flex size-8 items-center justify-center rounded-full bg-ink/60 text-ivory">
+                      <Film className="size-4" aria-hidden />
+                    </span>
                   </span>
-                </span>
-              )}
-            </div>
-            <p className="mt-1 truncate text-xs font-medium text-ink" title={t.label}>
-              {t.label}
-            </p>
-            <p className="truncate text-[0.7rem] text-muted" title={t.note}>
-              {t.note}
-              {t.hasText && " · with text"}
-            </p>
-          </li>
-        ))}
+                )}
+              </div>
+              <p className="mt-1 truncate text-xs font-medium text-ink" title={t.label}>
+                {t.label}
+              </p>
+              <p className="truncate text-[0.7rem] text-muted" title={t.note}>
+                {t.note}
+                {t.hasText && " · with text"}
+              </p>
+            </li>
+          );
+        })}
       </ol>
 
       {playing && (
         <div className={cn("mx-auto overflow-hidden rounded-[3px] ring-1 ring-line", device === "desktop" ? "w-full" : "w-full max-w-[22rem]")}>
-          {/* Phone frame 4:5 and desktop 16:9 here; the homepage sizes the frame to the viewport. The device switch picks the frame only: the files follow this window's width. */}
-          <HeroMedia key={`${includeHidden}`} film={view.film} poster={view.poster} photos={view.photos} className={device === "desktop" ? "aspect-[16/9] w-full" : "aspect-[4/5] w-full"} />
+          {/* Desktop 16:9 and phone 4:5 here; the homepage sizes the frame to the viewport. The device switch picks the frame; the video file follows this window's width. */}
+          <HeroMedia key={`${includeHidden}`} slides={view.slides} className={device === "desktop" ? "aspect-[16/9] w-full" : "aspect-[4/5] w-full"} />
         </div>
       )}
     </div>

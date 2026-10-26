@@ -22,8 +22,13 @@ export interface HeroSlideRow {
   subtitle: string | null;
   buttonLabel: string | null;
   buttonHref: string | null;
-  desktopImagePath: string;
-  mobileImagePath: string;
+  mediaType: "image" | "video";
+  /** Image slides: the images (always both). Video slides: the optional posters. */
+  desktopImagePath: string | null;
+  mobileImagePath: string | null;
+  /** Video slides only; the mobile video is optional (phones then get the desktop one). */
+  desktopVideoPath: string | null;
+  mobileVideoPath: string | null;
   alt: string;
   sort: number;
   active: boolean;
@@ -70,6 +75,10 @@ export interface IngredientRow {
 }
 
 const HERO_COLUMNS = "id, heading, subtitle, button_label, button_href, desktop_image_path, mobile_image_path, alt_text, sort_order, is_active";
+/** Video columns (supabase/migrations/20261026000000_hero_video_and_product_order.sql). */
+const HERO_VIDEO_COLUMNS = `${HERO_COLUMNS}, media_type, desktop_video_path, mobile_video_path`;
+/** Undefined column: a migration has not been applied yet. */
+const MISSING_COLUMN = new Set(["42703", "PGRST204"]);
 const REEL_COLUMNS = "id, reel_url, caption, thumbnail_path, sort_order, is_published";
 const POST_COLUMNS = "id, slug, title, excerpt, body, category, author, cover_image_path, cover_alt, seo_title, seo_description, status, published_at, created_at, updated_at";
 
@@ -84,8 +93,11 @@ const toHero = (r: Row): HeroSlideRow => ({
   subtitle: str(r.subtitle),
   buttonLabel: str(r.button_label),
   buttonHref: str(r.button_href),
-  desktopImagePath: String(r.desktop_image_path),
-  mobileImagePath: String(r.mobile_image_path),
+  mediaType: r.media_type === "video" ? "video" : "image",
+  desktopImagePath: str(r.desktop_image_path),
+  mobileImagePath: str(r.mobile_image_path),
+  desktopVideoPath: str(r.desktop_video_path),
+  mobileVideoPath: str(r.mobile_video_path),
   alt: String(r.alt_text),
   sort: Number(r.sort_order ?? 0),
   active: r.is_active === true,
@@ -135,10 +147,19 @@ const toPost = (r: Row): BlogPostRow => ({
 // Queries (RLS decides what the given client may see)
 // ---------------------------------------------------------------------------
 
+/** Hero slides in display order. Before the video migration every slide is read as an image slide. */
 export async function queryHeroSlides(db: SupabaseClient): Promise<HeroSlideRow[]> {
-  const { data, error } = await db.from("hero_slides").select(HERO_COLUMNS).order("sort_order").order("created_at");
-  if (error) throw new StoreQueryError("hero slides", error);
-  return (data ?? []).map(toHero);
+  const read = (columns: string) => db.from("hero_slides").select(columns).order("sort_order").order("created_at");
+  let result = await read(HERO_VIDEO_COLUMNS);
+  if (result.error?.code && MISSING_COLUMN.has(result.error.code)) result = await read(HERO_COLUMNS);
+  if (result.error) throw new StoreQueryError("hero slides", result.error);
+  return ((result.data ?? []) as unknown as Row[]).map(toHero);
+}
+
+/** True once the hero video columns exist (admin: video slides can be saved). */
+export async function heroVideoReady(db: SupabaseClient): Promise<boolean> {
+  const { error } = await db.from("hero_slides").select("media_type").limit(1);
+  return !error;
 }
 
 export async function queryReels(db: SupabaseClient): Promise<ReelRow[]> {

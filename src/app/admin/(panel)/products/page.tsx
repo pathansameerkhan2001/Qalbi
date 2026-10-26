@@ -8,7 +8,8 @@ import { mediaUrl } from "@/lib/assets";
 import { isShopifyConfigured } from "@/lib/shopify/config";
 import { getCommerceSource } from "@/lib/shopify";
 import { productVisibility, publishBlockers } from "@/lib/admin/product-rules";
-import { setProductPublishedAction } from "@/lib/admin/actions";
+import { moveProductAction, setProductPublishedAction } from "@/lib/admin/actions";
+import { MoveButtons } from "@/components/admin/move-buttons";
 import { RowForm } from "@/components/admin/row-form";
 import { cn } from "@/lib/utils";
 import { AdminHeading, Card, inr, SetupNotice } from "@/components/admin/ui";
@@ -61,6 +62,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
       {products.length > 0 && (
         <p className="mb-3 text-sm text-muted" role="status">
           {products.length} product{products.length === 1 ? "" : "s"} · {counts["on-sale"]} on sale · {counts["out-of-stock"]} out of stock · {counts.draft} draft
+          {!shopify && " · Listed in website order: the arrows set one order for the whole shop (the default “Featured” sort and every category page). Price and name sorts are unaffected."}
         </p>
       )}
       <Card className="overflow-x-auto">
@@ -70,6 +72,11 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
               <tr>
+                {!shopify && (
+                  <th className="px-3 py-3 font-medium" title="The order on the website (default sort and every category page)">
+                    Order
+                  </th>
+                )}
                 <th className="px-4 py-3 font-medium">Product</th>
                 <th className="px-4 py-3 font-medium">Price</th>
                 <th className="px-4 py-3 font-medium">Stock</th>
@@ -82,11 +89,21 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {products.map((p) => {
+              {products.map((p, i) => {
                 const image = p.images[0];
                 const blockers = publishBlockers({ name: p.title, price: p.price, imageCount: p.images.length });
                 return (
                   <tr key={p.id} className="hover:bg-sand/40">
+                    {!shopify && (
+                      <td className="w-24 px-3 py-3 align-middle">
+                        <span className="flex items-center gap-1">
+                          <span className="w-5 text-right text-xs tabular-nums text-muted" aria-label={`Position ${i + 1}`}>
+                            {i + 1}
+                          </span>
+                          <MoveButtons id={p.id} action={moveProductAction} first={i === 0} last={i === products.length - 1} />
+                        </span>
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <Link href={`/admin/products/${p.id}`} className="flex items-center gap-3">
                         <span className="relative size-12 shrink-0 overflow-hidden rounded-[3px] border border-line bg-sand">
