@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { HeroContent } from "@/lib/content/hero";
 import { cn } from "@/lib/utils";
 import { HeroOverlay } from "./hero-overlay";
@@ -99,10 +99,11 @@ type VideoCallbacks = { onPlaying: () => void; onEnded: () => void; onUnavailabl
 
 /**
  * A video slide's player. It has no src until `load` (on screen, or next in
- * line), and plays only while `active` and not `paused`; returning to the
- * slide replays it from the start without downloading it again.
+ * line), and plays only while `active` and `onScreen`; scrolling away and
+ * back resumes where it was, and returning to the slide replays it from the
+ * start without downloading it again.
  */
-function SlideVideo({ video, load, active, paused, loop, callbacks }: { video: NonNullable<HeroSlideView["video"]>; load: boolean; active: boolean; paused: boolean; loop: boolean; callbacks: VideoCallbacks }) {
+function SlideVideo({ video, load, active, onScreen, loop, callbacks }: { video: NonNullable<HeroSlideView["video"]>; load: boolean; active: boolean; onScreen: boolean; loop: boolean; callbacks: VideoCallbacks }) {
   const ref = useRef<HTMLVideoElement>(null);
   const loadStart = useRef(0);
   const latest = useRef(callbacks);
@@ -143,19 +144,22 @@ function SlideVideo({ video, load, active, paused, loop, callbacks }: { video: N
   useEffect(() => {
     const el = ref.current;
     if (!el || !ready) return;
-    if (!active || paused) {
+    if (!active || !onScreen) {
       el.pause();
       return;
     }
     // React does not reflect `muted` reliably; autoplay policies require it.
     el.muted = true;
+    // Always the film's own speed: nothing here may speed it up or slow it down.
+    el.defaultPlaybackRate = 1;
+    el.playbackRate = 1;
     el.play().catch((error: DOMException) => {
       // AbortError: a pause() interrupted this play() — not a failure.
       if (error.name === "AbortError") return;
       setGone(true);
       latest.current.onUnavailable(error.name === "NotAllowedError" ? "autoplay-blocked" : "failed");
     });
-  }, [active, paused, ready]);
+  }, [active, onScreen, ready]);
 
   return (
     <video
@@ -228,9 +232,9 @@ const iconButton = "flex size-11 items-center justify-center rounded-full transi
  * Downloads: each image only when it is on screen or next; each video only
  * when it is on screen or next, never for visitors who can't play it, one file
  * per page view (phone or desktop). Everything pauses while off screen; the
- * slideshow holds on hover or keyboard focus, stops advancing once a visitor
- * navigates, and Pause stops it all (WCAG 2.2.2). Reduced-motion visitors get
- * no autoplay, zoom or auto-advance.
+ * slideshow holds on hover or keyboard focus and stops advancing once a
+ * visitor navigates. There is no pause/play control (owner's decision,
+ * 2026-10-26); reduced-motion visitors get no autoplay, zoom or auto-advance.
  */
 export function HeroMedia({ slides, className }: { slides: HeroSlideView[]; className?: string }) {
   const box = useRef<HTMLDivElement>(null);
@@ -239,9 +243,8 @@ export function HeroMedia({ slides, className }: { slides: HeroSlideView[]; clas
   const [previous, setPrevious] = useState<number | null>(null);
   // Slides mounted (and so fetched) ahead of need; only grows.
   const [mounted, setMounted] = useState(0);
-  // Visitor navigated: no more auto-advance. Paused: nothing moves (videos too).
+  // Visitor navigated: no more auto-advance.
   const [stopped, setStopped] = useState(false);
-  const [paused, setPaused] = useState(false);
   const [held, setHeld] = useState(false);
   // Video slides that won't play on their own, with the reason; and the video now on screen / finished.
   const [unavailable, setUnavailable] = useState<Record<string, string>>({});
@@ -268,10 +271,10 @@ export function HeroMedia({ slides, className }: { slides: HeroSlideView[]; clas
   const showableCount = slides.filter(showable).length;
   const slide: HeroSlideView | undefined = slides[current];
   const videoOnScreen = slide ? canPlay(slide) && endedKey !== slide.key : false;
-  const autoAdvance = showableCount > 1 && !stopped && !paused && !reduceMotion;
+  const autoAdvance = showableCount > 1 && !stopped && !reduceMotion;
 
   // For checking a real device in DevTools: <div data-film="…">.
-  const filmState = !slide?.video ? "photos" : (videoOff ?? unavailable[slide.key] ?? (paused ? "paused" : !visible ? "paused-off-screen" : playingKey === slide.key ? "playing" : endedKey === slide.key ? "ended" : "buffering"));
+  const filmState = !slide?.video ? "photos" : (videoOff ?? unavailable[slide.key] ?? (!visible ? "paused-off-screen" : playingKey === slide.key ? "playing" : endedKey === slide.key ? "ended" : "buffering"));
 
   useEffect(() => {
     const el = box.current;
@@ -334,7 +337,7 @@ export function HeroMedia({ slides, className }: { slides: HeroSlideView[]; clas
                   video={s.video}
                   load={!unavailable[s.key] && (i === current || i === next)}
                   active={i === current}
-                  paused={paused || !visible}
+                  onScreen={visible}
                   loop={showableCount === 1}
                   callbacks={{
                     onPlaying: () => {
@@ -365,36 +368,19 @@ export function HeroMedia({ slides, className }: { slides: HeroSlideView[]; clas
       </div>
 
       {/* Bottom-left, clear of the centred product and of the WhatsApp button. */}
-      {(showableCount > 1 || videoOnScreen) && (
+      {/* Slide arrows only: shown when there is more than one slide (a lone video gets no control at all). */}
+      {showableCount > 1 && (
         <div className="absolute bottom-3 left-3 z-10 sm:bottom-5 sm:left-5 lg:bottom-8 lg:left-8">
           <div className={cn("flex items-center rounded-full p-0.5", glass)}>
-            {showableCount > 1 && (
-              <>
-                <button type="button" onClick={() => go(step(current, -1), true)} aria-label="Previous slide" className={iconButton}>
-                  <ChevronLeft className="size-4" aria-hidden />
-                </button>
-                <span className="hidden min-w-10 text-center text-xs tabular-nums text-ivory/90 sm:inline" aria-hidden>
-                  {current + 1} / {count}
-                </span>
-                <button type="button" onClick={() => go(step(current, 1), true)} aria-label="Next slide" className={iconButton}>
-                  <ChevronRight className="size-4" aria-hidden />
-                </button>
-              </>
-            )}
-            {/* WCAG 2.2.2: anything that moves can be paused. */}
-            {(paused || autoAdvance || videoOnScreen) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPaused((p) => !p);
-                  setStatus(paused ? "Slideshow playing" : "Slideshow paused");
-                }}
-                aria-label={paused ? "Play slideshow" : "Pause slideshow"}
-                className={iconButton}
-              >
-                {paused ? <Play className="size-3.5" aria-hidden /> : <Pause className="size-3.5" aria-hidden />}
-              </button>
-            )}
+            <button type="button" onClick={() => go(step(current, -1), true)} aria-label="Previous slide" className={iconButton}>
+              <ChevronLeft className="size-4" aria-hidden />
+            </button>
+            <span className="hidden min-w-10 text-center text-xs tabular-nums text-ivory/90 sm:inline" aria-hidden>
+              {current + 1} / {count}
+            </span>
+            <button type="button" onClick={() => go(step(current, 1), true)} aria-label="Next slide" className={iconButton}>
+              <ChevronRight className="size-4" aria-hidden />
+            </button>
           </div>
         </div>
       )}
