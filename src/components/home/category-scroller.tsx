@@ -14,7 +14,7 @@ export async function CategoryScroller() {
   if (categories.length === 0) return null;
   return (
     <section aria-labelledby="categories-heading" className="relative isolate overflow-hidden bg-cream py-12 sm:py-16">
-      <FloralCorner variant="bouquet" corner="bl" size="lg" desktop />
+      <FloralCorner variant="cluster" corner="bl" size="lg" desktop />
       <FloralCorner variant="jasmine" corner="br" size="md" desktop />
       {/* Faint botanical corners, as in the approved design. Decorative only. */}
       <BotanicalIcon name="leaf" className="pointer-events-none absolute -left-6 -top-4 size-36 -rotate-12 text-botanical/15 sm:size-48" />

@@ -43,7 +43,11 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Floral artwork (scripts/build-florals.mts): URLs carry a content hash (?v=…), so a year is safe.
+      { source: "/florals/:file", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+    ];
   },
 };
 

@@ -23,7 +23,7 @@ export async function IngredientsPreview() {
   if (ingredients.length === 0) return null;
   return (
     <section aria-labelledby="ingredients-heading" className="relative isolate overflow-hidden py-14 sm:py-20">
-      <FloralCorner variant="bouquet" corner="br" size="lg" desktop />
+      <FloralCorner variant="cluster" corner="br" size="lg" desktop />
       <FloralCorner variant="rose" corner="bl" size="md" desktop />
       <CornerBotanical className="pointer-events-none absolute -left-6 top-6 hidden w-48 text-gold-soft/45 lg:block xl:w-56" />
       <CornerBotanical className="pointer-events-none absolute -right-6 top-6 hidden w-48 -scale-x-100 text-gold-soft/45 lg:block xl:w-56" />

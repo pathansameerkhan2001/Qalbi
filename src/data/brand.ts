@@ -28,10 +28,12 @@ export const brandConfig = {
 } as const;
 
 /** Official QALBI logo (transparent PNG made from the client's gold-on-black logo file). */
-export const brandAssets: { logoSrc: string | null; logoMaskSrc: string | null; logoWidth: number; logoHeight: number } = {
+export const brandAssets: { logoSrc: string | null; logoLosslessSrc: string | null; logoMaskSrc: string | null; logoWidth: number; logoHeight: number } = {
   logoSrc: assetUrl("brand/qalbi-logo.png"),
-  /** 2x alpha silhouette of the same logo, painted with a metallic gold gradient in CSS. */
-  logoMaskSrc: assetUrl("brand/qalbi-logo-mask.png"),
+  /** The same logo, pixel for pixel, as lossless WebP (119 KB vs 161 KB): shown as-is where it is not passed through next/image. */
+  logoLosslessSrc: assetUrl("brand/qalbi-logo.webp"),
+  /** 2x alpha silhouette of the same logo, painted with a metallic gold gradient in CSS (lossless WebP: 46 KB vs 100 KB as PNG). */
+  logoMaskSrc: assetUrl("brand/qalbi-logo-mask.webp"),
   logoWidth: 1068,
   logoHeight: 450,
 };

@@ -47,16 +47,16 @@ export function FloralEntrance() {
       <div className="floral-entrance">
         <div aria-hidden className="fe-light" />
         <div aria-hidden className="fe-corner fe-tl">
-          <FloralArt variant="bouquet" onView={false} className="size-full -scale-100" />
+          <FloralArt variant="cluster" eager className="size-full -scale-100" />
         </div>
         <div aria-hidden className="fe-corner fe-tr">
-          <FloralArt variant="jasmine" onView={false} className="size-full -scale-y-100" />
+          <FloralArt variant="jasmine" eager className="size-full -scale-y-100" />
         </div>
         <div aria-hidden className="fe-corner fe-bl">
-          <FloralArt variant="rose" onView={false} className="size-full -scale-x-100" />
+          <FloralArt variant="rose" eager className="size-full -scale-x-100" />
         </div>
         <div aria-hidden className="fe-corner fe-br">
-          <FloralArt variant="bouquet" onView={false} className="size-full" />
+          <FloralArt variant="cluster" eager className="size-full" />
         </div>
 
         <div aria-hidden className="fe-center">
@@ -79,8 +79,8 @@ export function FloralEntrance() {
           ))}
           {brandAssets.logoSrc && (
             <div className="fe-logo">
-              {/* The original artwork at its own proportions (unoptimised: exact pixels); lazy, so a hidden entrance never downloads it. */}
-              <Image src={brandAssets.logoSrc} alt="" width={brandAssets.logoWidth} height={brandAssets.logoHeight} unoptimized loading="lazy" className="block h-auto w-full" />
+              {/* The original artwork at its own proportions (lossless: exact pixels); lazy, so a hidden entrance never downloads it. */}
+              <Image src={brandAssets.logoLosslessSrc ?? brandAssets.logoSrc} alt="" width={brandAssets.logoWidth} height={brandAssets.logoHeight} unoptimized loading="lazy" className="block h-auto w-full" />
               {brandAssets.logoMaskSrc && <span className="fe-shimmer" style={{ "--logo-mask": `url("${brandAssets.logoMaskSrc}")` } as CSSProperties} />}
             </div>
           )}

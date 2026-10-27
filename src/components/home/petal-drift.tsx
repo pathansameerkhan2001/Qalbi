@@ -86,5 +86,5 @@ const lanes: Petal[] = [
 ];
 
 export function SitePetals() {
-  return <Petals petals={lanes} className="site-petals fixed inset-0 z-30 hidden" />;
+  return <Petals petals={lanes} className="site-petals fixed inset-0 z-30" />;
 }
