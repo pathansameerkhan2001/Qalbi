@@ -6,6 +6,7 @@ import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { InstagramIcon, WhatsAppIcon } from "@/components/ui/brand-icons";
 import { ContactForm } from "@/components/forms/contact-form";
+import { FloralCorner } from "@/components/ui/flowers";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/contact" },
@@ -29,7 +30,8 @@ export default function ContactPage() {
         description="Questions about a product, an order or customised skincare? Reach out — we’d love to hear from you."
         breadcrumbs={[{ label: "Contact" }]}
       />
-      <Container className="grid gap-10 py-12 sm:py-16 lg:grid-cols-[1fr_1.4fr] lg:gap-16">
+      <Container className="relative isolate grid gap-10 py-12 sm:py-16 lg:grid-cols-[1fr_1.4fr] lg:gap-16">
+        <FloralCorner variant="rose" corner="bl" size="md" desktop className="-left-24 xl:-left-40" />
         <section aria-labelledby="channels-heading">
           <h2 id="channels-heading" className="text-h3 text-ink">Reach us directly</h2>
           <ul className="mt-6 space-y-3">

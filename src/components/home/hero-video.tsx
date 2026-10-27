@@ -312,6 +312,7 @@ export function HeroMedia({ slides, className }: { slides: HeroSlideView[]; clas
     <div
       ref={box}
       data-film={filmState}
+      data-onscreen={visible}
       data-slide={current + 1}
       className={cn("hero-frame relative overflow-hidden bg-[#0b1a10]", className)}
       onMouseEnter={() => setHeld(true)}

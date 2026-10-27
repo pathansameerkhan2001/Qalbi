@@ -2,37 +2,84 @@ import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 /*
- * QALBI's floral artwork: hand-built SVG flowers in the brand palette (blush
- * rose, white jasmine, sage leaves, gold centres). Every part carries a CSS
- * class from globals.css (“Florals”) that opens it from its base — petals
- * unfold, leaves grow, stems draw — with a delay in `--d`. Static at their
- * final, fully open state for reduced-motion visitors. Purely decorative:
- * server-rendered markup, no JavaScript.
+ * QALBI's floral artwork: hand-built SVG flowers in the brand palette — blush
+ * roses, white jasmine with gold centres, sage and botanical-green leaves.
+ * Petals and leaves are shaded with shared gradients (<FloralDefs>, rendered
+ * once by the site frame) so they read as soft, lit flowers rather than flat
+ * shapes; each fill falls back to a plain colour if the gradients are absent.
+ *
+ * Every part carries a CSS class from globals.css (“Florals”) that opens it from
+ * its base — petals unfold, leaves grow, stems draw — after `--d`. Resting
+ * state is fully open, so reduced-motion visitors see still, open flowers.
+ * Purely decorative: server-rendered markup, no JavaScript of its own.
  */
 
-/** Start offset: `--d` in time (page-load animations), `--o` as a share of the scroll range (scroll-in sprigs). */
-const delay = (d: number) => ({ "--d": `${d.toFixed(2)}s`, "--o": `${Math.round(d * 40)}%` }) as CSSProperties;
+/** Start offset for the opening animation. */
+const delay = (d: number) => ({ "--d": `${d.toFixed(2)}s` }) as CSSProperties;
 
-const palette = {
-  roseOuter: "#e7b3b6",
-  roseMid: "#eec4c3",
-  roseInner: "#f6dcd8",
+const paint = {
+  roseOuter: "url(#fl-rose-outer) #efc3c4",
+  roseMid: "url(#fl-rose-mid) #e8b0b4",
+  roseInner: "url(#fl-rose-inner) #d9939c",
   roseLine: "#c4838b",
-  jasmine: "#fffaf1",
-  jasmineLine: "#d9c7aa",
-  gold: "#c9a96a",
-  leaf: "#87977a",
-  leafDeep: "#526b49",
-  stem: "#7d8f6f",
+  jasmine: "url(#fl-jasmine) #fffaf1",
+  jasmineLine: "#dccbae",
+  gold: "url(#fl-gold) #c9a96a",
+  leaf: "url(#fl-leaf) #87977a",
+  leafDeep: "url(#fl-leaf-deep) #5e7752",
+  stem: "#6f8662",
 };
 
+/** Shared gradients for all floral artwork. Rendered once (site frame); 0×0 and out of the layout. */
+export function FloralDefs() {
+  return (
+    <svg aria-hidden focusable="false" width="0" height="0" style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+      <defs>
+        {/* Petals: light at the base where they catch the light, deeper blush at the rim. */}
+        <radialGradient id="fl-rose-outer" cx="50%" cy="100%" r="110%">
+          <stop offset="0" stopColor="#fbe9e5" />
+          <stop offset="0.55" stopColor="#f1c7c7" />
+          <stop offset="1" stopColor="#dfa0a6" />
+        </radialGradient>
+        <radialGradient id="fl-rose-mid" cx="50%" cy="100%" r="110%">
+          <stop offset="0" stopColor="#f6d8d5" />
+          <stop offset="0.6" stopColor="#eab3b6" />
+          <stop offset="1" stopColor="#d48c95" />
+        </radialGradient>
+        <radialGradient id="fl-rose-inner" cx="50%" cy="100%" r="110%">
+          <stop offset="0" stopColor="#efc1c1" />
+          <stop offset="1" stopColor="#c97a86" />
+        </radialGradient>
+        <radialGradient id="fl-jasmine" cx="50%" cy="100%" r="110%">
+          <stop offset="0" stopColor="#f3e6cf" />
+          <stop offset="0.35" stopColor="#fffcf6" />
+          <stop offset="1" stopColor="#ffffff" />
+        </radialGradient>
+        <radialGradient id="fl-gold" cx="40%" cy="35%" r="70%">
+          <stop offset="0" stopColor="#f6e3ad" />
+          <stop offset="1" stopColor="#b5873a" />
+        </radialGradient>
+        <linearGradient id="fl-leaf" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#6f875f" />
+          <stop offset="1" stopColor="#a9b99a" />
+        </linearGradient>
+        <linearGradient id="fl-leaf-deep" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#4c6744" />
+          <stop offset="1" stopColor="#7f9471" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 // Shapes drawn from their base at (0, 0) so they can open from it.
-// A broad rose petal with a rounded, slightly scalloped top, and a smaller cupped one for the heart of the rose.
+// A broad rose petal with a rounded, slightly scalloped top, and a smaller cupped one for the heart.
 const ROSE_PETAL = "M0 0C-11-3-17-15-13-25C-10-31-4-32 0-29C4-32 10-31 13-25C17-15 11-3 0 0Z";
 const ROSE_CUP = "M0 0C-9-2-14-12-10-19C-7-24 7-24 10-19C14-12 9-2 0 0Z";
-const JASMINE_PETAL = "M0 0C-6-4-7-18 0-24C7-18 6-4 0 0Z";
-const LEAF = "M0 0C8-7 22-8 34 0C22 8 8 7 0 0Z";
-const BUD = "M0 0C-7-4-7-16 0-22C7-16 7-4 0 0Z";
+const JASMINE_PETAL = "M0 0C-5-4-7-15-3-22C-1-25 1-25 3-22C7-15 5-4 0 0Z";
+const LEAF = "M0 0C8-8 24-9 36 0C24 9 8 8 0 0Z";
+const BUD = "M0 0C-7-4-8-15-2-22C0-24 1-24 2-22C8-15 7-4 0 0Z";
+const SEPAL = "M0 0C3-3 8-4 12-2C8 1 3 1 0 0Z";
 
 interface Placed {
   x: number;
@@ -52,17 +99,18 @@ export function Rose(p: Placed) {
   const d = p.d ?? 0;
   const ring = (count: number, path: string, scale: number, offset: number, fill: string, start: number) =>
     Array.from({ length: count }, (_, i) => (
+      // The rotation sits on a wrapper: an animated CSS transform would replace the path's own transform attribute.
       <g key={i} transform={`rotate(${offset + (360 / count) * i}) scale(${scale})`}>
-        <path className="fl-petal" style={delay(start + i * 0.04)} d={path} fill={fill} stroke={palette.roseLine} strokeWidth={0.7 / scale} strokeOpacity={0.5} />
+        <path className="fl-petal" style={delay(start + i * 0.04)} d={path} fill={fill} stroke={paint.roseLine} strokeWidth={0.6 / scale} strokeOpacity={0.45} />
       </g>
     ));
   return (
     <g transform={place(p)}>
-      {ring(6, ROSE_PETAL, 1, 0, palette.roseOuter, d + 0.3)}
-      {ring(5, ROSE_PETAL, 0.74, 34, palette.roseMid, d + 0.16)}
-      {ring(4, ROSE_CUP, 0.62, 20, palette.roseInner, d + 0.04)}
-      <circle className="fl-fade" style={delay(d)} r={5.5} fill={palette.roseMid} stroke={palette.roseLine} strokeWidth={0.6} strokeOpacity={0.6} />
-      <path className="fl-fade" style={delay(d + 0.1)} d="M-2.5 1.5c-1.5-3 1.5-5.5 4-4s1.5 5-1.5 5.5" fill="none" stroke={palette.roseLine} strokeWidth={0.9} strokeLinecap="round" />
+      {ring(6, ROSE_PETAL, 1, 0, paint.roseOuter, d + 0.3)}
+      {ring(5, ROSE_PETAL, 0.74, 34, paint.roseMid, d + 0.16)}
+      {ring(4, ROSE_CUP, 0.62, 20, paint.roseInner, d + 0.04)}
+      <circle className="fl-fade" style={delay(d)} r={5.5} fill={paint.roseInner} stroke={paint.roseLine} strokeWidth={0.6} strokeOpacity={0.6} />
+      <path className="fl-fade" style={delay(d + 0.1)} d="M-2.5 1.5c-1.5-3 1.5-5.5 4-4s1.5 5-1.5 5.5" fill="none" stroke="#b56e7a" strokeWidth={0.9} strokeLinecap="round" />
     </g>
   );
 }
@@ -74,10 +122,10 @@ export function Jasmine(p: Placed) {
     <g transform={place(p)}>
       {Array.from({ length: 5 }, (_, i) => (
         <g key={i} transform={`rotate(${i * 72})`}>
-          <path className="fl-petal" style={delay(d + i * 0.06)} d={JASMINE_PETAL} fill={palette.jasmine} stroke={palette.jasmineLine} strokeWidth={0.8} />
+          <path className="fl-petal" style={delay(d + i * 0.05)} d={JASMINE_PETAL} fill={paint.jasmine} stroke={paint.jasmineLine} strokeWidth={0.7} />
         </g>
       ))}
-      <circle className="fl-fade" style={delay(d + 0.3)} r={3.2} fill={palette.gold} />
+      <circle className="fl-fade" style={delay(d + 0.3)} r={3.4} fill={paint.gold} />
     </g>
   );
 }
@@ -87,118 +135,205 @@ export function Bud(p: Placed) {
   const d = p.d ?? 0;
   return (
     <g transform={place(p)}>
-      <path className="fl-petal" style={delay(d)} d={BUD} fill={palette.roseOuter} stroke={palette.roseLine} strokeWidth={0.7} strokeOpacity={0.6} />
-      {/* The rotation sits on a wrapper: an animated CSS transform would replace the path's own transform attribute. */}
+      <path className="fl-petal" style={delay(d)} d={BUD} fill={paint.roseMid} stroke={paint.roseLine} strokeWidth={0.6} strokeOpacity={0.55} />
       <g transform="rotate(-70)">
-        <path className="fl-leaf" style={delay(d + 0.1)} d="M0 0C3-3 8-4 12-2C8 1 3 1 0 0Z" fill={palette.leaf} />
+        <path className="fl-leaf" style={delay(d + 0.1)} d={SEPAL} fill={paint.leaf} />
       </g>
       <g transform="rotate(-110) scale(1 -1)">
-        <path className="fl-leaf" style={delay(d + 0.1)} d="M0 0C3-3 8-4 12-2C8 1 3 1 0 0Z" fill={palette.leaf} />
+        <path className="fl-leaf" style={delay(d + 0.1)} d={SEPAL} fill={paint.leaf} />
       </g>
     </g>
   );
 }
 
-/** A sage leaf with its midrib, growing from its stalk at (0, 0) along +x. */
+/** A leaf with its midrib, growing from its stalk at (0, 0) along +x. */
 export function Leaf(p: Placed & { deep?: boolean }) {
   return (
     <g transform={place(p)}>
-      <path className="fl-leaf" style={delay(p.d ?? 0)} d={LEAF} fill={p.deep ? palette.leafDeep : palette.leaf} fillOpacity={0.62} stroke={palette.leafDeep} strokeWidth={0.6} strokeOpacity={0.5} />
-      <path className="fl-leaf" style={delay((p.d ?? 0) + 0.1)} d="M2 0H30" stroke="#fffdf8" strokeOpacity={0.55} strokeWidth={0.6} />
+      <path className="fl-leaf" style={delay(p.d ?? 0)} d={LEAF} fill={p.deep ? paint.leafDeep : paint.leaf} stroke="#4c6744" strokeWidth={0.5} strokeOpacity={0.35} />
+      <path className="fl-leaf" style={delay((p.d ?? 0) + 0.1)} d="M2 0H32" stroke="#fffdf8" strokeOpacity={0.5} strokeWidth={0.6} />
     </g>
   );
 }
 
 /** A stem that draws itself along its path. */
-export function Stem({ d, delay: start = 0, width = 1.3 }: { d: string; delay?: number; width?: number }) {
-  return <path className="fl-stem" style={delay(start)} d={d} pathLength={1} fill="none" stroke={palette.stem} strokeWidth={width} strokeLinecap="round" />;
+export function Stem({ d, delay: start = 0, width = 1.4 }: { d: string; delay?: number; width?: number }) {
+  return <path className="fl-stem" style={delay(start)} d={d} pathLength={1} fill="none" stroke={paint.stem} strokeWidth={width} strokeLinecap="round" />;
 }
 
-/** The entrance garland: a rose between two jasmines, on stems that arc out to buds. */
-export function GarlandArt({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 320 150" className={className} aria-hidden focusable="false" overflow="visible">
-      <Stem d="M160 100C128 104 94 108 52 122" delay={0.05} />
-      <Stem d="M160 100C192 104 226 108 268 122" delay={0.05} />
-      <Stem d="M120 106C112 96 110 88 116 80" delay={0.2} width={1} />
-      <Stem d="M200 106C208 96 210 88 204 80" delay={0.2} width={1} />
-      <Leaf x={138} y={103} r={160} s={0.85} d={0.35} />
-      <Leaf x={182} y={103} r={20} s={0.85} d={0.35} deep />
-      <Leaf x={96} y={110} r={-160} s={0.75} d={0.45} deep />
-      <Leaf x={224} y={110} r={-20} s={0.75} d={0.45} />
-      <Leaf x={76} y={115} r={200} s={0.6} d={0.55} />
-      <Leaf x={244} y={115} r={-20} s={0.6} d={0.55} deep />
-      <Bud x={52} y={122} r={-62} s={0.85} d={0.6} />
-      <Bud x={268} y={122} r={62} s={0.85} d={0.6} />
-      <Jasmine x={116} y={80} s={0.95} r={10} d={0.55} />
-      <Jasmine x={204} y={80} s={0.95} r={-14} d={0.62} />
-      <Jasmine x={86} y={98} s={0.6} r={30} d={0.75} />
-      <Jasmine x={234} y={98} s={0.6} r={-8} d={0.8} />
-      <Rose x={160} y={78} s={1.15} d={0.45} />
-    </svg>
-  );
-}
-
-export type SprigVariant = "rose" | "jasmine" | "leaf";
+export type SprigVariant = "rose" | "jasmine" | "leaf" | "bouquet";
 
 /**
- * Corner arrangements for page and section edges, drawn to sit in a bottom
- * right corner (mirror with -scale-x-100 for the left). Each variant is a
- * different arrangement, so pages don't repeat one picture.
+ * Arrangements drawn into a 300 × 300 box, rooted in its bottom-right corner
+ * (FloralCorner mirrors them into the other corners). Each is a different
+ * composition, so sections don't repeat one picture.
  */
-const sprigs: Record<SprigVariant, React.ReactNode> = {
+const arrangements: Record<SprigVariant, React.ReactNode> = {
+  // Two roses on an arching stem, buds and broad leaves.
   rose: (
     <>
-      <Stem d="M220 220C190 180 150 130 96 78" />
-      <Stem d="M168 150C176 120 170 92 150 60" delay={0.15} width={1} />
-      <Stem d="M196 186C208 168 214 150 210 128" delay={0.2} width={0.9} />
-      <Leaf x={186} y={176} r={-150} s={0.95} d={0.3} />
-      <Leaf x={150} y={128} r={-30} s={0.85} d={0.4} deep />
-      <Leaf x={128} y={108} r={-155} s={0.8} d={0.5} />
-      <Leaf x={172} y={124} r={-75} s={0.7} d={0.45} deep />
-      <Bud x={150} y={60} r={-18} d={0.6} />
-      <Bud x={210} y={128} r={8} s={0.8} d={0.65} />
-      <Rose x={96} y={78} s={0.95} d={0.5} />
+      <Stem d="M300 300C262 248 210 190 140 120" />
+      <Stem d="M228 214C238 176 230 140 204 104" delay={0.15} width={1.1} />
+      <Stem d="M268 262C284 238 292 212 286 182" delay={0.2} width={1} />
+      <Leaf x={254} y={246} r={-150} s={1.3} d={0.3} />
+      <Leaf x={250} y={240} r={-78} s={1.05} d={0.35} deep />
+      <Leaf x={206} y={178} r={-30} s={1.15} d={0.4} deep />
+      <Leaf x={176} y={152} r={-158} s={1.1} d={0.5} />
+      <Leaf x={232} y={170} r={-82} s={0.9} d={0.45} />
+      <Bud x={286} y={182} r={8} s={1.1} d={0.65} />
+      <Bud x={204} y={104} r={-16} s={1.05} d={0.6} />
+      <Rose x={140} y={120} s={1.5} d={0.5} />
+      <Rose x={190} y={218} s={0.9} r={20} d={0.65} />
     </>
   ),
+  // A long cascade of jasmine with buds and paired leaves.
   jasmine: (
     <>
-      <Stem d="M220 205C170 196 110 170 44 118" />
-      <Stem d="M150 186C140 166 132 150 124 136" delay={0.2} width={0.9} />
-      <Stem d="M100 160C94 142 86 132 74 124" delay={0.25} width={0.9} />
-      <Leaf x={184} y={198} r={-170} s={0.8} d={0.3} />
-      <Leaf x={168} y={194} r={-115} s={0.7} d={0.35} deep />
-      <Leaf x={118} y={170} r={-150} s={0.75} d={0.45} />
-      <Leaf x={70} y={140} r={-140} s={0.65} d={0.55} deep />
-      <Jasmine x={124} y={134} s={0.95} r={8} d={0.5} />
-      <Jasmine x={74} y={122} s={0.8} r={-20} d={0.6} />
-      <Jasmine x={44} y={116} s={0.65} r={30} d={0.7} />
-      <Bud x={210} y={170} r={-30} s={0.65} d={0.55} />
+      <Stem d="M300 280C236 270 150 236 50 160" />
+      <Stem d="M196 252C184 226 174 206 160 188" delay={0.2} width={1} />
+      <Stem d="M126 214C118 192 106 178 90 168" delay={0.25} width={1} />
+      <Leaf x={250} y={270} r={-170} s={1.1} d={0.3} />
+      <Leaf x={234} y={264} r={-112} s={0.95} d={0.35} deep />
+      <Leaf x={160} y={230} r={-150} s={1.05} d={0.45} />
+      <Leaf x={150} y={226} r={-96} s={0.85} d={0.5} deep />
+      <Leaf x={92} y={190} r={-140} s={0.9} d={0.55} deep />
+      <Jasmine x={160} y={186} s={1.35} r={8} d={0.5} />
+      <Jasmine x={90} y={166} s={1.15} r={-20} d={0.6} />
+      <Jasmine x={50} y={158} s={0.95} r={30} d={0.7} />
+      <Jasmine x={214} y={226} s={0.9} r={-8} d={0.62} />
+      <Bud x={276} y={232} r={-30} s={0.95} d={0.55} />
+      <Bud x={118} y={146} r={-50} s={0.75} d={0.75} />
     </>
   ),
+  // A leafy arch of sage and botanical green with jasmine and a small rose.
   leaf: (
     <>
-      <Stem d="M220 214C180 190 140 150 110 90" />
-      <Leaf x={196} y={198} r={-150} s={0.95} d={0.25} />
-      <Leaf x={186} y={192} r={-95} s={0.85} d={0.3} deep />
-      <Leaf x={160} y={170} r={-160} s={0.9} d={0.35} />
-      <Leaf x={150} y={160} r={-80} s={0.8} d={0.4} deep />
-      <Leaf x={134} y={134} r={-150} s={0.8} d={0.45} />
-      <Leaf x={126} y={124} r={-70} s={0.7} d={0.5} deep />
-      <Jasmine x={110} y={90} s={0.85} d={0.6} />
+      <Stem d="M300 290C246 256 196 200 160 110" />
+      <Stem d="M222 240C190 238 160 226 134 204" delay={0.2} width={1} />
+      <Leaf x={270} y={268} r={-150} s={1.25} d={0.25} />
+      <Leaf x={258} y={260} r={-92} s={1.1} d={0.3} deep />
+      <Leaf x={222} y={232} r={-162} s={1.2} d={0.35} />
+      <Leaf x={212} y={220} r={-82} s={1.05} d={0.4} deep />
+      <Leaf x={186} y={180} r={-150} s={1.1} d={0.45} />
+      <Leaf x={178} y={166} r={-72} s={0.95} d={0.5} deep />
+      <Leaf x={164} y={130} r={-120} s={0.85} d={0.55} />
+      <Leaf x={150} y={208} r={-170} s={0.9} d={0.5} deep />
+      <Jasmine x={160} y={108} s={1.2} d={0.6} />
+      <Jasmine x={132} y={202} s={0.95} r={20} d={0.65} />
+      <Rose x={230} y={200} s={0.8} d={0.7} />
+    </>
+  ),
+  // The fullest arrangement: three roses, jasmine sprays, buds and leaves.
+  bouquet: (
+    <>
+      <Stem d="M300 300C256 256 206 206 150 140" />
+      <Stem d="M246 246C252 200 238 150 214 92" delay={0.12} width={1.2} />
+      <Stem d="M226 228C190 232 146 226 104 206" delay={0.15} width={1.2} />
+      <Stem d="M272 272C292 246 298 214 292 176" delay={0.2} width={1} />
+      <Stem d="M196 196C170 176 136 158 92 150" delay={0.25} width={0.9} />
+      <Leaf x={270} y={268} r={-145} s={1.3} d={0.3} />
+      <Leaf x={262} y={258} r={-85} s={1.1} d={0.32} deep />
+      <Leaf x={232} y={210} r={-28} s={1.15} d={0.4} deep />
+      <Leaf x={178} y={170} r={-160} s={1.1} d={0.45} />
+      <Leaf x={150} y={222} r={-175} s={1.05} d={0.45} deep />
+      <Leaf x={240} y={130} r={-110} s={0.95} d={0.5} />
+      <Leaf x={126} y={160} r={-150} s={0.85} d={0.55} deep />
+      <Bud x={292} y={176} r={6} s={1.05} d={0.6} />
+      <Jasmine x={92} y={150} s={1.15} r={14} d={0.6} />
+      <Jasmine x={104} y={206} s={1.05} r={-22} d={0.65} />
+      <Jasmine x={262} y={86} s={0.9} r={18} d={0.7} />
+      <Rose x={214} y={92} s={1.05} r={12} d={0.55} />
+      <Rose x={186} y={244} s={0.95} r={-18} d={0.6} />
+      <Rose x={150} y={140} s={1.55} d={0.45} />
     </>
   ),
 };
 
-/**
- * A corner arrangement that opens as it scrolls into view (where the browser
- * supports scroll-driven animations; elsewhere when the page loads) and then
- * sways very slightly. Always decorative and click-through.
- */
-export function FloralSprig({ variant, className }: { variant: SprigVariant; className?: string }) {
+/** One arrangement as a standalone SVG (300 × 300, rooted bottom-right). `onView`: opens as it scrolls into view and sways while on screen. */
+export function FloralArt({ variant, className, onView = true }: { variant: SprigVariant; className?: string; onView?: boolean }) {
   return (
-    <svg viewBox="0 0 220 220" overflow="visible" aria-hidden focusable="false" className={cn("fl-onview fl-sway pointer-events-none select-none", className)}>
-      {sprigs[variant]}
+    <svg viewBox="0 0 300 300" overflow="visible" aria-hidden focusable="false" className={cn("fl-art pointer-events-none select-none", onView && "fl-onview fl-sway", className)}>
+      {arrangements[variant]}
+    </svg>
+  );
+}
+
+const corners = {
+  br: "-bottom-3 -right-3",
+  bl: "-bottom-3 -left-3 -scale-x-100",
+  tr: "-right-3 -top-3 -scale-y-100",
+  tl: "-left-3 -top-3 -scale-100",
+};
+
+const sizes = {
+  sm: "w-24 sm:w-32 lg:w-44",
+  md: "w-28 sm:w-44 lg:w-60 xl:w-72",
+  lg: "w-32 sm:w-52 lg:w-72 xl:w-[22rem]",
+};
+
+/**
+ * An arrangement in a corner of the nearest `relative isolate` box, behind its
+ * content (z-index -10 inside that stacking context, above its background):
+ * cards, photos and text always cover it. Opens as it scrolls into view.
+ * `desktop` keeps it to wide screens (for corners that would meet text on phones).
+ */
+export function FloralCorner({
+  variant,
+  corner = "br",
+  size = "md",
+  desktop = false,
+  className,
+}: {
+  variant: SprigVariant;
+  corner?: keyof typeof corners;
+  size?: keyof typeof sizes;
+  desktop?: boolean;
+  className?: string;
+}) {
+  return <FloralArt variant={variant} className={cn("absolute -z-10", corners[corner], sizes[size], desktop && "hidden lg:block", className)} />;
+}
+
+/**
+ * A garland border: a stem waving across the width with roses and jasmine in
+ * turn, opening left to right as it scrolls into view. Fixed height; on narrow
+ * screens the sides are cropped rather than the flowers shrunk.
+ */
+export function FloralBorder({ className }: { className?: string }) {
+  const blooms = Array.from({ length: 8 }, (_, i) => {
+    const x = 75 + i * 150;
+    const y = i % 2 ? 46 : 30;
+    const d = 0.1 + i * 0.12;
+    return (
+      <g key={i}>
+        <Leaf x={x - 8} y={y + 6} r={150 + (i % 2) * 20} s={0.75} d={d} deep={i % 2 === 0} />
+        <Leaf x={x + 8} y={y + 6} r={20 - (i % 2) * 20} s={0.75} d={d + 0.05} deep={i % 2 === 1} />
+        {i % 2 ? <Jasmine x={x} y={y} s={0.85} r={i * 13} d={d + 0.1} /> : <Rose x={x} y={y} s={0.62} r={i * 9} d={d + 0.1} />}
+      </g>
+    );
+  });
+  return (
+    <svg viewBox="0 0 1200 76" preserveAspectRatio="xMidYMid slice" aria-hidden focusable="false" className={cn("fl-art fl-onview pointer-events-none block h-12 w-full select-none sm:h-16", className)}>
+      <Stem d="M0 44C75 24 150 24 225 40S375 56 450 40S600 24 675 40S825 56 900 40S1050 24 1200 40" width={1.2} />
+      {blooms}
+    </svg>
+  );
+}
+
+/** A small symmetrical spray (rose, jasmine and leaves) above centred section headings. */
+export function HeadingSpray({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 180 48" aria-hidden focusable="false" className={cn("fl-art fl-onview pointer-events-none mx-auto block h-9 w-auto select-none sm:h-11", className)}>
+      <Stem d="M90 30C70 34 46 36 14 32" delay={0.05} width={1} />
+      <Stem d="M90 30C110 34 134 36 166 32" delay={0.05} width={1} />
+      <Leaf x={70} y={33} r={170} s={0.7} d={0.25} />
+      <Leaf x={110} y={33} r={10} s={0.7} d={0.25} deep />
+      <Leaf x={40} y={35} r={190} s={0.55} d={0.35} deep />
+      <Leaf x={140} y={35} r={-10} s={0.55} d={0.35} />
+      <Jasmine x={58} y={26} s={0.62} r={12} d={0.35} />
+      <Jasmine x={122} y={26} s={0.62} r={-8} d={0.4} />
+      <Bud x={16} y={32} r={-70} s={0.6} d={0.45} />
+      <Bud x={164} y={32} r={70} s={0.6} d={0.45} />
+      <Rose x={90} y={24} s={0.62} d={0.2} />
     </svg>
   );
 }
@@ -210,7 +345,7 @@ export function FlowerMark({ className }: { className?: string }) {
       {Array.from({ length: 5 }, (_, i) => (
         <path key={i} transform={`rotate(${i * 72})`} d="M0 -1.5C-3 -3.5 -3.2 -8.5 0 -10.5C3.2 -8.5 3 -3.5 0 -1.5Z" fill="currentColor" fillOpacity={0.35} stroke="currentColor" strokeWidth={0.9} />
       ))}
-      <circle r={1.6} fill={palette.gold} />
+      <circle r={1.6} fill="#c9a96a" />
     </svg>
   );
 }

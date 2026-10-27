@@ -2,6 +2,7 @@ import { getFavouriteProducts } from "@/lib/shopify";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ProductGrid } from "@/components/products/product-grid";
+import { FloralCorner } from "@/components/ui/flowers";
 
 export async function Favourites() {
   let products: Awaited<ReturnType<typeof getFavouriteProducts>>;
@@ -21,7 +22,8 @@ export async function Favourites() {
     );
   }
   return (
-    <section aria-labelledby="favourites-heading" className="py-10 sm:py-14">
+    <section aria-labelledby="favourites-heading" className="relative isolate overflow-hidden py-10 sm:py-14">
+      <FloralCorner variant="rose" corner="bl" size="md" desktop />
       <Container>
         <SectionHeading
           id="favourites-heading"

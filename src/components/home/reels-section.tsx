@@ -9,6 +9,7 @@ import { ScrollRow } from "@/components/ui/scroll-row";
 import { Reveal } from "@/components/ui/reveal";
 import { TrackedLink } from "./reel-link";
 import { CardOverlay, cardClass, itemClass } from "./reel-card";
+import { FloralCorner } from "@/components/ui/flowers";
 
 function FollowButton({ location, className }: { location: string; className?: string }) {
   return (
@@ -27,7 +28,9 @@ export async function ReelsSection() {
   const { reels } = await getInstagramReels();
 
   return (
-    <section aria-labelledby="reels-heading" className="relative overflow-hidden bg-forest py-14 text-ivory sm:py-20">
+    <section aria-labelledby="reels-heading" className="relative isolate overflow-hidden bg-forest py-14 text-ivory sm:py-20">
+      {/* White jasmine on the deep green. */}
+      <FloralCorner variant="jasmine" corner="tr" size="md" desktop className="opacity-90" />
       <span aria-hidden className="pointer-events-none absolute -left-32 -top-32 size-96 rounded-full bg-gold/15 blur-3xl" />
       <span aria-hidden className="pointer-events-none absolute -bottom-40 -right-24 size-[28rem] rounded-full bg-botanical/40 blur-3xl" />
       <Container className="relative">

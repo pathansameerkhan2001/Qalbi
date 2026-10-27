@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { getIngredients } from "@/lib/store/content";
 import { SprigOrnament } from "@/components/ui/botanical-icons";
 import { IngredientCarousel } from "./ingredient-carousel";
+import { FloralCorner } from "@/components/ui/flowers";
 
 /** Fine gold line sprig for the section corners (decorative). */
 function CornerBotanical({ className }: { className?: string }) {
@@ -21,7 +22,9 @@ export async function IngredientsPreview() {
   const ingredients = await getIngredients();
   if (ingredients.length === 0) return null;
   return (
-    <section aria-labelledby="ingredients-heading" className="relative overflow-hidden py-14 sm:py-20">
+    <section aria-labelledby="ingredients-heading" className="relative isolate overflow-hidden py-14 sm:py-20">
+      <FloralCorner variant="bouquet" corner="br" size="lg" desktop />
+      <FloralCorner variant="rose" corner="bl" size="md" desktop />
       <CornerBotanical className="pointer-events-none absolute -left-6 top-6 hidden w-48 text-gold-soft/45 lg:block xl:w-56" />
       <CornerBotanical className="pointer-events-none absolute -right-6 top-6 hidden w-48 -scale-x-100 text-gold-soft/45 lg:block xl:w-56" />
 

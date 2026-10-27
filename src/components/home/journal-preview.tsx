@@ -5,6 +5,7 @@ import type { JournalArticle } from "@/types/content";
 import { getJournalArticles } from "@/lib/shopify";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { FloralCorner } from "@/components/ui/flowers";
 
 export function JournalCard({ article }: { article: JournalArticle }) {
   return (
@@ -45,7 +46,9 @@ export function JournalEmptyState() {
 export async function JournalPreview() {
   const articles = (await getJournalArticles()).slice(0, 3);
   return (
-    <section aria-labelledby="journal-heading" className="py-10 sm:py-14">
+    <section aria-labelledby="journal-heading" className="relative isolate overflow-hidden py-10 sm:py-14">
+      {/* The article cards have no background: kept small and to extra-wide screens, so it stays in the margin, never behind their text. */}
+      <FloralCorner variant="leaf" corner="bl" size="sm" className="hidden 2xl:block" />
       <Container>
         <SectionHeading
           id="journal-heading"

@@ -2,6 +2,7 @@ import { getHomeCategories } from "@/lib/store/content";
 import { Container } from "@/components/ui/container";
 import { BotanicalIcon, SprigOrnament } from "@/components/ui/botanical-icons";
 import { CategoryCarousel } from "@/components/home/category-carousel";
+import { FloralCorner } from "@/components/ui/flowers";
 
 /**
  * "Shop by Category": the visible categories from /admin/categories, in their
@@ -12,7 +13,9 @@ export async function CategoryScroller() {
   const categories = await getHomeCategories();
   if (categories.length === 0) return null;
   return (
-    <section aria-labelledby="categories-heading" className="relative overflow-hidden bg-cream py-12 sm:py-16">
+    <section aria-labelledby="categories-heading" className="relative isolate overflow-hidden bg-cream py-12 sm:py-16">
+      <FloralCorner variant="bouquet" corner="bl" size="lg" desktop />
+      <FloralCorner variant="jasmine" corner="br" size="md" desktop />
       {/* Faint botanical corners, as in the approved design. Decorative only. */}
       <BotanicalIcon name="leaf" className="pointer-events-none absolute -left-6 -top-4 size-36 -rotate-12 text-botanical/15 sm:size-48" />
       <BotanicalIcon name="leaf" className="pointer-events-none absolute -right-8 -top-6 size-40 rotate-[100deg] text-botanical/10 sm:size-52" />

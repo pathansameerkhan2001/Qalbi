@@ -6,6 +6,7 @@ import { brandConfig } from "@/data/brand";
 import { Container } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
 import { Sparkle } from "@/components/layout/logo";
+import { FloralCorner } from "@/components/ui/flowers";
 
 const { forest, bloom, touch, sky } = images.lookbook;
 
@@ -21,7 +22,9 @@ function Frame({ image, className, sizes }: { image: (typeof images.lookbook)[ke
 /** Editorial band of QALBI studio photography. */
 export function Lookbook() {
   return (
-    <section aria-labelledby="lookbook-heading" className="relative overflow-hidden bg-gradient-to-b from-cream via-sand to-cream py-14 sm:py-20">
+    <section aria-labelledby="lookbook-heading" className="relative isolate overflow-hidden bg-gradient-to-b from-cream via-sand to-cream py-14 sm:py-20">
+      <FloralCorner variant="bouquet" corner="br" size="lg" desktop />
+      <FloralCorner variant="leaf" corner="tl" size="md" desktop />
       <Container className="grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
         <Reveal className="relative z-10 max-w-md">
           <p className="ornament eyebrow mb-4 justify-start">The QALBI Ritual</p>

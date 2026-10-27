@@ -18,7 +18,7 @@ import { ProductGallery } from "@/components/products/product-gallery";
 import { PurchasePanel } from "@/components/products/purchase-panel";
 import { getWhatsAppOrderConfig } from "@/lib/whatsapp-order";
 import { ProductGrid } from "@/components/products/product-grid";
-import { FlowerMark } from "@/components/ui/flowers";
+import { FloralBorder, FloralCorner, FlowerMark } from "@/components/ui/flowers";
 import { Rating } from "@/components/products/rating";
 import { ProductStory } from "@/components/products/product-story";
 import { DescriptionBlocks, InlineText } from "@/components/products/rich-text";
@@ -98,13 +98,10 @@ async function Recommendations({ product }: { product: Product }) {
   const related = await getProductRecommendations({ id: product.id, handle: product.handle, collectionHandles: product.collectionHandles }).catch(() => []);
   if (related.length === 0) return null;
   return (
-    <section aria-labelledby="related-heading" className="pb-12">
-      {/* A small floral divider in place of a plain rule. */}
-      <div aria-hidden className="mb-10 flex items-center gap-4">
-        <span className="h-px flex-1 bg-line" />
-        <FlowerMark className="size-4" />
-        <span className="h-px flex-1 bg-line" />
-      </div>
+    <section aria-labelledby="related-heading" className="relative isolate pb-12">
+      {/* A blooming garland in place of a plain rule; an arrangement peeks out behind the cards on wide screens. */}
+      <FloralBorder className="mb-8" />
+      <FloralCorner variant="bouquet" corner="br" size="md" desktop className="-right-24 xl:-right-40" />
       <SectionHeading id="related-heading" title="You May Also Like" action={{ label: "View All", href: "/products" }} />
       <ProductGrid products={related} />
     </section>

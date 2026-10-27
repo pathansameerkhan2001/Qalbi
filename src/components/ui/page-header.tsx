@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { breadcrumbJsonLd } from "@/lib/site";
 import { Container } from "./container";
-import { FloralSprig, FlowerMark, type SprigVariant } from "./flowers";
+import { cn } from "@/lib/utils";
+import { FloralCorner, FlowerMark, type SprigVariant } from "./flowers";
 
 interface PageHeaderProps {
   title: React.ReactNode;
@@ -13,14 +14,20 @@ interface PageHeaderProps {
   children?: React.ReactNode;
   /** Optional banner photo, shown beside the text on wide screens and above it on phones. */
   image?: { url: string; alt: string } | null;
-  /** Floral arrangement in the bottom-right corner (from 640 px; not beside a banner photo). Pages pick different ones. */
+  /** Floral arrangement for the header. Pages pick different ones; beside a banner photo it frames the photo instead. */
   floral?: SprigVariant;
 }
 
 export function PageHeader({ title, eyebrow, description, breadcrumbs, children, image, floral }: PageHeaderProps) {
   return (
     <div className="relative isolate overflow-hidden border-b border-line bg-sand">
-      {floral && !image && <FloralSprig variant={floral} className="absolute -bottom-3 right-0 -z-10 hidden w-40 opacity-80 sm:block lg:right-[2%] lg:w-52" />}
+      {floral && !image && (
+        <>
+          <FloralCorner variant={floral} corner="br" size="lg" />
+          <FloralCorner variant={floral === "leaf" ? "jasmine" : "leaf"} corner="tl" size="sm" desktop className="opacity-90" />
+        </>
+      )}
+      {floral && image && <FloralCorner variant={floral} corner="br" size="md" desktop />}
       <Container className="py-8 sm:py-12">
         {breadcrumbs && (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd(breadcrumbs) }} />
@@ -45,7 +52,8 @@ export function PageHeader({ title, eyebrow, description, breadcrumbs, children,
           </nav>
         )}
         <div className={image ? "grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:gap-12" : undefined}>
-          <div>
+          {/* With an arrangement (and no photo), the text keeps clear of its corner. */}
+          <div className={cn(floral && !image && "pr-24 sm:pr-44 lg:max-w-3xl lg:pr-0")}>
             {eyebrow && (
               <p className="eyebrow mb-2 flex items-center gap-2">
                 <FlowerMark />

@@ -10,7 +10,7 @@ import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { IngredientCard } from "@/components/home/ingredient-cards";
 import { ProductGrid } from "@/components/products/product-grid";
-import { FloralSprig, FlowerMark } from "@/components/ui/flowers";
+import { FloralCorner, FlowerMark } from "@/components/ui/flowers";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/ingredients" },
@@ -28,7 +28,7 @@ export default async function IngredientsPage() {
       <section aria-labelledby="ingredients-page-heading" className="overflow-hidden bg-sand">
         <div className="grid lg:grid-cols-2">
           <div className="relative isolate flex flex-col justify-center px-4 py-10 sm:px-8 sm:py-14 lg:py-20 lg:pl-[max(2.5rem,calc((100vw-1320px)/2+2.5rem))] lg:pr-12">
-            <FloralSprig variant="leaf" className="absolute -bottom-6 -left-4 -z-10 hidden w-44 -scale-x-100 opacity-70 md:block lg:w-52" />
+            <FloralCorner variant="leaf" corner="bl" size="lg" desktop />
             <p className="eyebrow mb-3 flex items-center gap-2">
               <FlowerMark />
               Ingredients
@@ -56,7 +56,8 @@ export default async function IngredientsPage() {
         </div>
       </section>
 
-      <section aria-labelledby="botanicals-heading" className="py-12 sm:py-16">
+      <section aria-labelledby="botanicals-heading" className="relative isolate overflow-hidden py-12 sm:py-16">
+        <FloralCorner variant="jasmine" corner="tr" size="md" desktop />
         <Container>
           <SectionHeading id="botanicals-heading" title="Featured Botanicals" description="Short notes on the botanicals that inspire QALBI. Product-specific ingredient lists are shown on each product page." />
           <ul className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4">

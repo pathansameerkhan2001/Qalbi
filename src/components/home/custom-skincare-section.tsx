@@ -3,10 +3,13 @@ import { images } from "@/data/images";
 import { Container } from "@/components/ui/container";
 import { CustomEnquiryForm } from "@/components/forms/custom-enquiry-form";
 import { enquiriesOnline } from "@/lib/server/record-enquiry";
+import { FloralCorner } from "@/components/ui/flowers";
 
 export function CustomSkincareSection({ as: Heading = "h2" }: { as?: "h1" | "h2" }) {
   return (
-    <section aria-labelledby="custom-heading" id="customised" className="py-10 sm:py-14">
+    <section aria-labelledby="custom-heading" id="customised" className="relative isolate overflow-hidden py-10 sm:py-14">
+      <FloralCorner variant="rose" corner="tr" size="md" desktop />
+      <FloralCorner variant="leaf" corner="bl" size="md" desktop />
       <Container>
         <div className="grid overflow-hidden rounded-2xl border border-gold-soft/35 bg-sand shadow-soft lg:grid-cols-[1fr_1.15fr]">
           {/* Image above the introduction; on desktop the image grows to match the form's height. */}

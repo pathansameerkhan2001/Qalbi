@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { JournalArticle } from "@/types/content";
 import { formatDate } from "@/lib/utils";
 import { Container } from "@/components/ui/container";
+import { FloralCorner } from "@/components/ui/flowers";
 
 /**
  * A journal article. Admin-written posts are rendered from structured text
@@ -10,7 +11,9 @@ import { Container } from "@/components/ui/container";
  */
 export function ArticleView({ article, backLink }: { article: JournalArticle; backLink?: React.ReactNode }) {
   return (
-    <article className="py-10 sm:py-14">
+    <article className="relative isolate overflow-hidden py-10 sm:py-14">
+      {/* In the wide margins beside the text column (extra-wide screens only). */}
+      <FloralCorner variant="jasmine" corner="tr" size="lg" className="hidden xl:block" />
       <Container className="max-w-3xl">
         {backLink}
         <p className="eyebrow mt-8">{article.category}</p>
