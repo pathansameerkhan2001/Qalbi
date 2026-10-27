@@ -18,6 +18,7 @@ import { ProductGallery } from "@/components/products/product-gallery";
 import { PurchasePanel } from "@/components/products/purchase-panel";
 import { getWhatsAppOrderConfig } from "@/lib/whatsapp-order";
 import { ProductGrid } from "@/components/products/product-grid";
+import { FlowerMark } from "@/components/ui/flowers";
 import { Rating } from "@/components/products/rating";
 import { ProductStory } from "@/components/products/product-story";
 import { DescriptionBlocks, InlineText } from "@/components/products/rich-text";
@@ -97,7 +98,13 @@ async function Recommendations({ product }: { product: Product }) {
   const related = await getProductRecommendations({ id: product.id, handle: product.handle, collectionHandles: product.collectionHandles }).catch(() => []);
   if (related.length === 0) return null;
   return (
-    <section aria-labelledby="related-heading" className="border-t border-line py-12">
+    <section aria-labelledby="related-heading" className="pb-12">
+      {/* A small floral divider in place of a plain rule. */}
+      <div aria-hidden className="mb-10 flex items-center gap-4">
+        <span className="h-px flex-1 bg-line" />
+        <FlowerMark className="size-4" />
+        <span className="h-px flex-1 bg-line" />
+      </div>
       <SectionHeading id="related-heading" title="You May Also Like" action={{ label: "View All", href: "/products" }} />
       <ProductGrid products={related} />
     </section>
@@ -143,7 +150,12 @@ async function ProductDetail({ params }: { params: PageProps<"/products/[handle]
       <div className="grid gap-8 py-8 lg:grid-cols-2 lg:gap-14 lg:py-10">
         <ProductGallery images={product.images} title={product.title} />
         <div>
-          {product.productType && <p className="eyebrow mb-2">{product.productType}</p>}
+          {product.productType && (
+            <p className="eyebrow mb-2 flex items-center gap-2">
+              <FlowerMark />
+              {product.productType}
+            </p>
+          )}
           <h1 className="text-h2 text-ink sm:text-[2.6rem]">{product.title}</h1>
           {product.rating && <Rating rating={product.rating} className="mt-2" />}
           {summary && <p className="mt-4 max-w-xl text-[0.97rem] leading-relaxed text-ink/80">{summary}</p>}

@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { HeroContent } from "@/lib/content/hero";
 import { cn } from "@/lib/utils";
 import { HeroOverlay } from "./hero-overlay";
+import { PetalDrift } from "./petal-drift";
 
 /**
  * One hero slide as the browser receives it. `still` is the image (image
@@ -368,6 +369,9 @@ export function HeroMedia({ slides, className }: { slides: HeroSlideView[]; clas
       </div>
 
       {/* Bottom-left, clear of the centred product and of the WhatsApp button. */}
+      {/* Above the media, below any slide text and the arrows; click-through. */}
+      {count > 0 && <PetalDrift />}
+
       {/* Slide arrows only: shown when there is more than one slide (a lone video gets no control at all). */}
       {showableCount > 1 && (
         <div className="absolute bottom-3 left-3 z-10 sm:bottom-5 sm:left-5 lg:bottom-8 lg:left-8">

@@ -58,7 +58,7 @@ const faqs: { q: string; a: React.ReactNode }[] = [
 export default function FaqsPage() {
   return (
     <>
-      <PageHeader eyebrow="Support" title="Frequently Asked Questions" breadcrumbs={[{ label: "FAQs" }]} />
+      <PageHeader eyebrow="Support" floral="leaf" title="Frequently Asked Questions" breadcrumbs={[{ label: "FAQs" }]} />
       <Container className="max-w-3xl py-12 sm:py-16">
         <div className="divide-y divide-line border-y border-line">
           {faqs.map((faq) => (

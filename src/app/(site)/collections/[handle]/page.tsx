@@ -47,6 +47,7 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
     <>
       <PageHeader
         eyebrow="Collection"
+        floral="jasmine"
         title={collection.title}
         description={introduction(collection.handle, collection.description) || undefined}
         image={collection.image}

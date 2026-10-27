@@ -4,6 +4,7 @@ import { ArrowRight, FlaskConical, Flower2, Sprout } from "lucide-react";
 import { aboutContent } from "@/data/content";
 import { images } from "@/data/images";
 import { Container } from "@/components/ui/container";
+import { FloralSprig, FlowerMark } from "@/components/ui/flowers";
 import { cn } from "@/lib/utils";
 
 const valueIcons = [Sprout, Flower2, FlaskConical];
@@ -13,7 +14,12 @@ export function AboutStory({ as: Heading = "h2", showCta = true }: { as?: "h1" |
     <section aria-labelledby="about-heading" className="overflow-hidden bg-sand">
       <div className="grid lg:grid-cols-2">
         <div className="relative z-10 flex flex-col justify-center px-4 py-10 sm:px-8 sm:py-14 lg:py-20 lg:pl-[max(2.5rem,calc((100vw-1320px)/2+2.5rem))] lg:pr-12">
-          <p className="eyebrow mb-3">{aboutContent.eyebrow}</p>
+          {/* Behind the text (negative z inside this column's stacking context), in the bottom-left corner. */}
+          <FloralSprig variant="jasmine" className="absolute -bottom-6 -left-4 -z-10 hidden w-44 -scale-x-100 opacity-70 md:block lg:w-52" />
+          <p className="eyebrow mb-3 flex items-center gap-2">
+            <FlowerMark />
+            {aboutContent.eyebrow}
+          </p>
           <Heading id="about-heading" className={cn(Heading === "h1" ? "text-display" : "text-h2", "text-ink")}>
             {aboutContent.heading}
           </Heading>

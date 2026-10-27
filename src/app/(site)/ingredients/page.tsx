@@ -10,6 +10,7 @@ import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { IngredientCard } from "@/components/home/ingredient-cards";
 import { ProductGrid } from "@/components/products/product-grid";
+import { FloralSprig, FlowerMark } from "@/components/ui/flowers";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/ingredients" },
@@ -26,8 +27,12 @@ export default async function IngredientsPage() {
     <>
       <section aria-labelledby="ingredients-page-heading" className="overflow-hidden bg-sand">
         <div className="grid lg:grid-cols-2">
-          <div className="flex flex-col justify-center px-4 py-10 sm:px-8 sm:py-14 lg:py-20 lg:pl-[max(2.5rem,calc((100vw-1320px)/2+2.5rem))] lg:pr-12">
-            <p className="eyebrow mb-3">Ingredients</p>
+          <div className="relative isolate flex flex-col justify-center px-4 py-10 sm:px-8 sm:py-14 lg:py-20 lg:pl-[max(2.5rem,calc((100vw-1320px)/2+2.5rem))] lg:pr-12">
+            <FloralSprig variant="leaf" className="absolute -bottom-6 -left-4 -z-10 hidden w-44 -scale-x-100 opacity-70 md:block lg:w-52" />
+            <p className="eyebrow mb-3 flex items-center gap-2">
+              <FlowerMark />
+              Ingredients
+            </p>
             <h1 id="ingredients-page-heading" className="text-display text-ink">Know What Goes on Your Skin</h1>
             <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-ink/75">
               We believe in transparency. Explore the botanicals that inspire the QALBI ritual, and ask us anything about what&apos;s inside each product.

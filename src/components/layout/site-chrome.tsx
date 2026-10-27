@@ -4,6 +4,7 @@ import { Footer } from "./footer";
 import { DeveloperCredit } from "./developer-credit";
 import { WhatsAppButton } from "./whatsapp-button";
 import { FloatingBotanicals } from "./floating-botanicals";
+import { FloralEntrance } from "./floral-entrance";
 import { AnalyticsConsent } from "./analytics-consent";
 import { CartProvider } from "@/components/cart/cart-provider";
 
@@ -11,6 +12,7 @@ import { CartProvider } from "@/components/cart/cart-provider";
 export function SiteChrome({ children }: { children: React.ReactNode }) {
   return (
     <CartProvider>
+      <FloralEntrance />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-[3px] focus:bg-forest focus:px-4 focus:py-2 focus:text-ivory">
         Skip to content
       </a>

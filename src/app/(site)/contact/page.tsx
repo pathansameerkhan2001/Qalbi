@@ -24,6 +24,7 @@ export default function ContactPage() {
     <>
       <PageHeader
         eyebrow="Contact"
+        floral="jasmine"
         title="We’re Here to Help"
         description="Questions about a product, an order or customised skincare? Reach out — we’d love to hear from you."
         breadcrumbs={[{ label: "Contact" }]}

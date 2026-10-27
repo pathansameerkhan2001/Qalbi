@@ -1,6 +1,7 @@
 import { MessageSquareQuote, Quote, Star } from "lucide-react";
 import type { Review } from "@/types/content";
 import { publishedReviews } from "@/data/reviews";
+import { FloralSprig } from "@/components/ui/flowers";
 import { brandConfig } from "@/data/brand";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -74,7 +75,9 @@ export function ReviewsEmptyState() {
  */
 export function Testimonials({ as: Heading = "h2" }: { as?: "h1" | "h2" }) {
   return (
-    <section aria-labelledby="reviews-heading" className="py-10 sm:py-14">
+    <section aria-labelledby="reviews-heading" className="relative isolate overflow-hidden py-10 sm:py-14">
+      {/* In the wide-screen margin, behind the cards. */}
+      <FloralSprig variant="rose" className="absolute -bottom-10 -right-8 -z-10 hidden w-60 opacity-60 xl:block" />
       <Container>
         <SectionHeading
           as={Heading}

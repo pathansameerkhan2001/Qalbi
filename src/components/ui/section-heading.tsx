@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FlowerMark } from "./flowers";
 
 interface SectionHeadingProps {
   title: string;
@@ -23,7 +24,12 @@ export function SectionHeading({ title, eyebrow, description, action, as: Tag = 
       )}
     >
       <div className={cn("max-w-2xl", align === "center" && "mx-auto")}>
-        {eyebrow && <p className="eyebrow mb-2">{eyebrow}</p>}
+        {eyebrow && (
+          <p className={cn("eyebrow mb-2 flex items-center gap-2", align === "center" && "justify-center")}>
+            <FlowerMark />
+            {eyebrow}
+          </p>
+        )}
         <Tag id={id} className="text-h2 text-ink">
           {title}
         </Tag>

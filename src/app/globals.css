@@ -455,6 +455,94 @@
       animation-timeline: scroll(root);
     }
   }
+
+  /* Florals (components/ui/flowers.tsx, layout/floral-entrance.tsx, home/petal-drift.tsx).
+     Every part's resting state is fully open, so without animation (reduced
+     motion, or no scroll-driven animations) the flowers simply show open. */
+  .fl-petal,
+  .fl-leaf {
+    transform-box: fill-box;
+    animation: fl-open 0.95s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0s) both;
+  }
+  .fl-petal {
+    transform-origin: 50% 100%;
+  }
+  .fl-leaf {
+    transform-origin: 0% 50%;
+    animation-name: fl-grow;
+  }
+  .fl-stem {
+    stroke-dasharray: 1;
+    animation: fl-draw 1.1s ease-out var(--d, 0s) both;
+  }
+  .fl-fade {
+    animation: fl-fade 0.6s ease-out var(--d, 0s) both;
+  }
+  /* A barely-there sway; `rotate` composes with the Tailwind scale used to mirror a sprig. */
+  .fl-sway {
+    animation: fl-sway 9s ease-in-out infinite alternate;
+  }
+  /* Corner sprigs open as they scroll into view, part after part. */
+  @supports (animation-timeline: view()) {
+    .fl-onview {
+      view-timeline: --fl-sprig block;
+    }
+    .fl-onview :is(.fl-petal, .fl-leaf, .fl-stem, .fl-fade) {
+      animation-duration: auto;
+      animation-delay: 0s;
+      animation-timeline: --fl-sprig;
+      animation-range: entry var(--o, 0%) cover calc(30% + var(--o, 0%));
+    }
+  }
+
+  /* Entrance: shown once per session (the inline script sets data-entrance="seen"). */
+  .floral-entrance {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(ellipse at 50% 45%, var(--color-ivory) 0%, var(--color-ivory) 35%, var(--color-cream) 100%);
+    pointer-events: none;
+    animation: fl-entrance-out 0.6s ease-in-out 1.8s both;
+  }
+  html[data-entrance="seen"] .floral-entrance {
+    display: none;
+  }
+  .floral-entrance-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1rem;
+    animation: fl-entrance-lift 0.6s ease-in-out 1.8s both;
+  }
+  .floral-entrance-name {
+    margin-top: -0.4rem;
+    animation: fl-rise 0.8s ease-out 0.6s both;
+  }
+  .floral-entrance-tagline {
+    animation: fl-rise 0.8s ease-out 0.85s both;
+  }
+
+  /* Petals drifting through the hero (a size container, so 100cqh is its height). */
+  .petal-fall {
+    position: absolute;
+    top: 0;
+    animation: petal-fall var(--fall, 15s) linear var(--d, 0s) infinite;
+  }
+  .petal-sway {
+    display: block;
+    animation: petal-sway var(--sway, 4s) ease-in-out var(--d, 0s) infinite alternate;
+  }
+  .petal-spin {
+    animation: petal-spin var(--spin, 7s) linear var(--d, 0s) infinite;
+  }
+  @media (max-width: 639px) {
+    .petal-fall:nth-child(n + 7) {
+      display: none;
+    }
+  }
 }
 
 @keyframes logo-sheen {
@@ -533,6 +621,83 @@
     translate: 0 var(--parallax, -120px);
   }
 }
+@keyframes fl-open {
+  from {
+    opacity: 0;
+    transform: scale(0.1) rotate(-28deg);
+  }
+}
+@keyframes fl-grow {
+  from {
+    opacity: 0;
+    transform: scale(0, 0.3);
+  }
+}
+@keyframes fl-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes fl-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes fl-sway {
+  from {
+    rotate: -1.2deg;
+  }
+  to {
+    rotate: 1.2deg;
+  }
+}
+@keyframes fl-entrance-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes fl-entrance-lift {
+  to {
+    transform: translateY(-14px) scale(1.03);
+  }
+}
+@keyframes petal-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -30px, 0);
+  }
+  8%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, calc(100cqh + 10px), 0);
+  }
+}
+@keyframes petal-sway {
+  from {
+    transform: translateX(-18px);
+  }
+  to {
+    transform: translateX(18px);
+  }
+}
+@keyframes petal-spin {
+  from {
+    transform: rotate3d(1, 0.35, 0.2, 0deg);
+  }
+  to {
+    transform: rotate3d(1, 0.35, 0.2, 360deg);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -562,5 +727,20 @@
   }
   .offer-marquee-item[data-copy="1"] {
     display: none;
+  }
+}
+
+/* Florals with reduced motion: no entrance and no drifting petals; flowers stay still, fully open. */
+@media (prefers-reduced-motion: reduce) {
+  .floral-entrance,
+  .petal-drift {
+    display: none;
+  }
+  .fl-petal,
+  .fl-leaf,
+  .fl-stem,
+  .fl-fade,
+  .fl-sway {
+    animation: none !important;
   }
 }

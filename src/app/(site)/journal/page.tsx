@@ -16,6 +16,7 @@ export default async function JournalPage() {
     <>
       <PageHeader
         eyebrow="Blog"
+        floral="leaf"
         title="The QALBI Journal"
         description="Skincare routines, ingredient education and expert tips for your natural glow."
         breadcrumbs={[{ label: "Journal" }]}

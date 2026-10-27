@@ -38,6 +38,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
     <>
       <PageHeader
         eyebrow="Shop"
+        floral="rose"
         title="All Products"
         description="Thoughtfully crafted skincare essentials for your everyday self-care ritual."
         breadcrumbs={[{ label: "Products" }]}
