@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 
 /*
  * Drifting petals in three depths: far ones small, slow and softly blurred;
- * near ones larger, quicker and with a soft shadow. Blush rose and ivory
- * jasmine petals with the odd sage leaf, each falling, swaying and turning at
+ * near ones larger, quicker and with a soft shadow. Champagne rose and ivory
+ * jasmine petals with the odd sage leaf (brand floral tokens), each falling, swaying and turning at
  * its own pace. CSS only (globals.css, “Petals”): compositor transforms, no
  * JavaScript and no images; never take clicks; not shown with reduced motion.
  */
@@ -23,9 +23,9 @@ interface Petal {
 }
 
 const shapes: Record<Kind, React.ReactNode> = {
-  rose: <path d="M10 1C15 4 18 10 16 15c-1.5 3-4 4-6 4s-4.5-1-6-4C2 10 5 4 10 1Z" fill="#ecbdbf" stroke="#c4838b" strokeOpacity={0.45} strokeWidth={0.6} />,
-  ivory: <path d="M10 1c4 3 6 8 5 12-1 4-3 6-5 6s-4-2-5-6C4 9 6 4 10 1Z" fill="#fffaf1" stroke="#d9c7aa" strokeWidth={0.6} />,
-  leaf: <path d="M2 18C3 9 9 3 18 2c-1 9-7 15-16 16Z" fill="#87977a" />,
+  rose: <path d="M10 1C15 4 18 10 16 15c-1.5 3-4 4-6 4s-4.5-1-6-4C2 10 5 4 10 1Z" style={{ fill: "var(--fl-petal-mid)", stroke: "var(--fl-petal-line)" }} strokeOpacity={0.5} strokeWidth={0.6} />,
+  ivory: <path d="M10 1c4 3 6 8 5 12-1 4-3 6-5 6s-4-2-5-6C4 9 6 4 10 1Z" style={{ fill: "var(--fl-bloom)", stroke: "var(--fl-bloom-line)" }} strokeWidth={0.6} />,
+  leaf: <path d="M2 18C3 9 9 3 18 2c-1 9-7 15-16 16Z" style={{ fill: "var(--fl-leaf)" }} />,
 };
 
 function Petals({ petals, className }: { petals: Petal[]; className?: string }) {

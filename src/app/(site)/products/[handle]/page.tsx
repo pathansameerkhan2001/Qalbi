@@ -101,7 +101,7 @@ async function Recommendations({ product }: { product: Product }) {
     <section aria-labelledby="related-heading" className="relative isolate pb-12">
       {/* A blooming garland in place of a plain rule; an arrangement peeks out behind the cards on wide screens. */}
       <FloralBorder className="mb-8" />
-      <FloralCorner variant="bouquet" corner="br" size="md" desktop className="-right-24 xl:-right-40" />
+      <FloralCorner variant="bouquet" corner="br" size="md" desktop className="lg:-right-24 xl:-right-40" />
       <SectionHeading id="related-heading" title="You May Also Like" action={{ label: "View All", href: "/products" }} />
       <ProductGrid products={related} />
     </section>

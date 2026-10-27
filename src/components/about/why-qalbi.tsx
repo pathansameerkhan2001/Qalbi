@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { images } from "@/data/images";
 import { Container } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
+import { FloralCorner } from "@/components/ui/flowers";
 
 /**
  * "Why QALBI" — brand statement supplied by QALBI (2026-10-17), reproduced verbatim.
@@ -19,7 +20,9 @@ export const whyQalbiCopy = {
 export function WhyQalbi() {
   const image = images.lookbook.bloom;
   return (
-    <section aria-labelledby="why-qalbi-heading" className="relative overflow-hidden bg-ivory py-14 sm:py-20">
+    <section aria-labelledby="why-qalbi-heading" className="relative isolate overflow-hidden bg-ivory py-14 sm:py-20">
+      <FloralCorner variant="rose" corner="br" size="md" desktop />
+      <FloralCorner variant="leaf" corner="tl" size="sm" desktop />
       <Container className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
         <Reveal className="relative mx-auto w-full max-w-md lg:max-w-none">
           <div className="relative aspect-[4/5] overflow-hidden rounded-[3px] shadow-lift">

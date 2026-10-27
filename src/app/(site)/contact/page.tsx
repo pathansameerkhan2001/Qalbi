@@ -31,7 +31,7 @@ export default function ContactPage() {
         breadcrumbs={[{ label: "Contact" }]}
       />
       <Container className="relative isolate grid gap-10 py-12 sm:py-16 lg:grid-cols-[1fr_1.4fr] lg:gap-16">
-        <FloralCorner variant="rose" corner="bl" size="md" desktop className="-left-24 xl:-left-40" />
+        <FloralCorner variant="rose" corner="bl" size="md" desktop className="lg:-left-24 xl:-left-40" />
         <section aria-labelledby="channels-heading">
           <h2 id="channels-heading" className="text-h3 text-ink">Reach us directly</h2>
           <ul className="mt-6 space-y-3">

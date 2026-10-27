@@ -15,7 +15,7 @@ export function AboutStory({ as: Heading = "h2", showCta = true }: { as?: "h1" |
       <div className="grid lg:grid-cols-2">
         <div className="relative z-10 flex flex-col justify-center px-4 py-10 sm:px-8 sm:py-14 lg:py-20 lg:pl-[max(2.5rem,calc((100vw-1320px)/2+2.5rem))] lg:pr-12">
           {/* Behind the text (negative z inside this column's stacking context), in the bottom-left corner. */}
-          <FloralCorner variant="jasmine" corner="bl" size="lg" desktop />
+          <FloralCorner variant="jasmine" corner="bl" size="sm" desktop />
           <p className="eyebrow mb-3 flex items-center gap-2">
             <FlowerMark />
             {aboutContent.eyebrow}
@@ -44,7 +44,9 @@ export function AboutStory({ as: Heading = "h2", showCta = true }: { as?: "h1" |
 
 export function ValuesStrip() {
   return (
-    <section aria-label="Our values" className="border-b border-line bg-cream">
+    <section aria-label="Our values" className="relative isolate overflow-hidden border-b border-line bg-cream">
+      <FloralCorner variant="leaf" corner="bl" size="sm" />
+      <FloralCorner variant="jasmine" corner="tr" size="sm" />
       <Container>
         <ul className="grid gap-8 py-10 text-center sm:grid-cols-3 sm:gap-4">
           {aboutContent.values.map((value, i) => {

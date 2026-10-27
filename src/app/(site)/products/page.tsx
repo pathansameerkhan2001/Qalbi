@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProductGridSkeleton } from "@/components/ui/skeletons";
 import { ProductGrid } from "@/components/products/product-grid";
 import { SortSelect } from "@/components/products/sort-select";
+import { FloralCorner } from "@/components/ui/flowers";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/products" },
@@ -55,7 +56,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
           </ul>
         </nav>
       </PageHeader>
-      <Container className="py-10 sm:py-12">
+      <Container className="relative isolate py-10 sm:py-12">
+        <FloralCorner variant="bouquet" corner="bl" size="md" desktop className="lg:-left-24 xl:-left-40" />
+        <FloralCorner variant="jasmine" corner="tr" size="md" desktop className="lg:-right-24 xl:-right-40" />
         <Suspense
           fallback={
             <>

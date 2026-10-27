@@ -49,6 +49,24 @@
 }
 
 @layer base {
+  /* Floral palette (components/ui/flowers.tsx, petals, entrance): derived only
+     from the brand tokens above — champagne roses, ivory jasmine with gold
+     centres, sage and botanical-green leaves. */
+  :root {
+    --fl-petal-light: var(--color-ivory);
+    --fl-petal: color-mix(in srgb, var(--color-gold-pale) 80%, var(--color-gold-soft));
+    --fl-petal-mid: color-mix(in srgb, var(--color-gold-pale) 35%, var(--color-gold-soft));
+    --fl-petal-deep: color-mix(in srgb, var(--color-gold-soft) 70%, var(--color-gold));
+    --fl-petal-line: var(--color-gold);
+    --fl-bloom: var(--color-ivory);
+    --fl-bloom-line: var(--color-gold-soft);
+    --fl-centre: var(--color-gold);
+    --fl-leaf: var(--color-sage);
+    --fl-leaf-deep: var(--color-botanical);
+    --fl-stem: var(--color-botanical);
+    --fl-shadow: color-mix(in srgb, var(--color-forest) 16%, transparent);
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     scroll-padding-top: 7rem;
@@ -460,7 +478,7 @@
      open, so without animation (reduced motion) the flowers simply show open. */
   .fl-art {
     /* Soft depth: the artwork sits a little above the page. */
-    filter: drop-shadow(0 6px 10px rgb(122 76 66 / 0.14));
+    filter: drop-shadow(0 6px 10px var(--fl-shadow));
   }
   .fl-petal,
   .fl-leaf {
@@ -515,9 +533,9 @@
     position: absolute;
     inset: -10%;
     background:
-      radial-gradient(ellipse 60% 45% at 50% 38%, rgb(255 246 226 / 0.95), transparent 70%),
-      radial-gradient(ellipse at 50% 50%, transparent 55%, rgb(214 196 160 / 0.35) 100%),
-      linear-gradient(180deg, #fffaf0, #f6efe0);
+      radial-gradient(ellipse 60% 45% at 50% 38%, var(--color-ivory), transparent 70%),
+      radial-gradient(ellipse at 50% 50%, transparent 55%, color-mix(in srgb, var(--color-gold-pale) 70%, transparent) 100%),
+      linear-gradient(180deg, var(--color-ivory), var(--color-cream));
     animation: fe-light 1.4s ease-out both;
   }
   .fe-corner {
@@ -565,7 +583,7 @@
     width: min(80vw, 34rem);
     aspect-ratio: 1.6;
     border-radius: 50%;
-    background: radial-gradient(closest-side, rgb(240 216 160 / 0.55), rgb(247 230 196 / 0.25) 55%, transparent);
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--color-gold-soft) 45%, transparent), color-mix(in srgb, var(--color-gold-pale) 40%, transparent) 55%, transparent);
     filter: blur(6px);
     animation: fe-glow 1.4s ease-out 0.8s both;
   }
@@ -581,7 +599,7 @@
     inset: 0;
     -webkit-mask: var(--logo-mask) center / contain no-repeat;
     mask: var(--logo-mask) center / contain no-repeat;
-    background: linear-gradient(105deg, transparent 40%, rgb(255 246 222 / 0.55) 50%, transparent 60%) 160% 0 / 260% 100% no-repeat;
+    background: linear-gradient(105deg, transparent 40%, color-mix(in srgb, var(--color-ivory) 55%, transparent) 50%, transparent 60%) 160% 0 / 260% 100% no-repeat;
     mix-blend-mode: screen;
     animation: fe-shimmer 1s ease-in-out 1.95s both;
   }
@@ -600,9 +618,9 @@
     left: 50%;
     translate: -50% 0;
     pointer-events: auto;
-    border: 1px solid rgb(168 130 63 / 0.45);
+    border: 1px solid color-mix(in srgb, var(--color-gold) 45%, transparent);
     border-radius: 999px;
-    background: rgb(255 253 248 / 0.85);
+    background: color-mix(in srgb, var(--color-ivory) 85%, transparent);
     padding: 0.45rem 1.1rem;
     font-size: 0.72rem;
     letter-spacing: 0.18em;
@@ -637,7 +655,7 @@
     filter: blur(0.6px);
   }
   .petal-fall[data-depth="near"] {
-    filter: drop-shadow(0 4px 6px rgb(60 30 30 / 0.22));
+    filter: drop-shadow(0 4px 6px color-mix(in srgb, var(--color-forest) 25%, transparent));
   }
   .petal-sway {
     display: block;

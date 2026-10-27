@@ -69,7 +69,8 @@ const floaters: Floater[] = [
   { icon: "drop", x: 97.5, y: 84, size: 22, color: "gold", opacity: 0.35, dur: 9, delay: 0.5, parallax: -90 },
 ];
 
-const tone = { gold: "text-gold", sage: "text-botanical", rose: "text-[#b5626e]" };
+// "rose" accents use the champagne of the brand palette (no colours outside the design tokens).
+const tone = { gold: "text-gold", sage: "text-botanical", rose: "text-gold-soft" };
 
 function Glyph({ icon }: { icon: Icon }) {
   return icon === "sparkle" ? <Sparkle className="size-full" /> : <span className="block size-full [&>svg]:size-full">{icons[icon]}</span>;

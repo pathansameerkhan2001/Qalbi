@@ -12,6 +12,7 @@ import { getCollections, getPolicy, policyHandles, type PolicyHandle } from "@/l
 import { getContactSettings } from "@/lib/store/settings";
 import { deliveryStatus } from "@/lib/server/delivery";
 import { Logo } from "./logo";
+import { FloralCorner } from "@/components/ui/flowers";
 
 const policyLabels: Record<PolicyHandle, string> = {
   "shipping-policy": "Shipping Policy",
@@ -72,7 +73,9 @@ export async function Footer() {
   const whatsappHref = `https://wa.me/${contact.whatsappDigits}?text=${encodeURIComponent(brandConfig.defaultWhatsappMessage)}`;
 
   return (
-    <footer className="relative overflow-hidden bg-forest text-ivory">
+    <footer className="relative isolate overflow-hidden bg-forest text-ivory">
+      <FloralCorner variant="jasmine" corner="tr" size="md" desktop className="opacity-60" />
+      <FloralCorner variant="rose" corner="bl" size="md" desktop className="opacity-50" />
       {/* Fine gold rule at the top edge. */}
       <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-soft/60 to-transparent" />
 

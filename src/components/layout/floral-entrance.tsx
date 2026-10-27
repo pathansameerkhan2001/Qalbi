@@ -68,7 +68,12 @@ export function FloralEntrance() {
               style={{ "--x": `${p.x}rem`, "--y": `${p.y}rem`, "--s": p.s, "--r": `${p.r}deg`, "--pd": `${p.d}s` } as CSSProperties}
             >
               <svg viewBox="0 0 20 20" className="block size-full">
-                <path d="M10 1C15 4 18 10 16 15c-1.5 3-4 4-6 4s-4.5-1-6-4C2 10 5 4 10 1Z" fill={i % 3 === 2 ? "#fffaf1" : "#ecbdbf"} stroke={i % 3 === 2 ? "#dccbae" : "#c4838b"} strokeOpacity={0.5} strokeWidth={0.6} />
+                <path
+                  d="M10 1C15 4 18 10 16 15c-1.5 3-4 4-6 4s-4.5-1-6-4C2 10 5 4 10 1Z"
+                  style={i % 3 === 2 ? { fill: "var(--fl-bloom)", stroke: "var(--fl-bloom-line)" } : { fill: "var(--fl-petal-mid)", stroke: "var(--fl-petal-line)" }}
+                  strokeOpacity={0.5}
+                  strokeWidth={0.6}
+                />
               </svg>
             </span>
           ))}

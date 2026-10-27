@@ -2,11 +2,13 @@ import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 /*
- * QALBI's floral artwork: hand-built SVG flowers in the brand palette — blush
- * roses, white jasmine with gold centres, sage and botanical-green leaves.
- * Petals and leaves are shaded with shared gradients (<FloralDefs>, rendered
- * once by the site frame) so they read as soft, lit flowers rather than flat
- * shapes; each fill falls back to a plain colour if the gradients are absent.
+ * QALBI's floral artwork: hand-built SVG flowers in the brand palette —
+ * champagne roses (ivory to gold-pale, gold-edged), white jasmine with gold
+ * centres, sage and botanical-green leaves. Every colour comes from the
+ * floral tokens in globals.css (--fl-*), which are defined from the site's
+ * own design tokens, so the flowers always match the theme. Petals and leaves
+ * are shaded with shared gradients (<FloralDefs>, rendered once by the site
+ * frame); each fill falls back to a plain token colour without them.
  *
  * Every part carries a CSS class from globals.css (“Florals”) that opens it from
  * its base — petals unfold, leaves grow, stems draw — after `--d`. Resting
@@ -17,55 +19,58 @@ import { cn } from "@/lib/utils";
 /** Start offset for the opening animation. */
 const delay = (d: number) => ({ "--d": `${d.toFixed(2)}s` }) as CSSProperties;
 
+// Colours are CSS (custom properties can't be used in SVG presentation attributes), so they go in `style`.
 const paint = {
-  roseOuter: "url(#fl-rose-outer) #efc3c4",
-  roseMid: "url(#fl-rose-mid) #e8b0b4",
-  roseInner: "url(#fl-rose-inner) #d9939c",
-  roseLine: "#c4838b",
-  jasmine: "url(#fl-jasmine) #fffaf1",
-  jasmineLine: "#dccbae",
-  gold: "url(#fl-gold) #c9a96a",
-  leaf: "url(#fl-leaf) #87977a",
-  leafDeep: "url(#fl-leaf-deep) #5e7752",
-  stem: "#6f8662",
+  roseOuter: "url(#fl-rose-outer) var(--fl-petal)",
+  roseMid: "url(#fl-rose-mid) var(--fl-petal-mid)",
+  roseInner: "url(#fl-rose-inner) var(--fl-petal-deep)",
+  roseLine: "var(--fl-petal-line)",
+  jasmine: "url(#fl-jasmine) var(--fl-bloom)",
+  jasmineLine: "var(--fl-bloom-line)",
+  gold: "url(#fl-gold) var(--fl-centre)",
+  leaf: "url(#fl-leaf) var(--fl-leaf)",
+  leafDeep: "url(#fl-leaf-deep) var(--fl-leaf-deep)",
+  stem: "var(--fl-stem)",
 };
+const tint = (fill: string, stroke?: string, d?: number): CSSProperties => ({ ...(d === undefined ? {} : delay(d)), fill, ...(stroke ? { stroke } : {}) });
+const stop = (offset: string, color: string) => <stop offset={offset} style={{ stopColor: color }} />;
 
 /** Shared gradients for all floral artwork. Rendered once (site frame); 0×0 and out of the layout. */
 export function FloralDefs() {
   return (
     <svg aria-hidden focusable="false" width="0" height="0" style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
       <defs>
-        {/* Petals: light at the base where they catch the light, deeper blush at the rim. */}
+        {/* Petals: light at the base where they catch the light, deeper champagne at the rim. */}
         <radialGradient id="fl-rose-outer" cx="50%" cy="100%" r="110%">
-          <stop offset="0" stopColor="#fbe9e5" />
-          <stop offset="0.55" stopColor="#f1c7c7" />
-          <stop offset="1" stopColor="#dfa0a6" />
+          {stop("0", "var(--fl-petal-light)")}
+          {stop("0.55", "var(--fl-petal)")}
+          {stop("1", "var(--fl-petal-mid)")}
         </radialGradient>
         <radialGradient id="fl-rose-mid" cx="50%" cy="100%" r="110%">
-          <stop offset="0" stopColor="#f6d8d5" />
-          <stop offset="0.6" stopColor="#eab3b6" />
-          <stop offset="1" stopColor="#d48c95" />
+          {stop("0", "var(--fl-petal)")}
+          {stop("0.6", "var(--fl-petal-mid)")}
+          {stop("1", "var(--fl-petal-deep)")}
         </radialGradient>
         <radialGradient id="fl-rose-inner" cx="50%" cy="100%" r="110%">
-          <stop offset="0" stopColor="#efc1c1" />
-          <stop offset="1" stopColor="#c97a86" />
+          {stop("0", "var(--fl-petal-mid)")}
+          {stop("1", "var(--fl-petal-line)")}
         </radialGradient>
         <radialGradient id="fl-jasmine" cx="50%" cy="100%" r="110%">
-          <stop offset="0" stopColor="#f3e6cf" />
-          <stop offset="0.35" stopColor="#fffcf6" />
-          <stop offset="1" stopColor="#ffffff" />
+          {stop("0", "var(--fl-petal)")}
+          {stop("0.35", "var(--fl-petal-light)")}
+          {stop("1", "var(--fl-bloom)")}
         </radialGradient>
         <radialGradient id="fl-gold" cx="40%" cy="35%" r="70%">
-          <stop offset="0" stopColor="#f6e3ad" />
-          <stop offset="1" stopColor="#b5873a" />
+          {stop("0", "var(--fl-petal-mid)")}
+          {stop("1", "var(--fl-centre)")}
         </radialGradient>
         <linearGradient id="fl-leaf" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#6f875f" />
-          <stop offset="1" stopColor="#a9b99a" />
+          {stop("0", "var(--fl-leaf-deep)")}
+          {stop("1", "var(--fl-leaf)")}
         </linearGradient>
         <linearGradient id="fl-leaf-deep" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#4c6744" />
-          <stop offset="1" stopColor="#7f9471" />
+          {stop("0", "var(--fl-stem)")}
+          {stop("1", "var(--fl-leaf-deep)")}
         </linearGradient>
       </defs>
     </svg>
@@ -101,7 +106,7 @@ export function Rose(p: Placed) {
     Array.from({ length: count }, (_, i) => (
       // The rotation sits on a wrapper: an animated CSS transform would replace the path's own transform attribute.
       <g key={i} transform={`rotate(${offset + (360 / count) * i}) scale(${scale})`}>
-        <path className="fl-petal" style={delay(start + i * 0.04)} d={path} fill={fill} stroke={paint.roseLine} strokeWidth={0.6 / scale} strokeOpacity={0.45} />
+        <path className="fl-petal" style={tint(fill, paint.roseLine, start + i * 0.04)} d={path} strokeWidth={0.6 / scale} strokeOpacity={0.55} />
       </g>
     ));
   return (
@@ -109,8 +114,8 @@ export function Rose(p: Placed) {
       {ring(6, ROSE_PETAL, 1, 0, paint.roseOuter, d + 0.3)}
       {ring(5, ROSE_PETAL, 0.74, 34, paint.roseMid, d + 0.16)}
       {ring(4, ROSE_CUP, 0.62, 20, paint.roseInner, d + 0.04)}
-      <circle className="fl-fade" style={delay(d)} r={5.5} fill={paint.roseInner} stroke={paint.roseLine} strokeWidth={0.6} strokeOpacity={0.6} />
-      <path className="fl-fade" style={delay(d + 0.1)} d="M-2.5 1.5c-1.5-3 1.5-5.5 4-4s1.5 5-1.5 5.5" fill="none" stroke="#b56e7a" strokeWidth={0.9} strokeLinecap="round" />
+      <circle className="fl-fade" style={tint(paint.roseInner, paint.roseLine, d)} r={5.5} strokeWidth={0.6} strokeOpacity={0.6} />
+      <path className="fl-fade" style={tint("none", paint.roseLine, d + 0.1)} d="M-2.5 1.5c-1.5-3 1.5-5.5 4-4s1.5 5-1.5 5.5" strokeWidth={0.9} strokeLinecap="round" />
     </g>
   );
 }
@@ -122,10 +127,10 @@ export function Jasmine(p: Placed) {
     <g transform={place(p)}>
       {Array.from({ length: 5 }, (_, i) => (
         <g key={i} transform={`rotate(${i * 72})`}>
-          <path className="fl-petal" style={delay(d + i * 0.05)} d={JASMINE_PETAL} fill={paint.jasmine} stroke={paint.jasmineLine} strokeWidth={0.7} />
+          <path className="fl-petal" style={tint(paint.jasmine, paint.jasmineLine, d + i * 0.05)} d={JASMINE_PETAL} strokeWidth={0.7} />
         </g>
       ))}
-      <circle className="fl-fade" style={delay(d + 0.3)} r={3.4} fill={paint.gold} />
+      <circle className="fl-fade" style={tint(paint.gold, undefined, d + 0.3)} r={3.4} />
     </g>
   );
 }
@@ -135,12 +140,12 @@ export function Bud(p: Placed) {
   const d = p.d ?? 0;
   return (
     <g transform={place(p)}>
-      <path className="fl-petal" style={delay(d)} d={BUD} fill={paint.roseMid} stroke={paint.roseLine} strokeWidth={0.6} strokeOpacity={0.55} />
+      <path className="fl-petal" style={tint(paint.roseMid, paint.roseLine, d)} d={BUD} strokeWidth={0.6} strokeOpacity={0.6} />
       <g transform="rotate(-70)">
-        <path className="fl-leaf" style={delay(d + 0.1)} d={SEPAL} fill={paint.leaf} />
+        <path className="fl-leaf" style={tint(paint.leaf, undefined, d + 0.1)} d={SEPAL} />
       </g>
       <g transform="rotate(-110) scale(1 -1)">
-        <path className="fl-leaf" style={delay(d + 0.1)} d={SEPAL} fill={paint.leaf} />
+        <path className="fl-leaf" style={tint(paint.leaf, undefined, d + 0.1)} d={SEPAL} />
       </g>
     </g>
   );
@@ -150,15 +155,15 @@ export function Bud(p: Placed) {
 export function Leaf(p: Placed & { deep?: boolean }) {
   return (
     <g transform={place(p)}>
-      <path className="fl-leaf" style={delay(p.d ?? 0)} d={LEAF} fill={p.deep ? paint.leafDeep : paint.leaf} stroke="#4c6744" strokeWidth={0.5} strokeOpacity={0.35} />
-      <path className="fl-leaf" style={delay((p.d ?? 0) + 0.1)} d="M2 0H32" stroke="#fffdf8" strokeOpacity={0.5} strokeWidth={0.6} />
+      <path className="fl-leaf" style={tint(p.deep ? paint.leafDeep : paint.leaf, paint.stem, p.d ?? 0)} d={LEAF} strokeWidth={0.5} strokeOpacity={0.35} />
+      <path className="fl-leaf" style={tint("none", "var(--fl-petal-light)", (p.d ?? 0) + 0.1)} d="M2 0H32" strokeOpacity={0.5} strokeWidth={0.6} />
     </g>
   );
 }
 
 /** A stem that draws itself along its path. */
 export function Stem({ d, delay: start = 0, width = 1.4 }: { d: string; delay?: number; width?: number }) {
-  return <path className="fl-stem" style={delay(start)} d={d} pathLength={1} fill="none" stroke={paint.stem} strokeWidth={width} strokeLinecap="round" />;
+  return <path className="fl-stem" style={tint("none", paint.stem, start)} d={d} pathLength={1} strokeWidth={width} strokeLinecap="round" />;
 }
 
 export type SprigVariant = "rose" | "jasmine" | "leaf" | "bouquet";
@@ -275,7 +280,8 @@ const sizes = {
  * An arrangement in a corner of the nearest `relative isolate` box, behind its
  * content (z-index -10 inside that stacking context, above its background):
  * cards, photos and text always cover it. Opens as it scrolls into view.
- * `desktop` keeps it to wide screens (for corners that would meet text on phones).
+ * `desktop`: full size from 1024 px; below that a compact corner accent (96–112 px)
+ * rather than none, so phones and tablets keep the floral thread too.
  */
 export function FloralCorner({
   variant,
@@ -290,7 +296,7 @@ export function FloralCorner({
   desktop?: boolean;
   className?: string;
 }) {
-  return <FloralArt variant={variant} className={cn("absolute -z-10", corners[corner], sizes[size], desktop && "hidden lg:block", className)} />;
+  return <FloralArt variant={variant} className={cn("absolute -z-10", corners[corner], sizes[size], desktop && "w-24 sm:w-28", className)} />;
 }
 
 /**
@@ -341,11 +347,11 @@ export function HeadingSpray({ className }: { className?: string }) {
 /** Tiny five-petal flower for eyebrow labels. */
 export function FlowerMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="-12 -12 24 24" aria-hidden focusable="false" className={cn("size-3 shrink-0 text-[#c4838b]", className)}>
+    <svg viewBox="-12 -12 24 24" aria-hidden focusable="false" className={cn("size-3 shrink-0 text-gold", className)}>
       {Array.from({ length: 5 }, (_, i) => (
         <path key={i} transform={`rotate(${i * 72})`} d="M0 -1.5C-3 -3.5 -3.2 -8.5 0 -10.5C3.2 -8.5 3 -3.5 0 -1.5Z" fill="currentColor" fillOpacity={0.35} stroke="currentColor" strokeWidth={0.9} />
       ))}
-      <circle r={1.6} fill="#c9a96a" />
+      <circle r={1.6} style={{ fill: "var(--fl-centre)" }} />
     </svg>
   );
 }

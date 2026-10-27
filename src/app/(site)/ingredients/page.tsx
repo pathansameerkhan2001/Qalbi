@@ -28,7 +28,7 @@ export default async function IngredientsPage() {
       <section aria-labelledby="ingredients-page-heading" className="overflow-hidden bg-sand">
         <div className="grid lg:grid-cols-2">
           <div className="relative isolate flex flex-col justify-center px-4 py-10 sm:px-8 sm:py-14 lg:py-20 lg:pl-[max(2.5rem,calc((100vw-1320px)/2+2.5rem))] lg:pr-12">
-            <FloralCorner variant="leaf" corner="bl" size="lg" desktop />
+            <FloralCorner variant="leaf" corner="bl" size="sm" desktop />
             <p className="eyebrow mb-3 flex items-center gap-2">
               <FlowerMark />
               Ingredients
