@@ -24,9 +24,13 @@ export interface FloralPalette {
   leaf: string;
   leafDeep: string;
   stem: string;
+  /** Blush rose (owner-approved, 2026-10-28): light, body and deep rim. */
+  blushLight: string;
+  blush: string;
+  blushDeep: string;
 }
 
-type Flower = "rose" | "jasmine" | "bud" | "leaf" | "leafDeep";
+type Flower = "rose" | "blush" | "jasmine" | "bud" | "leaf" | "leafDeep";
 /** [kind, x, y, scale, rotation°, delay s] or ["stem", path, delay s, width]. */
 export type Part = [Flower, number, number, number?, number?, number?] | ["stem", string, number?, number?];
 
@@ -53,7 +57,7 @@ export const arrangements = {
       ["bud", 286, 182, 1.1, 8, 0.65],
       ["bud", 204, 104, 1.05, -16, 0.6],
       ["rose", 140, 120, 1.5, 0, 0.5],
-      ["rose", 190, 218, 0.9, 20, 0.65],
+      ["blush", 190, 218, 0.9, 20, 0.65],
     ],
   },
   // A long cascade of jasmine with buds and paired leaves.
@@ -119,7 +123,7 @@ export const arrangements = {
       ["jasmine", 104, 206, 1.05, -22, 0.65],
       ["jasmine", 262, 86, 0.9, 18, 0.7],
       ["rose", 214, 92, 1.05, 12, 0.55],
-      ["rose", 186, 244, 0.95, -18, 0.6],
+      ["blush", 186, 244, 0.95, -18, 0.6],
       ["rose", 150, 140, 1.55, 0, 0.45],
     ],
   },
@@ -151,8 +155,8 @@ export const arrangements = {
       ["jasmine", 316, 98, 1, 18, 0.66],
       ["jasmine", 236, 300, 0.8, -10, 0.72],
       ["rose", 268, 118, 1.15, 12, 0.52],
-      ["rose", 226, 296, 1.05, -18, 0.56],
-      ["rose", 300, 216, 0.85, 30, 0.62],
+      ["blush", 226, 296, 1.05, -18, 0.56],
+      ["blush", 300, 216, 0.85, 30, 0.62],
       ["rose", 176, 170, 1.75, 0, 0.42],
     ],
   },
@@ -188,9 +192,26 @@ export const arrangements = {
         return [
           [i % 2 === 0 ? "leafDeep" : "leaf", x - 8, y + 6, 0.75, 150 + (i % 2) * 20, d],
           [i % 2 === 1 ? "leafDeep" : "leaf", x + 8, y + 6, 0.75, 20 - (i % 2) * 20, d + 0.05],
-          i % 2 ? ["jasmine", x, y, 0.85, i * 13, d + 0.1] : ["rose", x, y, 0.62, i * 9, d + 0.1],
+          i % 2 ? ["jasmine", x, y, 0.85, i * 13, d + 0.1] : [i % 4 === 0 ? "rose" : "blush", x, y, 0.62, i * 9, d + 0.1],
         ];
       }).flat(),
+    ],
+  },
+  // One rose opening, framed by leaves and two buds — the intro's blooming rose (160 × 120).
+  bloom: {
+    width: 160,
+    height: 120,
+    parts: [
+      ["stem", "M80 112C80 98 80 86 80 72", 0, 1.3],
+      ["leaf", 78, 100, 1.05, 200, 0.2],
+      ["leafDeep", 82, 100, 1.05, -20, 0.25],
+      ["leaf", 70, 86, 0.8, 215, 0.35],
+      ["leafDeep", 90, 86, 0.8, -35, 0.4],
+      ["bud", 36, 70, 0.9, -40, 0.6],
+      ["bud", 124, 70, 0.9, 40, 0.65],
+      ["jasmine", 46, 92, 0.7, 10, 0.55],
+      ["jasmine", 114, 92, 0.7, -14, 0.6],
+      ["blush", 80, 56, 1.6, 0, 0.3],
     ],
   },
   // A small symmetrical spray above centred section headings (180 × 48).
@@ -228,15 +249,16 @@ const at = (d: number) => ` style="--d:${n(d)}s"`;
 const place = (x: number, y: number, s = 1, r = 0) => `translate(${n(x)} ${n(y)})${r ? ` rotate(${n(r)})` : ""}${s !== 1 ? ` scale(${n(s)})` : ""}`;
 
 /** Open-on-load animation classes: p = petal (from its base), l = leaf (from its stalk), s = stem (drawn), f = fade. */
-function rose(d: number) {
+function rose(d: number, blush = false) {
   // The rotation sits on a wrapper: an animated CSS transform replaces an element's own transform attribute.
   const ring = (count: number, path: string, scale: number, offset: number, fill: string, start: number) =>
     Array.from({ length: count }, (_, i) => `<g transform="rotate(${n(offset + (360 / count) * i)}) scale(${scale})"><path class="p"${at(start + i * 0.04)} d="${path}" fill="url(#${fill})" stroke-width="${n(0.6 / scale)}"/></g>`).join("");
+  const [o, m, i] = blush ? ["bo", "bm", "bi"] : ["ro", "rm", "ri"];
   return (
-    ring(6, ROSE_PETAL, 1, 0, "ro", d + 0.3) +
-    ring(5, ROSE_PETAL, 0.74, 34, "rm", d + 0.16) +
-    ring(4, ROSE_CUP, 0.62, 20, "ri", d + 0.04) +
-    `<circle class="f"${at(d)} r="5.5" fill="url(#ri)"/><path class="f"${at(d + 0.1)} d="M-2.5 1.5c-1.5-3 1.5-5.5 4-4s1.5 5-1.5 5.5" fill="none" stroke-width=".9" stroke-linecap="round"/>`
+    ring(6, ROSE_PETAL, 1, 0, o, d + 0.3) +
+    ring(5, ROSE_PETAL, 0.74, 34, m, d + 0.16) +
+    ring(4, ROSE_CUP, 0.62, 20, i, d + 0.04) +
+    `<circle class="f"${at(d)} r="5.5" fill="url(#${i})"/><path class="f"${at(d + 0.1)} d="M-2.5 1.5c-1.5-3 1.5-5.5 4-4s1.5 5-1.5 5.5" fill="none" stroke-width=".9" stroke-linecap="round"/>`
   );
 }
 const jasmine = (d: number) =>
@@ -254,6 +276,9 @@ const gradients = (c: FloralPalette) =>
   `<radialGradient id="ro" cx="50%" cy="100%" r="110%"><stop offset="0" stop-color="${c.petalLight}"/><stop offset=".55" stop-color="${c.petal}"/><stop offset="1" stop-color="${c.petalMid}"/></radialGradient>` +
   `<radialGradient id="rm" cx="50%" cy="100%" r="110%"><stop offset="0" stop-color="${c.petal}"/><stop offset=".6" stop-color="${c.petalMid}"/><stop offset="1" stop-color="${c.petalDeep}"/></radialGradient>` +
   `<radialGradient id="ri" cx="50%" cy="100%" r="110%"><stop offset="0" stop-color="${c.petalMid}"/><stop offset="1" stop-color="${c.petalLine}"/></radialGradient>` +
+  `<radialGradient id="bo" cx="50%" cy="100%" r="110%"><stop offset="0" stop-color="${c.blushLight}"/><stop offset=".55" stop-color="${c.blush}"/><stop offset="1" stop-color="${c.blushDeep}"/></radialGradient>` +
+  `<radialGradient id="bm" cx="50%" cy="100%" r="110%"><stop offset="0" stop-color="${c.blush}"/><stop offset="1" stop-color="${c.blushDeep}"/></radialGradient>` +
+  `<radialGradient id="bi" cx="50%" cy="100%" r="110%"><stop offset="0" stop-color="${c.blushDeep}"/><stop offset="1" stop-color="${c.petalLine}"/></radialGradient>` +
   `<radialGradient id="ja" cx="50%" cy="100%" r="110%"><stop offset="0" stop-color="${c.petal}"/><stop offset=".35" stop-color="${c.petalLight}"/><stop offset="1" stop-color="${c.bloom}"/></radialGradient>` +
   `<radialGradient id="go" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="${c.petalMid}"/><stop offset="1" stop-color="${c.centre}"/></radialGradient>` +
   `<linearGradient id="le"><stop offset="0" stop-color="${c.leafDeep}"/><stop offset="1" stop-color="${c.leaf}"/></linearGradient>` +
@@ -286,7 +311,7 @@ function part(p: Part): string {
     return `<path class="s"${at(d)} d="${path}" pathLength="1" stroke-width="${width}"/>`;
   }
   const [kind, x, y, s = 1, r = 0, d = 0] = p;
-  const body = kind === "rose" ? rose(d) : kind === "jasmine" ? jasmine(d) : kind === "bud" ? bud(d) : leaf(d, kind === "leafDeep");
+  const body = kind === "rose" || kind === "blush" ? rose(d, kind === "blush") : kind === "jasmine" ? jasmine(d) : kind === "bud" ? bud(d) : leaf(d, kind === "leafDeep");
   return `<g transform="${place(x, y, s, r)}">${body}</g>`;
 }
 

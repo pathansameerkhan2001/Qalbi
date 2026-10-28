@@ -22,7 +22,8 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
       </a>
       <AnnouncementBar />
       <Header />
-      <main id="main" className="flex-1">
+      {/* Floral arrangements set into the side margins can reach past the viewport: clip so the page never scrolls sideways (clip, unlike hidden, keeps sticky positioning working). */}
+      <main id="main" className="flex-1 overflow-x-clip">
         {children}
       </main>
       {/* A blooming garland closes every page, just above the footer. */}

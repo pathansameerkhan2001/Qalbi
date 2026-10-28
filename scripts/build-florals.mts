@@ -28,6 +28,13 @@ const mix = (a: string, share: number, b: string) => {
   return `#${[0, 1, 2].map((i) => Math.round(ch(a, i) * share + ch(b, i) * (1 - share)).toString(16).padStart(2, "0")).join("")}`;
 };
 
+/** Owner-approved floral colours (not design tokens): the --fl-* custom properties in globals.css. */
+const floral = (name: string): string => {
+  const m = new RegExp(`--fl-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css);
+  if (!m) throw new Error(`Floral colour --fl-${name} not found in globals.css`);
+  return m[1].toLowerCase();
+};
+
 const ivory = token("ivory");
 const goldPale = token("gold-pale");
 const goldSoft = token("gold-soft");
@@ -44,6 +51,9 @@ const palette: FloralPalette = {
   leaf: token("sage"),
   leafDeep: token("botanical"),
   stem: token("botanical"),
+  blushLight: mix(floral("blush"), 0.35, ivory),
+  blush: floral("blush"),
+  blushDeep: floral("blush-deep"),
 };
 
 mkdirSync("public/florals", { recursive: true });

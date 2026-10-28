@@ -22,7 +22,7 @@ test("florals: every arrangement has a generated file whose content hash matches
 });
 
 test("florals: a generated SVG is standalone, uses only the given colours and stays still with reduced motion", () => {
-  const palette: FloralPalette = { petalLight: "#000001", petal: "#000002", petalMid: "#000003", petalDeep: "#000004", petalLine: "#000005", bloom: "#000006", bloomLine: "#000007", centre: "#000008", leaf: "#000009", leafDeep: "#00000a", stem: "#00000b" };
+  const palette: FloralPalette = { petalLight: "#000001", petal: "#000002", petalMid: "#000003", petalDeep: "#000004", petalLine: "#000005", bloom: "#000006", bloomLine: "#000007", centre: "#000008", leaf: "#000009", leafDeep: "#00000a", stem: "#00000b", blushLight: "#00000c", blush: "#00000d", blushDeep: "#00000e" };
   const svg = floralSvg("bouquet", palette);
   assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="[-\d. ]+" width="\d+" height="\d+">/);
   assert.match(svg, /@media \(prefers-reduced-motion:reduce\)\{\*\{animation:none!important\}\}/);
