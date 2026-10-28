@@ -18,6 +18,8 @@ import { ProductGallery } from "@/components/products/product-gallery";
 import { PurchasePanel } from "@/components/products/purchase-panel";
 import { getWhatsAppOrderConfig } from "@/lib/whatsapp-order";
 import { ProductGrid } from "@/components/products/product-grid";
+import { productShareInfo } from "@/components/products/product-card";
+import { ShareProductButton } from "@/components/products/share-button";
 import { FloralBorder, FloralCorner, FlowerMark } from "@/components/ui/flowers";
 import { Rating } from "@/components/products/rating";
 import { ProductStory } from "@/components/products/product-story";
@@ -33,7 +35,12 @@ export async function generateMetadata({ params }: PageProps<"/products/[handle]
   const { handle } = await params;
   const product = await getProduct(handle);
   if (!product) return { title: "Product not found", robots: { index: false } };
-  const image = product.featuredImage && !product.featuredImage.placeholder ? [{ url: product.featuredImage.url, alt: product.featuredImage.alt }] : undefined;
+  // Link previews (WhatsApp, Facebook…): the product's own photo, resized by the image optimiser — originals can be
+  // several MB, which preview crawlers often skip. 828 px is above the 600 px platforms need for a large preview.
+  const image =
+    product.featuredImage && !product.featuredImage.placeholder
+      ? [{ url: `/_next/image?url=${encodeURIComponent(product.featuredImage.url)}&w=828&q=75`, width: 828, alt: product.featuredImage.alt }]
+      : undefined;
   const title = product.seo?.title || product.title;
   const description = truncate(product.seo?.description || plainSummary(product) || `${product.title} by ${brandConfig.name}.`, 160);
   return {
@@ -42,7 +49,9 @@ export async function generateMetadata({ params }: PageProps<"/products/[handle]
     alternates: { canonical: `/products/${product.handle}` },
     // Preview catalogue: prices are unconfirmed, so these pages must not be indexed.
     ...(getCommerceSource() === "development-fixtures" ? { robots: { index: false, follow: true } } : {}),
-    openGraph: { title, description, url: `/products/${product.handle}`, images: image },
+    // A page's openGraph replaces the layout's, so the site-wide fields are repeated here.
+    openGraph: { type: "website", siteName: brandConfig.name, locale: "en_IN", title, description, url: `/products/${product.handle}`, images: image },
+    twitter: { card: image ? "summary_large_image" : "summary", title, description, images: image?.map((i) => i.url) },
   };
 }
 
@@ -153,7 +162,10 @@ async function ProductDetail({ params }: { params: PageProps<"/products/[handle]
               {product.productType}
             </p>
           )}
-          <h1 className="text-h2 text-ink sm:text-[2.6rem]">{product.title}</h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-h2 text-ink sm:text-[2.6rem]">{product.title}</h1>
+            <ShareProductButton product={productShareInfo(product)} variant="labelled" className="mt-1.5 shrink-0 sm:mt-3" />
+          </div>
           {product.rating && <Rating rating={product.rating} className="mt-2" />}
           {summary && <p className="mt-4 max-w-xl text-[0.97rem] leading-relaxed text-ink/80">{summary}</p>}
           <div className="mt-5">

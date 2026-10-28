@@ -21,3 +21,12 @@ export function WhatsAppIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Facebook glyph. */
+export function FacebookIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+      <path d="M13.5 21.5v-7.8h2.6l.4-3.1h-3V8.7c0-.9.25-1.5 1.54-1.5h1.6V4.42a21.6 21.6 0 0 0-2.34-.12c-2.32 0-3.9 1.42-3.9 4.02v2.24H7.8v3.1h2.6v7.84h3.1Z" />
+    </svg>
+  );
+}
