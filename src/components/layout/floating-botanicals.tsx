@@ -76,7 +76,7 @@ function Glyph({ icon }: { icon: Icon }) {
   return icon === "sparkle" ? <Sparkle className="size-full" /> : <span className="block size-full [&>svg]:size-full">{icons[icon]}</span>;
 }
 
-/** Decorative, non-interactive layer of softly floating botanical icons. */
+/** Decorative, non-interactive layer of botanical icons: still (they drift only with scrolling); the sparkles twinkle a few times on arrival. */
 export function FloatingBotanicals() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 hidden overflow-hidden lg:block">
@@ -87,17 +87,15 @@ export function FloatingBotanicals() {
           style={{ left: `${f.x}%`, top: `${f.y}%`, "--parallax": `${f.parallax ?? -80}px` } as CSSProperties}
         >
           <span
-            className={cn("block -translate-x-1/2", f.icon === "sparkle" ? "float-twinkle" : "float-icon", tone[f.color])}
+            className={cn("block -translate-x-1/2", f.icon === "sparkle" && "float-twinkle", tone[f.color])}
             style={
               {
                 width: f.size,
                 height: f.size,
                 opacity: f.opacity,
+                rotate: `${f.rot ?? 0}deg`,
                 "--dur": `${f.dur}s`,
                 "--delay": `-${f.delay}s`,
-                "--rot": `${f.rot ?? 0}deg`,
-                "--dx": `${i % 2 ? -12 : 12}px`,
-                "--dy": `${-16 - (i % 3) * 8}px`,
               } as CSSProperties
             }
           >

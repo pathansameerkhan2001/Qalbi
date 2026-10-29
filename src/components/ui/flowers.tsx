@@ -21,7 +21,7 @@ export type SprigVariant = "rose" | "jasmine" | "leaf" | "bouquet" | "cluster";
 
 /**
  * One arrangement as an image. Default: loads and opens as it scrolls into
- * view, then sways gently while on screen. `eager`: loads with the page
+ * view, then stays still. `eager`: loads with the page
  * (lazily, so a hidden copy never downloads) — for the entrance.
  */
 export function FloralArt({ variant, className, eager = false }: { variant: FloralVariant; className?: string; eager?: boolean }) {
@@ -36,7 +36,7 @@ export function FloralArt({ variant, className, eager = false }: { variant: Flor
       decoding="async"
       draggable={false}
       {...(eager ? { src: file.src, loading: "lazy" as const } : { "data-fl-src": file.src, "data-fl-still": file.still })}
-      className={cn("fl-art pointer-events-none select-none", !eager && "fl-onview fl-sway", className)}
+      className={cn("fl-art pointer-events-none select-none", !eager && "fl-onview", className)}
     />
   );
 }

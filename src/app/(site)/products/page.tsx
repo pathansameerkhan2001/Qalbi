@@ -6,9 +6,7 @@ import { parseSort } from "@/lib/sort";
 import { getCategoryLinks } from "@/lib/navigation";
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
-import { ProductGridSkeleton } from "@/components/ui/skeletons";
-import { ProductGrid } from "@/components/products/product-grid";
-import { SortSelect } from "@/components/products/sort-select";
+import { ProductListing } from "@/components/products/product-listing";
 import { FloralCorner } from "@/components/ui/flowers";
 
 export const metadata: Metadata = {
@@ -17,24 +15,15 @@ export const metadata: Metadata = {
   description: "Explore the QALBI Naturals skincare collection — serums, creams, cleansers and more.",
 };
 
-async function ProductListing({ searchParams }: { searchParams: PageProps<"/products">["searchParams"] }) {
+/** The visitor's sort (?sort=…), known only at request time. */
+async function SortedListing({ searchParams }: { searchParams: PageProps<"/products">["searchParams"] }) {
   const sort = parseSort((await searchParams).sort);
-  const products = await getProducts(sort);
-  return (
-    <>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <p className="text-sm text-muted" role="status">
-          {products.length} {products.length === 1 ? "product" : "products"}
-        </p>
-        <SortSelect value={sort} basePath="/products" />
-      </div>
-      <ProductGrid products={products} priorityCount={5} />
-    </>
-  );
+  return <ProductListing products={await getProducts(sort)} sort={sort} basePath="/products" />;
 }
 
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
-  const categoryLinks = await getCategoryLinks();
+  // Both cached: the products are part of the prerendered page, not fetched after it arrives.
+  const [categoryLinks, products] = await Promise.all([getCategoryLinks(), getProducts()]);
   return (
     <>
       <PageHeader
@@ -59,15 +48,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
       <Container className="relative isolate py-10 sm:py-12">
         <FloralCorner variant="bouquet" corner="bl" size="md" desktop className="lg:-left-24 xl:-left-40" />
         <FloralCorner variant="jasmine" corner="tr" size="md" desktop className="lg:-right-24 xl:-right-40" />
-        <Suspense
-          fallback={
-            <>
-              <div className="mb-6 h-10" />
-              <ProductGridSkeleton count={10} />
-            </>
-          }
-        >
-          <ProductListing searchParams={searchParams} />
+        {/* The default order is in the page shell; a ?sort view streams in over it. */}
+        <Suspense fallback={<ProductListing products={products} sort="featured" basePath="/products" />}>
+          <SortedListing searchParams={searchParams} />
         </Suspense>
       </Container>
     </>

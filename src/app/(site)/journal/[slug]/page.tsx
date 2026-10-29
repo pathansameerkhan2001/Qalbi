@@ -8,6 +8,7 @@ import { brandConfig } from "@/data/brand";
 import { getJournalArticle, getJournalArticles } from "@/lib/shopify";
 import { truncate } from "@/lib/content/rules";
 import { absoluteUrl } from "@/lib/site";
+import { siteOpenGraph } from "@/lib/social";
 import { Container } from "@/components/ui/container";
 import { ArticleView } from "@/components/journal/article-view";
 
@@ -28,6 +29,7 @@ export async function generateMetadata({ params }: PageProps<"/journal/[slug]">)
     description,
     alternates: { canonical: `/journal/${article.slug}` },
     openGraph: {
+      ...siteOpenGraph,
       type: "article",
       title,
       description,
@@ -35,8 +37,9 @@ export async function generateMetadata({ params }: PageProps<"/journal/[slug]">)
       publishedTime: article.publishedAt,
       ...(article.updatedAt ? { modifiedTime: article.updatedAt } : {}),
       ...(article.author ? { authors: [article.author] } : {}),
-      images: article.image.src ? [{ url: article.image.src, alt: article.image.alt }] : undefined,
+      ...(article.image.src ? { images: [{ url: article.image.src, alt: article.image.alt }] } : {}),
     },
+    twitter: { card: "summary_large_image", title, description, images: [article.image.src || siteOpenGraph.images[0].url] },
   };
 }
 

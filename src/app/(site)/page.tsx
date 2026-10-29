@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fragment } from "react";
 import { brandAssets, brandConfig } from "@/data/brand";
 import { absoluteUrl } from "@/lib/site";
+import { siteOpenGraph } from "@/lib/social";
 import { Hero } from "@/components/home/hero";
 import { OfferBar } from "@/components/home/offer-bar";
 import { CategoryScroller } from "@/components/home/category-scroller";
@@ -18,7 +19,8 @@ import { Reveal } from "@/components/ui/reveal";
 import { getSetting } from "@/lib/store/settings";
 import { resolveHomepageSections, type HomepageSectionId } from "@/lib/content/homepage";
 
-export const metadata: Metadata = { alternates: { canonical: "/" } };
+// The home URL's link preview is the logo card (siteOpenGraph), never a hero or floral image.
+export const metadata: Metadata = { alternates: { canonical: "/" }, openGraph: { ...siteOpenGraph, url: "/" } };
 
 /** Organization + WebSite structured data, from the verified business details in src/data/brand.ts. */
 function siteJsonLd() {

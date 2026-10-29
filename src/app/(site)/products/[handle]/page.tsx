@@ -11,6 +11,7 @@ import { truncate } from "@/lib/content/rules";
 import { descriptionSummary, parseProductDescription, stripMarkdown } from "@/lib/content/product-description";
 import { getIngredients } from "@/lib/store/content";
 import { absoluteUrl, breadcrumbJsonLd } from "@/lib/site";
+import { siteOpenGraph, socialImage } from "@/lib/social";
 import { Container } from "@/components/ui/container";
 import { ProductDetailSkeleton, ProductGridSkeleton } from "@/components/ui/skeletons";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -49,9 +50,9 @@ export async function generateMetadata({ params }: PageProps<"/products/[handle]
     alternates: { canonical: `/products/${product.handle}` },
     // Preview catalogue: prices are unconfirmed, so these pages must not be indexed.
     ...(getCommerceSource() === "development-fixtures" ? { robots: { index: false, follow: true } } : {}),
-    // A page's openGraph replaces the layout's, so the site-wide fields are repeated here.
-    openGraph: { type: "website", siteName: brandConfig.name, locale: "en_IN", title, description, url: `/products/${product.handle}`, images: image },
-    twitter: { card: image ? "summary_large_image" : "summary", title, description, images: image?.map((i) => i.url) },
+    // A page's openGraph replaces the layout's, so the site-wide fields are repeated here; without a product photo the logo card is shown.
+    openGraph: { ...siteOpenGraph, title, description, url: `/products/${product.handle}`, images: image ?? [socialImage] },
+    twitter: { card: "summary_large_image", title, description, images: (image ?? [socialImage]).map((i) => i.url) },
   };
 }
 

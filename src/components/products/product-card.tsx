@@ -31,7 +31,7 @@ export function ProductCard({ product, priority, className }: ProductCardProps) 
   const hoverImage = product.images.find((img) => img.url !== product.featuredImage?.url) ?? null;
 
   return (
-    <article className={cn("group flex h-full flex-col overflow-hidden rounded-[3px] border border-line bg-ivory transition duration-500 hover:-translate-y-1 hover:border-gold-soft/60 hover:shadow-lift", className)}>
+    <article className={cn("group flex h-full flex-col overflow-hidden rounded-[3px] border border-line bg-ivory transition duration-300 hover:-translate-y-1 hover:border-gold-soft/60 hover:shadow-lift", className)}>
       <div className="relative">
         <Link href={href} className="relative block aspect-[4/5] overflow-hidden bg-sand" tabIndex={-1} aria-hidden>
           {product.featuredImage && (
@@ -41,7 +41,7 @@ export function ProductCard({ product, priority, className }: ProductCardProps) 
               fill
               preload={priority}
               sizes="(min-width: 1280px) 240px, (min-width: 1024px) 23vw, (min-width: 640px) 45vw, 48vw"
-              className={cn("object-cover transition duration-700 group-hover:scale-[1.04]", hoverImage && "group-hover:opacity-0")}
+              className={cn("object-cover transition duration-500 group-hover:scale-[1.04]", hoverImage && "group-hover:opacity-0")}
             />
           )}
           {hoverImage && (
@@ -51,7 +51,7 @@ export function ProductCard({ product, priority, className }: ProductCardProps) 
               fill
               loading="lazy"
               sizes="(min-width: 1280px) 240px, (min-width: 1024px) 23vw, (min-width: 640px) 45vw, 48vw"
-              className="scale-[1.04] object-cover opacity-0 transition duration-700 group-hover:scale-100 group-hover:opacity-100"
+              className="scale-[1.04] object-cover opacity-0 transition duration-500 group-hover:scale-100 group-hover:opacity-100"
             />
           )}
           {!product.availableForSale && (

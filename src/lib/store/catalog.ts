@@ -154,8 +154,11 @@ export async function queryProducts(db: SupabaseClient, filter?: { id: string },
     const ordered = manualOrder ? query.order("sort_order").order("name") : query.order("is_featured", { ascending: false }).order("name");
     return filter ? ordered.eq("id", filter.id) : ordered;
   };
+  // All three tables in one round trip: the images are read alongside the products (row level security
+  // limits both; images of products not returned are simply not joined), not after them.
+  const imageQuery = filter ? db.from("product_images").select(IMAGE_COLUMNS).eq("product_id", filter.id) : db.from("product_images").select(IMAGE_COLUMNS);
   // Callers that already load the categories pass them in, so the table is read once per request.
-  const [newest, categories] = await Promise.all([productQuery(PRODUCT_ORDERED_COLUMNS, true), loadedCategories ?? queryCategories(db)]);
+  const [newest, categories, images] = await Promise.all([productQuery(PRODUCT_ORDERED_COLUMNS, true), loadedCategories ?? queryCategories(db), imageQuery]);
   let products = newest;
   // Migrations not applied yet: read without the columns they add (product order, then SEO).
   if (products.error?.code && MISSING_COLUMN.has(products.error.code)) products = await productQuery(PRODUCT_SEO_COLUMNS, false);
@@ -163,13 +166,6 @@ export async function queryProducts(db: SupabaseClient, filter?: { id: string },
   if (products.error) throw new StoreQueryError("products", products.error);
   const rows = (products.data ?? []) as unknown as DbProduct[];
   if (rows.length === 0) return [];
-  const images = await db
-    .from("product_images")
-    .select(IMAGE_COLUMNS)
-    .in(
-      "product_id",
-      rows.map((p) => p.id),
-    );
   if (images.error) throw new StoreQueryError("product images", images.error);
   return joinProducts(rows, (images.data ?? []) as DbImage[], categories);
 }

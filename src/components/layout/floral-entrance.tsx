@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import { brandAssets, brandConfig } from "@/data/brand";
 import { floralFiles } from "@/lib/florals/manifest";
-import { IntroPetals } from "@/components/home/petal-drift";
+import { IntroPetals } from "./intro-petals";
 
 /**
  * Runs while the page is being parsed, before the overlay below is painted:
@@ -14,13 +14,17 @@ const once = `try{var k="qalbi-entrance";if(sessionStorage.getItem(k))document.d
 
 /**
  * Runs right after the overlay is parsed — before the page's JavaScript loads:
- *  - Skip (button, or Escape) fades the intro out in under half a second, then removes it;
+ *  - when the intro finishes (its fade-out ends; a timer backs that up) or is
+ *    skipped (button, or Escape: a fade of under half a second), it is marked
+ *    "seen", which takes the whole layer out with display: none, so its petals
+ *    and every other intro animation stop and their layers are released. All of
+ *    its timers and listeners are cleared then;
  *  - the blooming artwork gets its files at the moment it should open (2 s and
  *    2.4 s): those files animate as they load, so loading them early would
  *    open them unseen. Only while the intro is actually showing, and never
  *    with reduced motion.
  */
-const control = `(function(){var h=document.documentElement;if(h.getAttribute("data-entrance")==="seen")return;var b=document.getElementById("floral-entrance-skip");function s(){if(h.getAttribute("data-entrance"))return;h.setAttribute("data-entrance","skipping");setTimeout(function(){h.setAttribute("data-entrance","seen")},450)}if(b)b.addEventListener("click",s);document.addEventListener("keydown",function e(k){if(k.key==="Escape"){s();document.removeEventListener("keydown",e)}});if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;[["fe-art-a",2000],["fe-art-b",2400]].forEach(function(p){setTimeout(function(){if(h.getAttribute("data-entrance"))return;document.querySelectorAll("."+p[0]).forEach(function(i){i.src=i.getAttribute("data-fe-src")})},p[1])})})()`;
+const control = `(function(){var h=document.documentElement;if(h.getAttribute("data-entrance")==="seen")return;var o=document.querySelector(".floral-entrance"),b=document.getElementById("floral-entrance-skip"),t=[];function clear(){t.forEach(clearTimeout);t=[]}function done(){if(h.getAttribute("data-entrance")==="seen")return;clear();h.setAttribute("data-entrance","seen");document.removeEventListener("keydown",key);if(b)b.removeEventListener("click",skip);if(o)o.removeEventListener("animationend",end)}function skip(){if(h.getAttribute("data-entrance"))return;clear();h.setAttribute("data-entrance","skipping");t.push(setTimeout(done,450))}function key(e){if(e.key==="Escape")skip()}function end(e){if(e.target===o&&(e.animationName==="fe-out"||e.animationName==="fe-skip-out"))done()}if(b)b.addEventListener("click",skip);document.addEventListener("keydown",key);if(o)o.addEventListener("animationend",end);t.push(setTimeout(done,10500));if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;[["fe-art-a",2000],["fe-art-b",2400]].forEach(function(p){t.push(setTimeout(function(){if(h.getAttribute("data-entrance"))return;document.querySelectorAll("."+p[0]).forEach(function(i){i.src=i.getAttribute("data-fe-src")})},p[1]))})})()`;
 
 /** Petals that circle in around the logo during the reveal (offsets from the centre, in rem). */
 const framePetals = [
@@ -53,11 +57,12 @@ function Bloom({ variant, group, className }: { variant: keyof typeof floralFile
  *  5–8 s   Brand reveal: petals circle in around the logo (its tagline is part
  *          of the original artwork), the light turns softly ivory-and-sage, and
  *          one champagne light passes over the gold.
- *  8–10 s  The arrangements part outwards and the layer fades away while the
- *          petals keep falling — into the site's own petal stream beneath.
+ *  8–10 s  The arrangements part outwards and the layer fades away with its
+ *          last petals. Then it is removed (display: none): the petals belong
+ *          to the intro only and never keep falling over the site.
  *
  * The page underneath renders and works the whole time: the layer never takes
- * clicks except on “Skip intro”, and it removes itself by its own animation
+ * clicks except on “Skip intro”, and it hides itself by its own animation
  * even if scripts never run or an artwork file fails. Reduced motion: the
  * logo alone, still, for about a second.
  */

@@ -6,12 +6,11 @@ import { useEffect } from "react";
  * One IntersectionObserver for every floral arrangement (`.fl-onview`): the
  * first time one scrolls into view it gets its image (data-fl-src → src, so
  * nothing below the fold is downloaded early, and the file's own opening
- * animation plays as the visitor arrives) and is revealed (data-bloom="open");
- * while on screen it is marked data-inview so its gentle sway only runs then.
+ * animation plays once as the visitor arrives) and is revealed
+ * (data-bloom="open"); then it is no longer watched — open artwork stays still.
  * New arrangements (client-side navigation) are picked up by a
- * MutationObserver. While the tab is hidden, html[data-page-hidden] pauses all
- * decorative motion (globals.css). Before this runs arrangements wait hidden,
- * as .reveal content does; without scripting no floral image is loaded.
+ * MutationObserver. Before this runs arrangements wait hidden, as .reveal
+ * content does; without scripting no floral image is loaded.
  */
 export function BloomObserver() {
   useEffect(() => {
@@ -25,15 +24,12 @@ export function BloomObserver() {
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
           const el = entry.target as HTMLElement | SVGElement;
-          if (entry.isIntersecting) {
-            const src = el.getAttribute(still.matches ? "data-fl-still" : "data-fl-src");
-            if (src && !el.getAttribute("src")) el.setAttribute("src", src);
-            el.dataset.bloom = "open";
-            el.dataset.inview = "";
-          } else {
-            delete el.dataset.inview;
-          }
+          const src = el.getAttribute(still.matches ? "data-fl-still" : "data-fl-src");
+          if (src && !el.getAttribute("src")) el.setAttribute("src", src);
+          el.dataset.bloom = "open";
+          io.unobserve(el);
         }
       },
       { rootMargin: "0px 0px -8% 0px" },
@@ -49,13 +45,10 @@ export function BloomObserver() {
         });
     });
     mo.observe(document.body, { childList: true, subtree: true });
-    const onVisibility = () => root.toggleAttribute("data-page-hidden", document.hidden);
-    document.addEventListener("visibilitychange", onVisibility);
     root.dataset.bloom = "ready";
     return () => {
       io.disconnect();
       mo.disconnect();
-      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
   return null;

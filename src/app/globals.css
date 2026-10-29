@@ -253,22 +253,28 @@
   .logo-mark--light {
     background: linear-gradient(118deg, #c9a45e 0%, #ecd49b 22%, #fff3d1 36%, #d9b56d 52%, #b78b42 66%, #f1dca6 84%, #cfa65a 100%);
   }
+  /* The light sweep moves as a layer (translate) rather than repainting the logo. It passes once
+     (and again on hover), then the logo is still: the header is always on screen, so nothing in it
+     loops. During the intro it waits, so it is seen rather than spent under the overlay. */
   .logo-mark::after {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(105deg, transparent 38%, rgb(255 251 235 / 0.95) 50%, transparent 62%);
-    background-size: 260% 100%;
-    background-position: 160% 0;
-    animation: logo-sheen 7s ease-in-out 1.2s infinite;
+    background: linear-gradient(105deg, transparent 30%, rgb(255 251 235 / 0.95) 50%, transparent 70%);
+    translate: -110% 0;
+    animation: logo-sheen 4s ease-in-out 0.6s;
   }
   .logo-link:hover .logo-mark::after {
-    animation-duration: 2.2s;
+    animation: logo-sheen-hover 2.2s ease-in-out;
   }
   .logo-glint {
     color: #fff8e1;
     filter: drop-shadow(0 0 4px rgb(255 236 179 / 0.95));
-    animation: glint 4.8s ease-in-out infinite;
+    animation: glint 4.8s ease-in-out;
+  }
+  html:not([data-entrance="seen"]) .logo-mark::after,
+  html:not([data-entrance="seen"]) .logo-glint {
+    animation-play-state: paused;
   }
 
   /* Gold text accent ------------------------------------------------------ */
@@ -278,7 +284,7 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    animation: text-sheen 8s linear infinite;
+    animation: text-sheen 8s linear 2;
   }
 
   /* Ornamental divider ----------------------------------------------------- */
@@ -466,11 +472,9 @@
   }
 
   /* Floating botanicals --------------------------------------------------- */
-  .float-icon {
-    animation: float-bob var(--dur, 12s) ease-in-out var(--delay, 0s) infinite alternate;
-  }
+  /* No endless motion in the background: a sparkle twinkles a few times and settles at full brightness (2.5 cycles end mid-twinkle). */
   .float-twinkle {
-    animation: twinkle var(--dur, 5s) ease-in-out var(--delay, 0s) infinite;
+    animation: twinkle var(--dur, 5s) ease-in-out var(--delay, 0s) 2.5 both;
   }
   @supports (animation-timeline: scroll()) {
     .float-parallax {
@@ -481,8 +485,8 @@
 
   /* Florals (components/ui/flowers.tsx): arrangements are images of the
      cached SVG files in public/florals/, which carry their own opening
-     animation. Here: a soft shadow for depth, a reveal as each one arrives
-     (compositor-only: opacity and translate), and a gentle sway while on screen. */
+     animation, played once. Here: a soft shadow for depth and a reveal as
+     each one arrives (compositor-only: opacity and translate); then it stays still. */
   .fl-art {
     filter: drop-shadow(0 6px 10px var(--fl-shadow));
   }
@@ -498,20 +502,11 @@
       translate: 0 14px;
     }
   }
-  /* `rotate` composes with the Tailwind scale used to mirror an arrangement. */
-  .fl-sway {
-    animation: fl-sway 9s ease-in-out infinite alternate;
-  }
-  .fl-sway.fl-onview:not([data-inview]),
-  html[data-page-hidden] :is(.fl-sway, .petal-drift *) {
-    animation-play-state: paused;
-  }
-
   /* Entrance (layout/floral-entrance.tsx): about 10 s, once per session.
      0–2 s awakening · 2–5 s bloom · 5–8 s brand reveal · 8–10 s fade into the site.
-     Stacking (site-wide): page content < hero petals (inside the hero frame) <
-     site petals (z-30, fixed, click-through) < header (z-40) < menus and dialogs
-     (z-50 / top layer) < this intro (z-9999, click-through except “Skip intro”). */
+     Its petals are the only falling petals on the site: they end with it.
+     Stacking: page content < header (z-40) < menus and dialogs (z-50 / top
+     layer) < this intro (z-9999, click-through except “Skip intro”). */
   .floral-entrance {
     position: fixed;
     inset: 0;
@@ -682,7 +677,7 @@
     }
   }
 
-  /* Petals (home/petal-drift.tsx). Each layer is a size container, so 100cqh is its height. */
+  /* Intro petals (layout/intro-petals.tsx). The layer is a size container, so 100cqh is its height. */
   .petal-drift {
     container-type: size;
   }
@@ -700,30 +695,6 @@
   }
   .petal-fall[data-depth="near"] .petal-spin {
     filter: drop-shadow(0 3px 4px color-mix(in srgb, var(--color-forest) 20%, transparent));
-  }
-  /* The site stream by screen: phones the edge petals, tablets + streams, desktops all. */
-  .petal-fall[data-reach="md"],
-  .petal-fall[data-reach="lg"] {
-    display: none;
-  }
-  @media (min-width: 768px) {
-    .petal-fall[data-reach="md"] {
-      display: block;
-    }
-  }
-  @media (min-width: 1024px) {
-    .petal-fall[data-reach="lg"] {
-      display: block;
-    }
-  }
-  /* The site stream is drawn a little larger than its nominal sizes, so it reads as petals, not specks.
-     `scale` composes with the sway and turn transforms. */
-  .site-petals .petal-sway {
-    scale: 1.3;
-  }
-  /* Streams that cross the text column are a little softer than the edge petals. */
-  .site-petals .petal-fall:is([data-reach="md"], [data-reach="lg"]) .petal-spin {
-    opacity: 0.75;
   }
   .petal-sway {
     display: block;
@@ -774,32 +745,24 @@
     stroke: var(--pt-b);
     opacity: 0.85;
   }
-  /* Paused while the hero is off screen (hero-video.tsx sets data-onscreen). */
-  .hero-frame[data-onscreen="false"] .petal-drift * {
-    animation-play-state: paused;
-  }
-  @media (max-width: 639px) {
-    .petal-drift--hero .petal-fall:nth-child(n + 11) {
-      display: none;
-    }
-  }
-  /* Announcement bar: petals ride across on a breeze instead of falling. */
-  .petal-breeze .petal-fall {
-    top: 50%;
-    animation-name: petal-breeze;
-  }
-  .petal-breeze .petal-sway {
-    animation-name: petal-bob;
-  }
 }
 
 @keyframes logo-sheen {
   0%,
-  55% {
-    background-position: 160% 0;
+  20% {
+    translate: -110% 0;
   }
   100% {
-    background-position: -60% 0;
+    translate: 110% 0;
+  }
+}
+@keyframes logo-sheen-hover {
+  0%,
+  55% {
+    translate: -110% 0;
+  }
+  100% {
+    translate: 110% 0;
   }
 }
 @keyframes glint {
@@ -842,14 +805,6 @@
     transform: scale(1.07);
   }
 }
-@keyframes float-bob {
-  from {
-    transform: translate3d(0, 0, 0) rotate(var(--rot, 0deg));
-  }
-  to {
-    transform: translate3d(var(--dx, 10px), var(--dy, -22px), 0) rotate(calc(var(--rot, 0deg) + var(--spin, 14deg)));
-  }
-}
 @keyframes twinkle {
   0%,
   100% {
@@ -872,14 +827,6 @@
 @keyframes fl-fade {
   from {
     opacity: 0;
-  }
-}
-@keyframes fl-sway {
-  from {
-    rotate: -1.4deg;
-  }
-  to {
-    rotate: 1.4deg;
   }
 }
 @keyframes fe-out {
@@ -1005,28 +952,6 @@
     transform: rotate3d(1, 0.35, 0.2, 360deg);
   }
 }
-@keyframes petal-breeze {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, -50%, 0);
-  }
-  8%,
-  88% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(calc(100cqw + 40px), -50%, 0);
-  }
-}
-@keyframes petal-bob {
-  from {
-    transform: translate3d(0, -5px, 0);
-  }
-  to {
-    transform: translate3d(0, 5px, 0);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1065,9 +990,6 @@
 @media (prefers-reduced-motion: reduce) {
   .petal-drift {
     display: none !important;
-  }
-  .fl-sway {
-    animation: none !important;
   }
   .floral-entrance {
     animation: fe-out 0.01ms linear 1.2s both !important;

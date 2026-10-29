@@ -7,7 +7,6 @@ import { FloatingBotanicals } from "./floating-botanicals";
 import { FloralEntrance } from "./floral-entrance";
 import { BloomObserver } from "./bloom-observer";
 import { FloralBorder } from "@/components/ui/flowers";
-import { SitePetals } from "@/components/home/petal-drift";
 import { Container } from "@/components/ui/container";
 import { AnalyticsConsent } from "./analytics-consent";
 import { CartProvider } from "@/components/cart/cart-provider";
@@ -33,7 +32,6 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
       <DeveloperCredit />
       <Footer />
       <FloatingBotanicals />
-      <SitePetals />
       <BloomObserver />
       <WhatsAppButton />
       <AnalyticsConsent />

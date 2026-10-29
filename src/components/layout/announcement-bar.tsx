@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Leaf } from "lucide-react";
 import { getAnnouncements } from "@/lib/store/content";
 import { getCommerceSource } from "@/lib/shopify";
-import { PetalBreeze } from "@/components/home/petal-drift";
 
 /**
  * Shown only while the preview catalogue (src/data/dev-products.ts) is active:
@@ -27,8 +26,6 @@ export async function AnnouncementBar() {
     <>
       {preview && <PreviewNotice />}
       <div className="relative overflow-hidden bg-forest text-[0.7rem] tracking-wide text-ivory/90 sm:text-xs">
-        {/* A few petals ride across the band behind the messages (decorative, click-through). */}
-        <PetalBreeze />
         <ul className="relative mx-auto flex h-8 max-w-[1320px] items-center justify-center gap-8 overflow-hidden px-4">
           {announcements.map((message, index) => (
             <li key={message.id} className={index > 0 ? "hidden md:flex" : "flex"}>

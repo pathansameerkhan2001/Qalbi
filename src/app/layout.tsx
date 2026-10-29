@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Jost } from "next/font/google";
 import { brandConfig } from "@/data/brand";
 import { siteUrl } from "@/lib/site";
+import { siteOpenGraph, socialImage } from "@/lib/social";
 import "./globals.css";
 
 const serif = Cormorant_Garamond({
@@ -31,14 +32,13 @@ export const metadata: Metadata = {
   },
   description: brandConfig.description,
   applicationName: brandConfig.name,
-  openGraph: {
-    type: "website",
-    siteName: brandConfig.name,
-    title: `${brandConfig.name} — ${brandConfig.tagline}`,
-    description: brandConfig.description,
-    locale: "en_IN",
+  openGraph: siteOpenGraph,
+  twitter: {
+    card: "summary_large_image",
+    title: siteOpenGraph.title,
+    description: siteOpenGraph.description,
+    images: [socialImage],
   },
-  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {
