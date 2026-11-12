@@ -45,7 +45,7 @@ export function AboutStory({ as: Heading = "h2", showCta = true }: { as?: "h1" |
 export function ValuesStrip() {
   return (
     <section aria-label="Our values" className="relative isolate overflow-hidden border-b border-line bg-cream">
-      <FloralCorner variant="leaf" corner="bl" size="sm" />
+      <FloralCorner variant="leaf" corner="bl" size="sm" className="lg:w-32 xl:w-44" />
       <FloralCorner variant="jasmine" corner="tr" size="sm" />
       <Container>
         <ul className="grid gap-8 py-10 text-center sm:grid-cols-3 sm:gap-4">

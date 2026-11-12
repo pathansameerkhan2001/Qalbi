@@ -3,11 +3,17 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { ImagePlus, LoaderCircle, X } from "lucide-react";
 import { uploadImageAction } from "@/lib/admin/actions";
+import { optimiseImageForUpload } from "@/lib/admin/optimize-image";
 import { mediaUrl } from "@/lib/assets";
 import { cn } from "@/lib/utils";
 
 const ACCEPT = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+/** Upload limit (the server and the bucket enforce the same), checked after optimisation. */
 const MAX_BYTES = 5 * 1024 * 1024;
+/** Largest original accepted for optimisation in the browser. */
+const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+
+const formatBytes = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
 
 /**
  * Image field for content forms. Choosing a file shows an instant local preview,
@@ -71,10 +77,10 @@ export function ImageUploadField({
     onPathChange?.(next, previewUrl);
   };
 
-  const upload = (file: File) => {
-    if (!ACCEPT.includes(file.type)) return setMessage({ ok: false, text: "Choose a JPEG, PNG, WebP or AVIF image." });
-    if (file.size > MAX_BYTES) return setMessage({ ok: false, text: "Images must be 5 MB or smaller." });
-    const objectUrl = URL.createObjectURL(file);
+  const upload = (original: File) => {
+    if (!ACCEPT.includes(original.type)) return setMessage({ ok: false, text: "Choose a JPEG, PNG, WebP or AVIF image." });
+    if (original.size > MAX_SOURCE_BYTES) return setMessage({ ok: false, text: "Images must be 25 MB or smaller." });
+    const objectUrl = URL.createObjectURL(original);
     setLocalPreview(objectUrl);
     setMessage(null);
     setSizeWarning(null);
@@ -88,14 +94,23 @@ export function ImageUploadField({
       probe.src = objectUrl;
     }
     onPathChange?.(path, objectUrl);
-    const data = new FormData();
-    data.set("file", file);
-    data.set("folder", folder);
     startTransition(async () => {
+      // Payment QR codes are uploaded exactly as given: re-encoding could soften their edges.
+      const { file, saved } = folder === "payments" ? { file: original, saved: undefined } : await optimiseImageForUpload(original);
+      if (file.size > MAX_BYTES) {
+        setLocalPreview(null);
+        onPathChange?.(path, path ? safeMediaUrl(path) : null);
+        setMessage({ ok: false, text: "Images must be 5 MB or smaller." });
+        if (fileRef.current) fileRef.current.value = "";
+        return;
+      }
+      const data = new FormData();
+      data.set("file", file);
+      data.set("folder", folder);
       const result = await uploadImageAction({ ok: false, message: "" }, data);
       if (result.ok && result.path) {
         update(result.path, objectUrl);
-        setMessage({ ok: true, text: "Uploaded. Save to apply." });
+        setMessage({ ok: true, text: saved ? `Uploaded, optimised from ${formatBytes(saved.from)} to ${formatBytes(saved.to)} (WebP). Save to apply.` : "Uploaded. Save to apply." });
       } else {
         setLocalPreview(null);
         onPathChange?.(path, path ? safeMediaUrl(path) : null);

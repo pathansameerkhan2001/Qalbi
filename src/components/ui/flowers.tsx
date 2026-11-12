@@ -63,12 +63,26 @@ const branches = {
 };
 
 /**
+ * The phone sprig that stands in for each arrangement: rose-led corners get
+ * the blush-and-champagne rose sprig, jasmine- and leaf-led ones the jasmine
+ * sprig, the mixed bouquets the branch of both — so phone sections differ
+ * from one another as the desktop ones do.
+ */
+const phoneSprig: Record<SprigVariant, FloralVariant> = {
+  rose: "sprigRose",
+  bouquet: "sprigRose",
+  jasmine: "sprigJasmine",
+  leaf: "sprigJasmine",
+  cluster: "branch",
+};
+
+/**
  * An arrangement in a corner of the nearest `relative isolate` box, behind its
  * content (z-index -10 inside that stacking context, above its background):
  * cards, photos and text always cover it.
  *
  * `desktop`: the arrangement shows from 1024 px; on phones and tablets a slim
- * branch lies along the section's top or bottom padding instead — composed for
+ * sprig lies along the section's top or bottom padding instead — composed for
  * portrait screens, clear of the content rather than a shrunken corner.
  */
 export function FloralCorner({
@@ -87,7 +101,7 @@ export function FloralCorner({
   return (
     <>
       <FloralArt variant={variant} className={cn("absolute -z-10", corners[corner], sizes[size], desktop && "hidden lg:block", className)} />
-      {desktop && <FloralArt variant="branch" className={cn("absolute -z-10 h-auto w-1/2 max-w-[19rem] lg:hidden", branches[corner])} />}
+      {desktop && <FloralArt variant={phoneSprig[variant]} className={cn("absolute -z-10 h-auto w-[62%] max-w-[22rem] sm:w-1/2 lg:hidden", branches[corner])} />}
     </>
   );
 }

@@ -51,6 +51,7 @@ const palette: FloralPalette = {
   leaf: token("sage"),
   leafDeep: token("botanical"),
   stem: token("botanical"),
+  forest: token("forest"),
   blushLight: mix(floral("blush"), 0.35, ivory),
   blush: floral("blush"),
   blushDeep: floral("blush-deep"),

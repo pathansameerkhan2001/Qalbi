@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cacheLife } from "next/cache";
-import { Mail } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 import { brandConfig } from "@/data/brand";
 import { footerExploreLinks, footerHelpLinks } from "@/data/navigation";
 import type { NavLink } from "@/types/content";
@@ -13,6 +13,9 @@ import { getContactSettings } from "@/lib/store/settings";
 import { deliveryStatus } from "@/lib/server/delivery";
 import { Logo } from "./logo";
 import { FloralCorner } from "@/components/ui/flowers";
+
+/** Business location exactly as the owner gave it (2026-11-12); no street address is published. */
+const footerLocation = "Location: Kadapa, Andhra Pradesh, India 🇮🇳";
 
 const policyLabels: Record<PolicyHandle, string> = {
   "shipping-policy": "Shipping Policy",
@@ -129,6 +132,10 @@ export async function Footer() {
                 <a href={brandConfig.instagramUrl} target="_blank" rel="noopener noreferrer" className={footerLink}>
                   Instagram {brandConfig.instagramHandle}
                 </a>
+              </li>
+              <li className="mt-1.5 flex items-start gap-2 py-1.5 text-ivory/72">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-gold-soft" aria-hidden />
+                <address className="not-italic leading-snug">{footerLocation}</address>
               </li>
             </ul>
           </section>

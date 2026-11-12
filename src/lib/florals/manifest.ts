@@ -2,13 +2,15 @@
 import type { FloralVariant } from "./art.ts";
 
 export const floralFiles: Record<FloralVariant, { src: string; still: string; width: number; height: number }> = {
-  rose: { src: "/florals/rose.svg?v=424843e68f", still: "/florals/rose.still.svg?v=e0485f212a", width: 332, height: 332 },
-  jasmine: { src: "/florals/jasmine.svg?v=a18a691efb", still: "/florals/jasmine.still.svg?v=0f5b902751", width: 332, height: 332 },
-  leaf: { src: "/florals/leaf.svg?v=3eeaf23258", still: "/florals/leaf.still.svg?v=f53c0823b7", width: 332, height: 332 },
-  bouquet: { src: "/florals/bouquet.svg?v=4d48706226", still: "/florals/bouquet.still.svg?v=d7cecbd897", width: 332, height: 332 },
-  cluster: { src: "/florals/cluster.svg?v=36e43aa986", still: "/florals/cluster.still.svg?v=6a7e17ee76", width: 392, height: 392 },
-  branch: { src: "/florals/branch.svg?v=25eed7e764", still: "/florals/branch.still.svg?v=7468854449", width: 452, height: 96 },
-  border: { src: "/florals/border.svg?v=18a7d831b2", still: "/florals/border.still.svg?v=11088fd1c3", width: 1232, height: 108 },
-  bloom: { src: "/florals/bloom.svg?v=9e6cad1f74", still: "/florals/bloom.still.svg?v=174db4dc1f", width: 192, height: 152 },
-  spray: { src: "/florals/spray.svg?v=9553459716", still: "/florals/spray.still.svg?v=823782cd75", width: 212, height: 80 },
+  rose: { src: "/florals/rose.svg?v=4491d239c0", still: "/florals/rose.still.svg?v=340e6971cf", width: 332, height: 332 },
+  jasmine: { src: "/florals/jasmine.svg?v=217a77fa3e", still: "/florals/jasmine.still.svg?v=bbe9abe018", width: 332, height: 332 },
+  leaf: { src: "/florals/leaf.svg?v=304f9b736c", still: "/florals/leaf.still.svg?v=d1012ed580", width: 332, height: 332 },
+  bouquet: { src: "/florals/bouquet.svg?v=b26f0e820b", still: "/florals/bouquet.still.svg?v=79d48ff6c0", width: 332, height: 332 },
+  cluster: { src: "/florals/cluster.svg?v=ccff019be9", still: "/florals/cluster.still.svg?v=2953ead63b", width: 392, height: 392 },
+  branch: { src: "/florals/branch.svg?v=9eb809ce62", still: "/florals/branch.still.svg?v=fd41bd2443", width: 452, height: 96 },
+  sprigRose: { src: "/florals/sprigRose.svg?v=4bb3c6f311", still: "/florals/sprigRose.still.svg?v=d1516e2c68", width: 452, height: 96 },
+  sprigJasmine: { src: "/florals/sprigJasmine.svg?v=e50ce09aa0", still: "/florals/sprigJasmine.still.svg?v=34128d829d", width: 452, height: 96 },
+  border: { src: "/florals/border.svg?v=70f18c9038", still: "/florals/border.still.svg?v=84f75924a9", width: 1232, height: 108 },
+  bloom: { src: "/florals/bloom.svg?v=3257ceca05", still: "/florals/bloom.still.svg?v=69abfc3cb7", width: 192, height: 152 },
+  spray: { src: "/florals/spray.svg?v=b44dd1143b", still: "/florals/spray.still.svg?v=817b54317c", width: 212, height: 80 },
 };

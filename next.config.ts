@@ -32,6 +32,12 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // 75 is the default; 85 for the ingredient close-ups (ingredient-cards.tsx), which would otherwise be coerced to 75 with a warning.
+    qualities: [75, 85],
+    // Keep optimised copies a week (default 4 h): re-encoding a 2–3 MB admin PNG on a cold request is slow and can time
+    // out. Admin uploads always get new, unique paths, so they never go stale; a website file replaced in place under
+    // public/assets can be served old for up to a week unless its name changes.
+    minimumCacheTTL: 604800,
     // Shopify product media and authorised Instagram media thumbnails.
     remotePatterns: [
       { protocol: "https", hostname: "cdn.shopify.com" },
@@ -47,6 +53,9 @@ const nextConfig: NextConfig = {
       { source: "/:path*", headers: securityHeaders },
       // Floral artwork (scripts/build-florals.mts): URLs carry a content hash (?v=…), so a year is safe.
       { source: "/florals/:file", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+      // Local website images (NEXT_PUBLIC_ASSET_SOURCE=local). Some paths have been replaced in place before, so a day
+      // fresh plus a week served-while-revalidating, rather than immutable: repeat visits skip the download, fixes still land.
+      { source: "/assets/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
     ];
   },
 };

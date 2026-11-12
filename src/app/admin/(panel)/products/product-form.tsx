@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, Plus, Trash2, Upload } from "lucide-react";
 import { addAllSuggestedCategoriesAction, saveProductAction, uploadImageAction } from "@/lib/admin/actions";
 import { ActionMessage, FieldError, SubmitButton, useAdminForm } from "@/components/admin/form-bits";
+import { optimiseImageForUpload } from "@/lib/admin/optimize-image";
 import { DescriptionEditor } from "./description-editor";
 import { NewCategoryDialog, type EditorCategory } from "./new-category-dialog";
 
@@ -92,14 +93,21 @@ export function ProductForm({
   const [uploading, startUpload] = useTransition();
   const [uploadError, setUploadError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const uploadImage = (file: File) => {
-    if (!["image/jpeg", "image/png", "image/webp", "image/avif"].includes(file.type)) return setUploadError("Choose a JPEG, PNG, WebP or AVIF image.");
-    if (file.size > 5 * 1024 * 1024) return setUploadError("Images must be 5 MB or smaller.");
+  const uploadImage = (original: File) => {
+    if (!["image/jpeg", "image/png", "image/webp", "image/avif"].includes(original.type)) return setUploadError("Choose a JPEG, PNG, WebP or AVIF image.");
+    if (original.size > 25 * 1024 * 1024) return setUploadError("Images must be 25 MB or smaller.");
     setUploadError("");
-    const data = new FormData();
-    data.set("file", file);
-    data.set("folder", "products");
     startUpload(async () => {
+      // Large PNG/JPEG photos become WebP (max 2400 px) before upload, so the storefront can resize them quickly.
+      const { file } = await optimiseImageForUpload(original);
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError("Images must be 5 MB or smaller.");
+        if (fileRef.current) fileRef.current.value = "";
+        return;
+      }
+      const data = new FormData();
+      data.set("file", file);
+      data.set("folder", "products");
       const result = await uploadImageAction({ ok: false, message: "" }, data);
       if (result.ok && result.path) setImages((list) => [...list, { path: result.path!, alt: "" }]);
       else setUploadError(result.message || "Upload failed.");
