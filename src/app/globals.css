@@ -685,13 +685,80 @@
     border-color: var(--color-gold);
     color: var(--color-forest);
   }
-  @media (max-width: 639px) {
-    .fe-petals .petal-fall:nth-child(n + 11) {
+  /* Petal shower (layout/petal-shower.tsx): rose petals over the whole site for
+     20 s from the first visit — a layer of its own, not part of the intro.
+     Fixed to the viewport, so petals fall through its top, middle and bottom
+     wherever the visitor scrolls, and route changes never touch it. Stacking:
+     above page content (hero media, cards) but below the WhatsApp button (30),
+     header (40), menus, toasts and dialogs; above the intro (9999) only while
+     the intro is showing (html has no data-entrance yet). Never takes clicks. */
+  .petal-shower {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    overflow: hidden;
+    pointer-events: none;
+    contain: strict;
+  }
+  /* The last 1.6 s: the clock script marks "ending" and the layer fades. Only then: an opacity animation on the
+     whole layer would make the browser redraw every petal into a full-screen surface each frame. */
+  html[data-petals="ending"] .petal-shower {
+    opacity: 0;
+    transition: opacity 1.6s ease-out;
+  }
+  /* The clock needs scripts: without them there is no shower rather than one that never ends. */
+  @media (scripting: none) {
+    .petal-shower {
       display: none;
     }
   }
+  html:not([data-entrance]) .petal-shower {
+    z-index: 10000;
+  }
+  html[data-petals="done"] .petal-shower {
+    display: none;
+  }
+  /* Every petal resumes where it would be after --ps-el seconds (a reload within the 20 s). */
+  .petal-shower .petal-fall,
+  .petal-shower .petal-sway {
+    animation-delay: calc(var(--d, 0s) - var(--ps-el, 0s));
+    /* Until a petal's turn comes it holds its first frame (above the top edge, transparent), never sitting still on screen. */
+    animation-fill-mode: backwards;
+  }
+  /* Size per screen: phones ×1.05 (clearly visible, not crowding), tablets ×1.15, desktops ×1.3. */
+  .petal-shower .petal-spin {
+    width: calc(var(--ps) * 1.05px);
+    height: calc(var(--ps) * 1.05px);
+  }
+  /* Dedicated arrangements: 12 petals on phones, 16 on tablets, 22 on desktops. */
+  .petal-shower [data-from="tab"],
+  .petal-shower [data-from="desk"] {
+    display: none;
+  }
+  @media (min-width: 640px) {
+    .petal-shower [data-from="tab"] {
+      display: block;
+    }
+    .petal-shower .petal-spin {
+      width: calc(var(--ps) * 1.15px);
+      height: calc(var(--ps) * 1.15px);
+    }
+  }
+  @media (min-width: 1024px) {
+    .petal-shower [data-from="desk"] {
+      display: block;
+    }
+    .petal-shower .petal-spin {
+      width: calc(var(--ps) * 1.3px);
+      height: calc(var(--ps) * 1.3px);
+    }
+  }
+  /* Far petals: lighter, but still clearly there. */
+  .petal-shower .petal-fall[data-depth="far"] .petal-sway {
+    opacity: 0.78;
+  }
 
-  /* Intro petals (layout/intro-petals.tsx). The layer is a size container, so 100cqh is its height. */
+  /* Falling petals (layout/petal-shower.tsx). The layer is a size container, so 100cqh is its height. */
   .petal-drift {
     container-type: size;
   }
@@ -701,21 +768,21 @@
     animation: petal-fall var(--fall, 15s) linear var(--d, 0s) infinite;
   }
   /* Depth. The fall animation owns the outer element's opacity, so depth sits inside it.
-     A filter goes on the turning element itself (painted once, then only moved by the
-     compositor) — on a parent it would be repainted every frame as the petal turns —
-     and far petals are simply fainter rather than blurred. */
+     The shadow filter goes on the still SVG inside the turning element, so it is painted
+     once and then only moved by the compositor; far petals are simply fainter rather
+     than blurred. */
   .petal-fall[data-depth="far"] .petal-sway {
     opacity: 0.62;
   }
   .petal-fall[data-depth="near"] .petal-spin {
     filter: drop-shadow(0 3px 4px color-mix(in srgb, var(--color-forest) 20%, transparent));
   }
+  /* Sway (translate) and turn (rotate) are independent properties on one element: two animated layers per petal (fall + this), not three. */
   .petal-sway {
     display: block;
-    animation: petal-sway var(--sway, 4s) ease-in-out var(--d, 0s) infinite alternate;
-  }
-  .petal-spin {
-    animation: petal-spin var(--spin, 7s) linear var(--d, 0s) infinite;
+    animation:
+      petal-sway var(--sway, 4s) ease-in-out var(--d, 0s) infinite alternate,
+      petal-spin var(--spin, 7s) linear var(--d, 0s) infinite;
   }
   /* Tones: blush and dusty rose (owner-approved), champagne and ivory (brand), sage leaves. */
   .pt-blush {
@@ -952,18 +1019,18 @@
 }
 @keyframes petal-sway {
   from {
-    transform: translate3d(-22px, 0, 0);
+    translate: -22px 0;
   }
   to {
-    transform: translate3d(22px, 0, 0);
+    translate: 22px 0;
   }
 }
 @keyframes petal-spin {
   from {
-    transform: rotate3d(1, 0.35, 0.2, 0deg);
+    rotate: 1 0.35 0.2 0deg;
   }
   to {
-    transform: rotate3d(1, 0.35, 0.2, 360deg);
+    rotate: 1 0.35 0.2 360deg;
   }
 }
 

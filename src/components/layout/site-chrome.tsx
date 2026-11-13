@@ -5,6 +5,7 @@ import { DeveloperCredit } from "./developer-credit";
 import { WhatsAppButton } from "./whatsapp-button";
 import { FloatingBotanicals } from "./floating-botanicals";
 import { FloralEntrance } from "./floral-entrance";
+import { PetalShower } from "./petal-shower";
 import { BloomObserver } from "./bloom-observer";
 import { FloralBorder } from "@/components/ui/flowers";
 import { Container } from "@/components/ui/container";
@@ -16,6 +17,8 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
   return (
     <CartProvider>
       <FloralEntrance />
+      {/* Site-wide rose petals for 20 s from the first visit: its own layer, not part of the intro; stays mounted across route changes. */}
+      <PetalShower />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-[3px] focus:bg-forest focus:px-4 focus:py-2 focus:text-ivory">
         Skip to content
       </a>

@@ -2,7 +2,6 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import { brandAssets, brandConfig } from "@/data/brand";
 import { floralFiles } from "@/lib/florals/manifest";
-import { IntroPetals } from "./intro-petals";
 
 /**
  * Runs while the page is being parsed, before the overlay below is painted:
@@ -59,7 +58,8 @@ function Bloom({ variant, group, className }: { variant: keyof typeof floralFile
  *          one champagne light passes over the gold.
  *  8–10 s  The arrangements part outwards and the layer fades away with its
  *          last petals. Then it is removed (display: none): the petals belong
- *          to the intro only and never keep falling over the site.
+ *          to the site-wide shower (layout/petal-shower.tsx), which keeps
+ *          falling over the page for the rest of its 20 s.
  *
  * The page underneath renders and works the whole time: the layer never takes
  * clicks except on “Skip intro”, and it hides itself by its own animation
@@ -98,7 +98,7 @@ export function FloralEntrance() {
           <Bloom variant="cluster" group="a" className="size-full" />
         </div>
 
-        <IntroPetals />
+        {/* The falling petals are not part of the intro: layout/petal-shower.tsx is a site-wide layer, shown above this one while it lasts. */}
 
         <div aria-hidden className="fe-center">
           <div className="fe-glow" />
